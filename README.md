@@ -55,6 +55,16 @@ The release path includes the project name, Jenkins build number, and short Git 
 
 **Repository compatibility note:** the configured Nexus Raw repository and its access policy must support authenticated `HEAD` requests and return HTTP 404 for absent paths. Validate this behavior with your Nexus administrator before enabling publication. The HEAD preflight is a guard against accidental overwrite, not an atomic immutability guarantee; use repository-side permissions or immutable storage controls where available.
 
+### Verify a downloaded release before extraction
+
+Before unpacking a downloaded release archive, verify its checksum sidecar and confirm the manifest's packaged-artifact name, size, and SHA-256 agree with the archive:
+
+```sh
+node scripts/artifact-integrity.mjs verify-release <artifact.tar.gz> <manifest.json> <artifact.tar.gz.sha256>
+```
+
+When `REQUIRE_BUILD_PROVENANCE=true`, set `GIT_COMMIT` (or `GIT_COMMIT_SHA`) and `BUILD_NUMBER` (or `GITHUB_RUN_NUMBER`) to the expected approved release values; the command rejects a manifest whose provenance differs. This pre-extraction check validates the archive against its sidecar and manifest metadata. After extraction, also run the existing `verify` command against the extracted directory and manifest to validate every packaged file.
+
 ### Published build outputs
 
 - Packaged application archive
