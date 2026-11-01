@@ -97,3 +97,12 @@ Testing and validation work is paused by user request. Continue feature implemen
 - Do not mark validation complete based only on source inspection; record the command/test or manual evidence when testing resumes.
 - Do not commit generated lockfile metadata by hand.
 - Do not merge to `main`, publish, or deploy without explicit approval.
+
+
+## Image asset reliability and dynamic media (development work)
+
+- [x] Correct Amulya gallery references that pointed to `ammu3.jpeg`, which is not present in `public/images/profiles/amulya/` on this branch; keep references on committed assets until the new upload is available (commit `d6f2dfd`).
+- [x] Add a repeatable `npm run audit:images` source/public asset audit script. It reports missing image paths, likely filename case mismatches, and unreferenced public images; it has not been run while validation is paused.
+- [ ] Add authenticated image upload/review/publish workflow using the existing private object bucket, with a public metadata-only feed and no private source object URLs.
+- [ ] Reconcile uploaded public-directory changes with the branch and use the audit report to repair every missing/case-mismatched reference.
+- [ ] Resolve Education routing mismatch by comparing generated TanStack route tree and desktop/mobile navigation after validation resumes; do not mark fixed until direct-route acceptance is recorded.
