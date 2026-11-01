@@ -63,12 +63,13 @@ async function inventory(directory) {
 }
 
 function safeManifestPath(value) {
-  if (typeof value !== 'string' || value.length === 0 || path.isAbsolute(value)) {
+  if (typeof value !== 'string' || value.length === 0 || value.includes(String.fromCharCode(0)) ||
+      path.isAbsolute(value) || path.win32.isAbsolute(value) || /^[a-zA-Z]:/.test(value)) {
     throw new Error('Manifest contains an invalid relative file path.');
   }
   const normalized = value.replaceAll('\\\\', '/');
   const segments = normalized.split('/');
-  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) {
+  if (segments.some((segment) => !segment || segment === '.' || segment === '..' || /^[a-zA-Z]:$/.test(segment))) {
     throw new Error(`Manifest contains an unsafe path: ${value}`);
   }
   return normalized;
