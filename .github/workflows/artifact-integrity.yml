@@ -25,6 +25,7 @@ jobs:
       PROJECT_NAME: portfolio
       GIT_COMMIT: ${{ github.sha }}
       BUILD_NUMBER: ${{ github.run_number }}
+      REQUIRE_BUILD_PROVENANCE: 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
