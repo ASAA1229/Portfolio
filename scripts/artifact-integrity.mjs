@@ -76,6 +76,12 @@ function safeManifestPath(value) {
 }
 
 async function createManifest(directory, manifestPath, artifactPath) {
+  const sourceCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
+  const buildNumber = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
+      (!/^[a-f0-9]{40,64}$/i.test(sourceCommit) || !buildNumber.trim())) {
+    throw new Error('Release provenance requires a full Git commit SHA and build number.');
+  }
   const target = path.resolve(directory);
   const output = path.resolve(manifestPath);
   if (output === target || output.startsWith(target + path.sep)) {
@@ -122,6 +128,13 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
       typeof manifest.source.buildNumber !== 'string' ||
       typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt))) {
     throw new Error('Unsupported or invalid artifact manifest metadata.');
+  }
+
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
+      (!/^[a-f0-9]{40,64}$/i.test(manifest.source.gitCommit) ||
+       !manifest.source.buildNumber.trim() || manifest.source.gitCommit === 'UNKNOWN' ||
+       manifest.source.buildNumber === 'LOCAL')) {
+    throw new Error('Artifact manifest is missing trustworthy build provenance.');
   }
 
   const expected = new Map();
