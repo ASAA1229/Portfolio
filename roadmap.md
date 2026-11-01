@@ -72,6 +72,8 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Expose the current page through `aria-current="page"` on desktop and mobile primary-navigation links (commit `ad25264`).
 - [x] Validate resume upload filename extensions and PDF/ZIP signatures before private storage to reject mismatched or obviously invalid uploads (commit `7580f5e`).
 - [x] Add client-side resume upload preflight for supported extensions, declared MIME type and 10 MB limit, plus selected-file details and a clear-selection action (commit `9f7d8d4`).
+- [x] Update Amulya (Amu) profile gallery media: replace `amulya_1.webp` with `ammu3.jpeg` and `amulya_2.webp` with `amulya_main.webp` (commit `5303355`).
+- [x] Add private source-text notes to the Resume Manager review workflow; notes can be pasted manually, saved only in the private index, capped at 12,000 characters, and excluded from the public feed (commits `c5862c9`, `7519102`).
    - [ ] Verify preview, approval, publish, rollback and local/hosted behavior when validation resumes.
 5. **EPIC-06 — AI assistant, chat and voice**
    - [ ] Verify API configuration, grounded profile-specific answers, streaming/cancellation and honest offline fallback.
