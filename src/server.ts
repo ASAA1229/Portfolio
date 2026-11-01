@@ -133,6 +133,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  privateReviewNotes?: string;
 };
 
 type PrivateBucket = {
@@ -264,6 +265,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
           payload.skills.some((skill) => typeof skill !== "string") ||
+          (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
           !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
         return jsonResponse({ error: "Provide valid reviewed details and select the correct profile." }, 400);
       }
@@ -274,6 +276,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
+        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
         status: "pending",
       };
       await writeResumeIndex(bucket, records);
