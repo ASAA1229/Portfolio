@@ -7,6 +7,7 @@ pipeline {
   }
   environment {
     PROJECT_NAME = 'portfolio'
+    REQUIRE_BUILD_PROVENANCE = 'true'
     ARTIFACT_FILE = 'portfolio-build.tar.gz'
     MANIFEST_FILE = 'portfolio-manifest.json'
     CHECKSUM_FILE = 'portfolio-build.tar.gz.sha256'
@@ -59,6 +60,17 @@ pipeline {
           powershell '''
             $ErrorActionPreference = "Stop"
             $base = $env:NEXUS_RAW_REPOSITORY_URL.TrimEnd('/')
+            $repositoryUri = $null
+            if (-not [Uri]::TryCreate($base, [UriKind]::Absolute, [ref]$repositoryUri)) {
+              throw "NEXUS_RAW_REPOSITORY_URL must be a valid absolute HTTPS repository URL."
+            }
+            if ($repositoryUri.Scheme -ne [Uri]::UriSchemeHttps -or
+                [string]::IsNullOrWhiteSpace($repositoryUri.Host) -or
+                -not [string]::IsNullOrEmpty($repositoryUri.UserInfo) -or
+                -not [string]::IsNullOrEmpty($repositoryUri.Query) -or
+                -not [string]::IsNullOrEmpty($repositoryUri.Fragment)) {
+              throw "NEXUS_RAW_REPOSITORY_URL must use HTTPS and must not contain embedded credentials, query parameters, or fragments."
+            }
             if ([string]::IsNullOrWhiteSpace($env:GIT_COMMIT)) {
               throw "Git commit metadata is required for immutable Nexus publication paths."
             }
@@ -70,6 +82,23 @@ pipeline {
             $verificationDir = Join-Path $env:WORKSPACE ".nexus-verify"
             New-Item -ItemType Directory -Force -Path $verificationDir | Out-Null
             try {
+              # Do not silently replace an artifact at an already-used release path.
+              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
+                $uri = "$target/$file"
+                try {
+                  $existing = Invoke-WebRequest -Uri $uri -Method Head -Headers $headers -UseBasicParsing -ErrorAction Stop
+                  throw "Refusing to overwrite existing Nexus release asset: $uri (HTTP $([int]$existing.StatusCode)). Use a new build number or investigate the existing release."
+                } catch {
+                  $statusCode = $null
+                  if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                    $statusCode = [int]$_.Exception.Response.StatusCode
+                  }
+                  if ($statusCode -ne 404) {
+                    if ($_.Exception.Message -like 'Refusing to overwrite existing Nexus release asset:*') { throw }
+                    throw "Could not safely establish that Nexus release asset is absent: $uri. HTTP status: $statusCode. Publication stopped."
+                  }
+                }
+              }
               foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
                 $uri = "$target/$file"
                 Invoke-WebRequest -Uri $uri -Method Put -InFile $file -Headers $headers -UseBasicParsing | Out-Null
