@@ -15,7 +15,8 @@ function usage() {
     '  node scripts/artifact-integrity.mjs create <directory> <manifest.json> [artifact.tar.gz]\n' +
     '  node scripts/artifact-integrity.mjs verify <directory> <manifest.json> [artifact.tar.gz]\n' +
     '  node scripts/artifact-integrity.mjs hash <file> <checksum-file>\n' +
-    '  node scripts/artifact-integrity.mjs verify-hash <file> <checksum-file>'
+    '  node scripts/artifact-integrity.mjs verify-hash <file> <checksum-file>\\n' +
+    '  node scripts/artifact-integrity.mjs verify-release <artifact.tar.gz> <manifest.json> <checksum-file>'
   );
   process.exit(2);
 }
@@ -229,6 +230,48 @@ async function verifyHash(filePath, checksumPath) {
   console.log(`SHA-256 verification PASSED: ${path.basename(file)}`);
 }
 
+async function verifyRelease(artifactPath, manifestPath, checksumPath) {
+  const artifact = path.resolve(artifactPath);
+  const stat = await lstat(artifact);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Release artifact must be a regular file.');
+
+  const checksumContent = (await readFile(checksumPath, 'utf8')).trim();
+  const checksumMatch = checksumContent.match(/^([a-f0-9]{64})\\s+\\*?(.+)$/);
+  const actualHash = await hashFile(artifact);
+  if (!checksumMatch || checksumMatch[2] !== path.basename(artifact) || checksumMatch[1] !== actualHash) {
+    throw new Error('Release artifact SHA-256 sidecar verification failed.');
+  }
+
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' ||
+      typeof manifest.project !== 'string' || !manifest.project.trim() ||
+      !manifest.source || typeof manifest.source.gitCommit !== 'string' ||
+      typeof manifest.source.buildNumber !== 'string' ||
+      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) ||
+      !manifest.artifact || typeof manifest.artifact.name !== 'string' ||
+      path.basename(manifest.artifact.name) !== manifest.artifact.name ||
+      !Number.isSafeInteger(manifest.artifact.size) || manifest.artifact.size < 0 ||
+      !/^[a-f0-9]{64}$/.test(manifest.artifact.sha256)) {
+    throw new Error('Release manifest metadata or packaged-artifact metadata is invalid.');
+  }
+  if (manifest.artifact.name !== path.basename(artifact) || manifest.artifact.size !== stat.size ||
+      manifest.artifact.sha256 !== actualHash) {
+    throw new Error('Release artifact does not match the manifest name, size, and SHA-256.');
+  }
+
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') {
+    const expectedCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
+    const expectedBuild = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+    if (!/^[a-f0-9]{40,64}$/i.test(manifest.source.gitCommit) || !manifest.source.buildNumber.trim() ||
+        manifest.source.gitCommit === 'UNKNOWN' || manifest.source.buildNumber === 'LOCAL' ||
+        !/^[a-f0-9]{40,64}$/i.test(expectedCommit) || !expectedBuild.trim() ||
+        manifest.source.gitCommit.toLowerCase() !== expectedCommit.toLowerCase() ||
+        manifest.source.buildNumber !== expectedBuild) {
+      throw new Error('Release manifest provenance is missing or does not match this build context.');
+    }
+  }
+  console.log('Release bundle verification PASSED: checksum sidecar and manifest metadata match the artifact.');
+}
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === 'create' && args.length >= 2 && args.length <= 3) {
@@ -239,6 +282,8 @@ async function main() {
     await writeHash(args[0], args[1]);
   } else if (command === 'verify-hash' && args.length === 2) {
     await verifyHash(args[0], args[1]);
+  } else if (command === 'verify-release' && args.length === 3) {
+    await verifyRelease(args[0], args[1], args[2]);
   } else {
     usage();
   }
