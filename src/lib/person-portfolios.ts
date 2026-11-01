@@ -101,8 +101,8 @@ const ammu: PersonPortfolio = {
   initials: "DA",
   portrait: "/images/profiles/amulya/amulya_main.webp",
   gallery: [
-    { src: "/images/profiles/amulya/ammu3.jpeg", alt: "Amulya, portrait photo" },
-    { src: "/images/profiles/amulya/amulya_main.webp", alt: "Amulya, portrait photo" },
+    { src: "/images/profiles/amulya/amulya_1.webp", alt: "Amulya, portrait photo" },
+    { src: "/images/profiles/amulya/amulya_2.webp", alt: "Amulya, portrait photo" },
   ],
   headline: "Data Analytics | AI & Machine Learning",
   story: "Turning structured data into useful insights and practical applications.",
