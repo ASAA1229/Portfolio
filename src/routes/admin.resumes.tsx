@@ -75,6 +75,19 @@ function ResumeManager() {
   async function upload(event: ChangeEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) return;
+    const lowerName = selectedFile.name.toLowerCase();
+    const isPdf = lowerName.endsWith(".pdf") && (!selectedFile.type || selectedFile.type === "application/pdf");
+    const isDocx = lowerName.endsWith(".docx") && (!selectedFile.type || selectedFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    if (!isPdf && !isDocx) {
+      setError("Choose a PDF or DOCX file whose extension matches its file type.");
+      setMessage("");
+      return;
+    }
+    if (selectedFile.size <= 0 || selectedFile.size > 10 * 1024 * 1024) {
+      setError("Choose a file larger than 0 bytes and no larger than 10 MB.");
+      setMessage("");
+      return;
+    }
     setBusy(true); setError(""); setMessage("");
     try {
       const form = new FormData();
@@ -197,9 +210,13 @@ function ResumeManager() {
         <form onSubmit={upload} className="mt-6 border border-white/10 bg-white/[0.025] p-5 sm:p-7">
           <div className="flex items-start gap-3"><UploadCloud className="mt-1 size-5 text-violet-300" /><div><h2 className="text-lg font-semibold">Upload a resume</h2><p className="mt-1 text-sm text-white/55">PDF or DOCX · maximum 10 MB per file</p></div></div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <input aria-label="Resume file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)} className="min-h-12 w-full border border-white/15 bg-black/30 px-3 py-3 text-sm file:mr-4 file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-white" />
+            <input aria-label="Resume file" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required onChange={(event) => { setSelectedFile(event.target.files?.[0] ?? null); setError(""); setMessage(""); }} className="min-h-12 w-full border border-white/15 bg-black/30 px-3 py-3 text-sm file:mr-4 file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-white" />
             <button disabled={busy || !selectedFile} className="min-h-12 shrink-0 bg-violet-300 px-5 text-sm font-semibold text-black disabled:opacity-50">{busy ? "Working…" : "Upload privately"}</button>
           </div>
+          {selectedFile && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/60" role="status">
+            <span className="break-all">{selectedFile.name} · {(selectedFile.size / 1024).toFixed(1)} KB</span>
+            <button type="button" disabled={busy} onClick={() => { setSelectedFile(null); setError(""); setMessage(""); }} className="min-h-8 px-2 underline underline-offset-4 hover:text-white disabled:opacity-50">Clear selection</button>
+          </div>}
         </form>
 
         {error && <p role="alert" className="mt-4 border border-red-300/20 bg-red-300/5 p-3 text-sm text-red-200">{error}</p>}
