@@ -340,6 +340,83 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   return privateNotFound();
 }
 
+type PortfolioImageRecord = { id: string; filename: string; contentType: string; size: number; uploadedAt: string; status: "pending" | "approved"; profileId: "abhishek" | "ammu" | "bava" | "sai"; alt: string; };
+const IMAGE_INDEX_KEY = "private-admin/images/index.json";
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_TYPES = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/avif", ".avif"]]);
+
+async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
+  const object = await bucket.get(IMAGE_INDEX_KEY);
+  if (!object) return [];
+  const records = await object.json<unknown>();
+  return Array.isArray(records) ? records as PortfolioImageRecord[] : [];
+}
+async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRecord[]): Promise<void> {
+  await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+}
+
+async function handlePortfolioImageApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (!path.startsWith("/api/admin/images") && path !== "/api/published-images" && !path.startsWith("/api/published-images/")) return null;
+  const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  if (!bucket) {
+    if (path === "/api/published-images" && request.method === "GET") return jsonResponse({ images: [] }, 200);
+    return bucketNotConfigured();
+  }
+  if (path === "/api/published-images" && request.method === "GET") {
+    const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType }) => ({ id, profileId, alt, filename, contentType, src: `/api/published-images/${id}` }));
+    return jsonResponse({ images }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+  }
+  const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
+  if (publicImage && request.method === "GET") {
+    const record = (await readImageIndex(bucket)).find((item) => item.id === publicImage[1] && item.status === "approved");
+    if (!record) return privateNotFound();
+    const object = await bucket.get(`public/profile-images/${record.id}`);
+    if (!object) return privateNotFound();
+    return new Response(await object.arrayBuffer(), { headers: { "content-type": record.contentType, "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" } });
+  }
+  if (!(await isAdminRequest(request, env))) return privateNotFound();
+  if (["POST", "DELETE"].includes(request.method)) {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+  }
+  if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket) }, 200);
+  if (path === "/api/admin/images" && request.method === "POST") {
+    const form = await request.formData().catch(() => null);
+    const file = form?.get("file");
+    const profileId = form?.get("profileId");
+    const alt = form?.get("alt");
+    if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim()) return jsonResponse({ error: "Choose an image, profile and descriptive alt text." }, 400);
+    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
+    const expectedExtension = IMAGE_TYPES.get(file.type);
+    if (!expectedExtension || !file.name.toLowerCase().endsWith(expectedExtension)) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
+    const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const validSignature = file.type === "image/jpeg" ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff : file.type === "image/png" ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 : file.type === "image/webp" ? String.fromCharCode(...bytes.slice(0,4)) === "RIFF" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP" : file.type === "image/avif" ? String.fromCharCode(...bytes.slice(4,12)).includes("ftypavif") || String.fromCharCode(...bytes.slice(4,12)).includes("ftypavis") : false;
+    if (!validSignature) return jsonResponse({ error: "The file signature does not match its declared image type." }, 415);
+    const id = crypto.randomUUID();
+    const filename = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
+    await bucket.put(`private-admin/images/files/${id}`, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+    const records = await readImageIndex(bucket);
+    const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+    records.push(record); await writeImageIndex(bucket, records);
+    return jsonResponse({ image: record }, 201);
+  }
+  const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish))?$/);
+  if (match) {
+    const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
+    if (index < 0) return privateNotFound(); const record = records[index];
+    if (action === "publish" && request.method === "POST") {
+      const object = await bucket.get(`private-admin/images/files/${id}`); if (!object) return privateNotFound();
+      await bucket.put(`public/profile-images/${id}`, await object.arrayBuffer(), { httpMetadata: { contentType: record.contentType } });
+      records[index] = { ...record, status: "approved" }; await writeImageIndex(bucket, records);
+      return jsonResponse({ image: records[index] }, 200);
+    }
+    if (!action && request.method === "DELETE") {
+      await bucket.delete(`private-admin/images/files/${id}`); await bucket.delete(`public/profile-images/${id}`); records.splice(index, 1); await writeImageIndex(bucket, records); return jsonResponse({ ok: true }, 200);
+    }
+  }
+  return privateNotFound();
+}
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
@@ -374,6 +451,8 @@ export default {
     if (authResponse) return authResponse;
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
+    const imageResponse = await handlePortfolioImageApi(request, env);
+    if (imageResponse) return imageResponse;
 
     // The login page is intentionally the only public admin page. Every other
     // admin URL returns the same generic 404 until a valid signed session exists.
