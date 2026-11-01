@@ -371,6 +371,21 @@ export function PersonContent({
   profile: PersonPortfolio;
   section: PortfolioSection;
 }) {
+  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string }[] }) => {
+        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id));
+      })
+      .catch(() => { if (active) setPublishedImages([]); });
+    return () => { active = false; };
+  }, [profile.id]);
+  const galleryPhotos = [
+    ...profile.gallery,
+    ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
+  ];
   const title = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
   const descriptions: Record<PortfolioSection, string> = {
     about: profile.story,
@@ -412,11 +427,11 @@ export function PersonContent({
             </div>
             <div>
               <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
-              {profile.gallery.length > 0 && (
+              {galleryPhotos.length > 0 && (
                 <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
-                  {profile.gallery.map((photo) => (
+                  {galleryPhotos.map((photo) => (
                     <img
-                      key={photo.src}
+                      key={"id" in photo ? photo.id : photo.src}
                       src={photo.src}
                       alt={photo.alt}
                       loading="lazy"
