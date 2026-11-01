@@ -69,6 +69,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Add an in-manager public-field preview, explicit unpublish/rollback to private pending status, and require profile assignment before publishing (commits `34c10a1`, `9298ca8`, `77b4f54`).
    - [x] Add a final publish confirmation and client-side checks for profile assignment, display name, headline, summary and empty skill entries (commit `4fad5ea`).
    - [x] Make desktop and mobile cinematic-series controls navigate to the relevant projects page instead of presenting a non-functional “coming soon” action (commit `d9404cb`).
+   - [x] Expose the current page through `aria-current="page"` on desktop and mobile primary-navigation links (commit `ad25264`).
    - [ ] Verify preview, approval, publish, rollback and local/hosted behavior when validation resumes.
 5. **EPIC-06 — AI assistant, chat and voice**
    - [ ] Verify API configuration, grounded profile-specific answers, streaming/cancellation and honest offline fallback.
