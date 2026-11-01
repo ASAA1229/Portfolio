@@ -25,3 +25,7 @@ Anjini's portfolio remains Coming Soon while her resume is pending. Her photos a
 - `sai/sai_2.jpeg`
 
 The profile selector eagerly loads the avatar images because they appear above the fold. If an image fails to load, the initials layer remains visible as a graceful fallback. The About galleries use the two additional photos for Abhishek, Amulya, and Sai.
+
+## Dynamic image updates
+
+New images can be uploaded through the authenticated `/admin/images` manager. Uploads are private and pending until manually published. Published images are served by the approved-image API and added to the matching profile gallery without exposing private bucket keys. Static images remain the fallback and should be audited with `npm run audit:images`.
