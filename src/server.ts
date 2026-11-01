@@ -209,6 +209,20 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         : "");
     if (!ALLOWED_RESUME_TYPES.has(type)) return jsonResponse({ error: "Only PDF and DOCX files are allowed." }, 415);
     if (file.size <= 0 || file.size > MAX_RESUME_BYTES) return jsonResponse({ error: "File must be between 1 byte and 10 MB." }, 413);
+
+    // Validate the extension and file signature rather than trusting client MIME metadata alone.
+    const lowerName = file.name.toLowerCase();
+    const isPdf = type === "application/pdf";
+    const isDocx = type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if ((isPdf && !lowerName.endsWith(".pdf")) || (isDocx && !lowerName.endsWith(".docx"))) {
+      return jsonResponse({ error: "The file extension must match its declared PDF or DOCX type." }, 415);
+    }
+    const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+    const hasPdfSignature = header.length >= 5 && header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46 && header[4] === 0x2d;
+    const hasZipSignature = header.length >= 4 && header[0] === 0x50 && header[1] === 0x4b && ((header[2] === 0x03 && header[3] === 0x04) || (header[2] === 0x05 && header[3] === 0x06) || (header[2] === 0x07 && header[3] === 0x08));
+    if ((isPdf && !hasPdfSignature) || (isDocx && !hasZipSignature)) {
+      return jsonResponse({ error: "The file content does not match a supported PDF or DOCX file." }, 415);
+    }
     const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || "resume";
     const id = crypto.randomUUID();
     const key = `private-admin/resumes/files/${id}`;
