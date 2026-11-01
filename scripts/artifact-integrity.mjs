@@ -67,7 +67,7 @@ function safeManifestPath(value) {
       path.isAbsolute(value) || path.win32.isAbsolute(value) || /^[a-zA-Z]:/.test(value)) {
     throw new Error('Manifest contains an invalid relative file path.');
   }
-  const normalized = value.replaceAll('\\\\', '/');
+  const normalized = value.replaceAll('\\', '/');
   const segments = normalized.split('/');
   if (segments.some((segment) => !segment || segment === '.' || segment === '..' || /^[a-zA-Z]:$/.test(segment))) {
     throw new Error(`Manifest contains an unsafe path: ${value}`);
