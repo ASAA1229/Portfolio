@@ -82,6 +82,23 @@ pipeline {
             $verificationDir = Join-Path $env:WORKSPACE ".nexus-verify"
             New-Item -ItemType Directory -Force -Path $verificationDir | Out-Null
             try {
+              # Do not silently replace an artifact at an already-used release path.
+              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
+                $uri = "$target/$file"
+                try {
+                  $existing = Invoke-WebRequest -Uri $uri -Method Head -Headers $headers -UseBasicParsing -ErrorAction Stop
+                  throw "Refusing to overwrite existing Nexus release asset: $uri (HTTP $([int]$existing.StatusCode)). Use a new build number or investigate the existing release."
+                } catch {
+                  $statusCode = $null
+                  if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                    $statusCode = [int]$_.Exception.Response.StatusCode
+                  }
+                  if ($statusCode -ne 404) {
+                    if ($_.Exception.Message -like 'Refusing to overwrite existing Nexus release asset:*') { throw }
+                    throw "Could not safely establish that Nexus release asset is absent: $uri. HTTP status: $statusCode. Publication stopped."
+                  }
+                }
+              }
               foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
                 $uri = "$target/$file"
                 Invoke-WebRequest -Uri $uri -Method Put -InFile $file -Headers $headers -UseBasicParsing | Out-Null
