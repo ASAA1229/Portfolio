@@ -115,18 +115,33 @@ async function createManifest(directory, manifestPath, artifactPath) {
 
 async function verifyManifest(directory, manifestPath, artifactPath) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' || !Array.isArray(manifest.files)) {
-    throw new Error('Unsupported or invalid artifact manifest.');
+  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' || !Array.isArray(manifest.files) ||
+      !Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 0 ||
+      typeof manifest.project !== 'string' || manifest.project.length === 0 ||
+      !manifest.source || typeof manifest.source.gitCommit !== 'string' ||
+      typeof manifest.source.buildNumber !== 'string' ||
+      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt))) {
+    throw new Error('Unsupported or invalid artifact manifest metadata.');
   }
 
   const expected = new Map();
   for (const entry of manifest.files) {
+    if (!entry || typeof entry !== 'object') throw new Error('Manifest contains an invalid file entry.');
     const rel = safeManifestPath(entry.path);
     if (expected.has(rel) || !Number.isSafeInteger(entry.size) || entry.size < 0 ||
         !/^[a-f0-9]{64}$/.test(entry.sha256)) {
       throw new Error(`Invalid or duplicate manifest entry: ${rel}`);
     }
     expected.set(rel, entry);
+  }
+
+  if (manifest.artifact !== undefined) {
+    const artifact = manifest.artifact;
+    if (!artifact || typeof artifact.name !== 'string' || artifact.name.length === 0 ||
+        path.basename(artifact.name) !== artifact.name || !Number.isSafeInteger(artifact.size) ||
+        artifact.size < 0 || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+      throw new Error('Manifest contains invalid packaged-artifact metadata.');
+    }
   }
 
   const actualFiles = await inventory(directory);
@@ -144,16 +159,17 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
 
   if (manifest.fileCount !== expected.size) problems.push('Manifest fileCount does not match its inventory.');
   if (artifactPath) {
-    if (!manifest.artifact || !/^[a-f0-9]{64}$/.test(manifest.artifact.sha256)) {
-      problems.push('Manifest has no valid packaged-artifact checksum.');
+    if (!manifest.artifact) {
+      problems.push('Manifest has no packaged-artifact metadata.');
     } else {
       const artifact = path.resolve(artifactPath);
       try {
         const stat = await lstat(artifact);
         if (!stat.isFile() || stat.isSymbolicLink()) {
           problems.push('Packaged artifact is not a regular file.');
-        } else if (stat.size !== manifest.artifact.size || await hashFile(artifact) !== manifest.artifact.sha256) {
-          problems.push('Packaged artifact checksum or size mismatch.');
+        } else if (path.basename(artifact) !== manifest.artifact.name || stat.size !== manifest.artifact.size ||
+                   await hashFile(artifact) !== manifest.artifact.sha256) {
+          problems.push('Packaged artifact name, checksum, or size mismatch.');
         }
       } catch {
         problems.push('Packaged artifact is missing.');
@@ -169,7 +185,6 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
   }
   console.log(`Artifact verification PASSED: ${actualFiles.length} files verified.`);
 }
-
 async function writeHash(filePath, checksumPath) {
   const file = path.resolve(filePath);
   const stat = await lstat(file);
