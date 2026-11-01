@@ -14,6 +14,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  privateReviewNotes?: string;
 };
 
 export const Route = createFileRoute("/admin/resumes")({
@@ -120,7 +121,7 @@ function ResumeManager() {
       const response = await fetch(`/api/admin/resumes/${record.id}/publish`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not approve the resume.");
@@ -266,6 +267,10 @@ function ResumeManager() {
                 <label className="text-xs text-white/60">Headline<input value={record.headline} onChange={(event) => update(record.id, { headline: event.target.value })} maxLength={180} placeholder="e.g. Software Developer" className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Public summary<textarea value={record.summary} onChange={(event) => update(record.id, { summary: event.target.value })} maxLength={3000} rows={4} placeholder="Write and verify the summary that may be public." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
+                <label className="text-xs text-white/60 sm:col-span-2">Private source-text notes (never published)
+                  <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Paste text copied manually from the private PDF/DOCX to help review the public fields. This is not automatic extraction." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                  <span className="mt-1 block text-[11px] text-white/35">Up to 12,000 characters. Stored only with the private review record; save as a private draft to persist it.</span>
+                </label>
               </div>
               <div className="mt-5 border border-violet-200/15 bg-violet-200/[0.035] p-4">
                 <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-violet-200/75">Public preview · {record.profileId && record.profileId !== "unassigned" ? ({ abhishek: "Abhishek", ammu: "Amulya", bava: "Anjini Kumar", sai: "Sai" } as Record<string, string>)[record.profileId] : "No profile assigned"}</p>
@@ -290,7 +295,7 @@ function ResumeManager() {
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text is not automatically extracted; verify all public details manually.</p>
+          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text is not automatically extracted. Optional source-text notes are private and never included in the public feed; verify every public field manually.</p>
         </div>
         <p className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/30"><FileLock2 className="size-3" /> Private workspace · No public navigation</p>
       </div>
