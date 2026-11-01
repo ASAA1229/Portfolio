@@ -103,6 +103,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 - [x] Correct Amulya gallery references that pointed to `ammu3.jpeg`, which is not present in `public/images/profiles/amulya/` on this branch; keep references on committed assets until the new upload is available (commit `d6f2dfd`).
 - [x] Add a repeatable `npm run audit:images` source/public asset audit script. It reports missing image paths, likely filename case mismatches, and unreferenced public images; it has not been run while validation is paused.
-- [ ] Add authenticated image upload/review/publish workflow using the existing private object bucket, with a public metadata-only feed and no private source object URLs.
-- [ ] Reconcile uploaded public-directory changes with the branch and use the audit report to repair every missing/case-mismatched reference.
-- [ ] Resolve Education routing mismatch by comparing generated TanStack route tree and desktop/mobile navigation after validation resumes; do not mark fixed until direct-route acceptance is recorded.
+- [x] Add authenticated image upload/review/publish workflow using the existing object bucket; images remain pending/private until approval and public metadata exposes only approved image IDs, profile IDs, alt text, and app-served URLs (commits `4b7ed77`, `6a32d2d`).
+- [ ] Reconcile any newly uploaded public-directory changes with this branch and run `npm run audit:images` to repair every missing/case-mismatched reference; execution is paused.
+- [x] Add an explicit `/people/$person/education` route to make the Education destination a first-class route alongside the shared `$section` route (commit `1defd54`).
+- [ ] After validation resumes, regenerate/inspect the TanStack route tree and directly open `/education` plus `/people/ammu/education`, `/people/bava/education`, and `/people/sai/education`; the 404 fix is implemented but not yet acceptance-verified.
