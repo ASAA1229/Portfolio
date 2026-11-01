@@ -102,6 +102,11 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
               to={to}
               activeOptions={{ exact: Boolean(exact) }}
               activeProps={{ className: "site-nav-link-active" }}
+              aria-current={
+                (exact ? path === to : path === to || path.startsWith(`${to}/`))
+                  ? "page"
+                  : undefined
+              }
               className="site-nav-link"
             >
               {label}
@@ -196,6 +201,11 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
                 to={to}
                 activeOptions={{ exact: Boolean(exact) }}
                 activeProps={{ className: "text-violet font-semibold" }}
+                aria-current={
+                  (exact ? path === to : path === to || path.startsWith(`${to}/`))
+                    ? "page"
+                    : undefined
+                }
                 onClick={() => setMenu(false)}
               >
                 {label}
