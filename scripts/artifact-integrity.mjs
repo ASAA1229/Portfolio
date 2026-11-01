@@ -137,6 +137,16 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
     throw new Error('Artifact manifest is missing trustworthy build provenance.');
   }
 
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') {
+    const expectedCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
+    const expectedBuild = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+    if (!/^[a-f0-9]{40,64}$/i.test(expectedCommit) || !expectedBuild.trim() ||
+        manifest.source.gitCommit.toLowerCase() !== expectedCommit.toLowerCase() ||
+        manifest.source.buildNumber !== expectedBuild) {
+      throw new Error('Artifact manifest provenance does not match this build context.');
+    }
+  }
+
   const expected = new Map();
   for (const entry of manifest.files) {
     if (!entry || typeof entry !== 'object') throw new Error('Manifest contains an invalid file entry.');
