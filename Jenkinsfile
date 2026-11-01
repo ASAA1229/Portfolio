@@ -7,6 +7,7 @@ pipeline {
   }
   environment {
     PROJECT_NAME = 'portfolio'
+    REQUIRE_BUILD_PROVENANCE = 'true'
     ARTIFACT_FILE = 'portfolio-build.tar.gz'
     MANIFEST_FILE = 'portfolio-manifest.json'
     CHECKSUM_FILE = 'portfolio-build.tar.gz.sha256'
