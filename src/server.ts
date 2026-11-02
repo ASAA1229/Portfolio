@@ -202,7 +202,11 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   if (path === "/api/admin/resumes" && request.method === "POST") {
     const form = await request.formData().catch(() => null);
     const file = form?.get("file");
+    const requestedProfile = form?.get("profileId");
     if (!(file instanceof File)) return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
+    if (typeof requestedProfile !== "string" || !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(requestedProfile)) {
+      return jsonResponse({ error: "Choose a valid profile assignment." }, 400);
+    }
     const type = file.type || (file.name.toLowerCase().endsWith(".pdf")
       ? "application/pdf"
       : file.name.toLowerCase().endsWith(".docx")
@@ -231,7 +235,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const records = await readResumeIndex(bucket);
     records.push({
       id, filename: safeName, contentType: type, size: file.size,
-      uploadedAt: new Date().toISOString(), status: "pending", profileId: "unassigned",
+      uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
       displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
       headline: "", summary: "", skills: [],
     });
