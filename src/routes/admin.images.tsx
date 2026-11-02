@@ -19,6 +19,7 @@ function ImageManager() {
   const [file, setFile] = useState<File | null>(null);
   const [profileId, setProfileId] = useState<ImageRecord["profileId"]>("abhishek");
   const [alt, setAlt] = useState("");
+  const [publishOnUpload, setPublishOnUpload] = useState(false);
 
   async function loadImages() {
     const response = await fetch("/api/admin/images", { credentials: "same-origin", cache: "no-store" });
@@ -43,7 +44,7 @@ function ImageManager() {
     if (!alt.trim()) { setError("Add descriptive alt text before uploading."); return; }
     if (file.size <= 0 || file.size > 10 * 1024 * 1024) { setError("Image must be between 1 byte and 10 MB."); return; }
     setBusy(true);
-    try { const form = new FormData(); form.set("file", file); form.set("profileId", profileId); form.set("alt", alt.trim()); const response = await fetch("/api/admin/images", { method: "POST", body: form, credentials: "same-origin" }); const payload = await response.json() as { error?: string }; if (!response.ok) throw new Error(payload.error ?? "Upload failed."); await loadImages(); setFile(null); setAlt(""); setMessage("Image uploaded privately as pending review. Publish it when ready."); }
+    try { const form = new FormData(); form.set("file", file); form.set("profileId", profileId); form.set("alt", alt.trim()); form.set("publishOnUpload", String(publishOnUpload)); const response = await fetch("/api/admin/images", { method: "POST", body: form, credentials: "same-origin" }); const payload = await response.json() as { error?: string }; if (!response.ok) throw new Error(payload.error ?? "Upload failed."); await loadImages(); setFile(null); setAlt(""); setMessage(publishOnUpload ? "Image uploaded and published to the selected profile." : "Image uploaded privately as pending review. Publish it when ready."); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Upload failed."); } finally { setBusy(false); }
   }
   async function action(id: string, operation: "publish" | "delete") {
@@ -59,6 +60,7 @@ function ImageManager() {
       <label className="grid gap-2 text-sm">Profile<select className="min-h-11 rounded border border-border bg-background px-3" value={profileId} onChange={(event) => setProfileId(event.target.value as ImageRecord["profileId"])}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
       <label className="grid gap-2 text-sm">Image file (JPEG, PNG, WebP or AVIF; max 10 MB)<input className="min-h-11 rounded border border-border p-2" type="file" accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" onChange={selectFile}/>{file && <span className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024).toFixed(1)} KB</span>}</label>
       <label className="grid gap-2 text-sm md:col-span-2">Alternative text<input className="min-h-11 rounded border border-border bg-background px-3" maxLength={300} value={alt} onChange={(event) => setAlt(event.target.value)} placeholder="Describe the image for screen-reader users"/></label>
+      <label className="flex items-start gap-3 text-sm md:col-span-2"><input type="checkbox" checked={publishOnUpload} onChange={(event) => setPublishOnUpload(event.target.checked)} className="mt-1 size-4 accent-primary"/><span><span className="font-medium">Publish immediately after upload</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">The image becomes public on the selected profile as soon as the upload succeeds. Leave unchecked to review first.</span></span></label>
     </div><button className="mt-5 inline-flex min-h-11 items-center gap-2 rounded bg-primary px-5 font-semibold text-primary-foreground disabled:opacity-50" disabled={busy} onClick={() => void upload()}><UploadCloud className="size-4"/> Upload privately</button></section>
     {error && <p role="alert" className="mb-5 rounded border border-destructive p-4 text-sm">{error}</p>}{message && <p role="status" className="mb-5 rounded border border-border p-4 text-sm">{message}</p>}
     <div className="mb-4 flex items-center justify-between"><h2 className="text-2xl">Uploaded images</h2><span className="text-sm text-muted-foreground">{images.length} total</span></div>
