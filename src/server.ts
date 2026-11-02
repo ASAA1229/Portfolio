@@ -390,6 +390,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const file = form?.get("file");
     const profileId = form?.get("profileId");
     const alt = form?.get("alt");
+    const publishOnUpload = form?.get("publishOnUpload") === "true";
     if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim()) return jsonResponse({ error: "Choose an image, profile and descriptive alt text." }, 400);
     if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
     const expectedExtension = IMAGE_TYPES.get(file.type);
@@ -401,7 +402,10 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const filename = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
     await bucket.put(`private-admin/images/files/${id}`, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
     const records = await readImageIndex(bucket);
-    const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+    const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+    if (publishOnUpload) {
+      await bucket.put(`public/profile-images/${id}`, await bucket.get(`private-admin/images/files/${id}`).then((object) => object?.arrayBuffer() ?? Promise.reject(new Error("Stored upload is missing."))), { httpMetadata: { contentType: file.type } });
+    }
     records.push(record); await writeImageIndex(bucket, records);
     return jsonResponse({ image: record }, 201);
   }
