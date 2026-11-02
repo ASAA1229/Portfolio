@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const integrity = path.join(root, 'scripts', 'artifact-integrity.mjs');
 const verifier = path.join(root, 'scripts', 'customer-release-verifier.mjs');
+const signer = path.join(root, 'scripts', 'policy-signature.mjs');
 const tempDirs: string[] = [];
 function run(script: string, args: string[], ok = true) {
   const result = spawnSync(process.execPath, [script, ...args], {
@@ -44,6 +45,20 @@ describe('customer release verifier', () => {
     expect(success.stdout).toMatch(/Stage 1 PASSED:[\s\S]*Stage 2 PASSED:[\s\S]*Stage 3 PASSED/);
     writeFileSync(path.join(dist, 'index.html'), '<main>tampered</main>');
     expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, trusted], false).stderr).toContain('Package inventory failed');
+    const { privateKey, publicKey } = generateKeyPairSync('ed25519');
+    const privatePath = path.join(temp, 'policy-private.pem'), publicPath = path.join(temp, 'policy-public.pem');
+    const signaturePath = path.join(temp, 'manifest-ignore.sig');
+    writeFileSync(privatePath, privateKey.export({ type: 'pkcs8', format: 'pem' }));
+    writeFileSync(publicPath, publicKey.export({ type: 'spki', format: 'pem' }));
+    run(signer, ['sign', policy, signaturePath, privatePath]);
+    const signedGood = run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '-', signaturePath, publicPath]);
+    expect(signedGood.stdout).toMatch(/Stage 1 PASSED:[\\s\\S]*Stage 2 PASSED:[\\s\\S]*Stage 3 PASSED/);
+    const originalPolicy = readFileSync(policy);
+    writeFileSync(policy, Buffer.concat([originalPolicy, Buffer.from(' ')]));
+    run(integrity, ['hash', policy, policySum]);
+    expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '-', signaturePath, publicPath], false).stderr).toContain('Ed25519 signature verification failed');
+    writeFileSync(policy, originalPolicy);
+    run(integrity, ['hash', policy, policySum]);
     expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '0'.repeat(64)], false).stderr).toContain('trusted-digest verification failed');
   });
 });
