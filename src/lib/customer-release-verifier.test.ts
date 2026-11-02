@@ -4,8 +4,9 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(import.meta.dirname, '../..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const integrity = path.join(root, 'scripts', 'artifact-integrity.mjs');
 const verifier = path.join(root, 'scripts', 'customer-release-verifier.mjs');
 const tempDirs: string[] = [];
@@ -14,7 +15,7 @@ function run(script: string, args: string[], ok = true) {
     cwd: root, encoding: 'utf8',
     env: { ...process.env, PROJECT_NAME: 'portfolio-customer-test', REQUIRE_BUILD_PROVENANCE: 'false' },
   });
-  expect(result.status === 0, result.stderr || result.stdout).toBe(ok);
+  if (ok) expect(result.status, result.stderr || result.stdout).toBe(0);\n  else expect(result.status, 'Expected command to fail.').not.toBe(0);
   return result;
 }
 
