@@ -1,18 +1,34 @@
 # Ed25519 policy signing
 
-The manifest-ignore policy can be authenticated with an Ed25519 digital signature. This is stronger than distributing a SHA-256 sidecar alone: a customer verifies the policy against a trusted public key, while the private signing key remains only in the release system.
+The manifest-ignore policy is authenticated with an Ed25519 digital signature when signing keys are configured. SHA-256 sidecars remain useful for corruption detection, but do not independently prove who produced a release.
 
-## Generate a key pair (one-time, on a trusted machine)
+## Key management
 
-Use OpenSSL or another approved key-management process to create an Ed25519 private/public key pair. Protect the private key; never commit it to source control or include it in a package. Distribute the public key to customers through an authenticated channel and pin its fingerprint in the customer verification environment.
+Generate an Ed25519 key pair on a trusted machine using an approved key-management process. Protect the private key and never commit it, print it to logs, or place it in a release package. Distribute the public key independently through an authenticated channel and pin it at the customer.
 
-## Sign and verify
+## GitHub Actions setup
+
+Add these repository Actions secrets to enable signing in CI:
+
+- `MANIFEST_IGNORE_PRIVATE_KEY`: the complete PEM-encoded Ed25519 private key.
+- `MANIFEST_IGNORE_PUBLIC_KEY`: the matching PEM-encoded Ed25519 public key.
+
+When both secrets are present, CI signs `manifest-ignore.json`, verifies the signature and customer package, and uploads the `.sig` file as a separate artifact. Without them, CI deliberately runs digest-only self-checks and prints a configuration reminder; this is not an independent authenticity guarantee.
+
+## Jenkins setup
+
+Create Jenkins **Secret text** credentials with these exact IDs:
+
+- `manifest-ignore-private-key`
+- `manifest-ignore-public-key`
+
+Enable the `ENABLE_POLICY_SIGNING` build parameter to sign the policy. The pipeline verifies the signature before publication and validates the signature again after Nexus read-back. Keep the Nexus credential separate (`nexus-credentials`).
+
+## Local sign and verify
 
 ```powershell
 node scripts/policy-signature.mjs sign manifest-ignore.json manifest-ignore.sig .\private-key.pem
 node scripts/policy-signature.mjs verify manifest-ignore.json manifest-ignore.sig .\trusted-public-key.pem
 ```
 
-The signature covers the exact bytes of the policy file. Any modification to the policy invalidates the signature. The public key must be obtained independently from the package; a public key bundled only inside the same untrusted package does not establish trust.
-
-SHA-256 sidecars remain useful for accidental-corruption detection and transfer validation, but they are not a substitute for an independently trusted signature. Never store the private key in the repository, build artifact, or logs.
+The signature covers the exact policy bytes. A public key bundled only inside the same untrusted package does not establish trust.
