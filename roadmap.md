@@ -99,6 +99,15 @@ Testing and validation work is paused by user request. Continue feature implemen
 - Do not merge to `main`, publish, or deploy without explicit approval.
 
 
+## Upload-driven profile content automation
+
+- [x] Let resume uploads select their target profile at upload time; persist that assignment in the private record so users do not have to assign it again afterward (commits `57956e1`, `fc1d9c0`).
+- [x] Keep image uploads associated with a selected profile and serve approved images through the dynamic profile gallery feed.
+- [ ] Add reliable PDF/DOCX text extraction to prefill editable resume fields and profile content from the uploaded document. Current runtime dependencies do not include a document parser; choose and integrate an appropriate parser before claiming extraction is automated.
+- [ ] Build a reviewable content-mapping step from extracted resume sections into profile experience, education, skills, projects and certifications. Preserve profile-specific facts and require approval before public changes.
+- [ ] Define whether image uploads should support an explicit publish-on-upload option; current behavior intentionally keeps uploads private/pending until publication.
+- [ ] Validate upload-to-profile mapping, extraction quality, draft editing, publication and rollback when testing resumes.
+
 ## Image asset reliability and dynamic media (development work)
 
 - [x] Correct Amulya gallery references that pointed to `ammu3.jpeg`, which is not present in `public/images/profiles/amulya/` on this branch; keep references on committed assets until the new upload is available (commit `d6f2dfd`).
