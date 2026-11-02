@@ -59,6 +59,10 @@ jobs:
           node scripts/artifact-integrity.mjs verify "$ARTIFACT_DIR" portfolio-manifest.json portfolio-build.tar.gz
           node scripts/artifact-integrity.mjs hash portfolio-build.tar.gz portfolio-build.tar.gz.sha256
           node scripts/artifact-integrity.mjs verify-hash portfolio-build.tar.gz portfolio-build.tar.gz.sha256
+          node scripts/customer-release-verifier.mjs create portfolio-manifest.json portfolio-build.tar.gz portfolio-manifest-ignore.json
+          node scripts/artifact-integrity.mjs hash portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256
+          TRUSTED_POLICY_HASH="$(cut -d' ' -f1 portfolio-manifest-ignore.json.sha256)"
+          node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" "$TRUSTED_POLICY_HASH"
       - name: Upload verified build package and provenance
         uses: actions/upload-artifact@v4
         with:
@@ -67,5 +71,7 @@ jobs:
             portfolio-build.tar.gz
             portfolio-manifest.json
             portfolio-build.tar.gz.sha256
+            portfolio-manifest-ignore.json
+            portfolio-manifest-ignore.json.sha256
           if-no-files-found: error
           retention-days: 7
