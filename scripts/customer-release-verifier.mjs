@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { lstat, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -47,16 +47,27 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
   console.log('Manifest-ignore created. Hash it with artifact-integrity.mjs and distribute that trusted digest separately.');
 }
 
-async function verify(policyPath, policySumPath, manifestPath, artifactPath, extractedDir, trustedHash) {
-  // 1. Authenticate the policy before parsing it. The trusted digest must arrive out-of-band.
+async function verify(policyPath, policySumPath, manifestPath, artifactPath, extractedDir, trustedHash, signaturePath, publicKeyPath) {
+  // 1. Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
   const trusted = String(trustedHash || '').trim().toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(trusted)) fail('Trusted manifest-ignore SHA-256 is required.');
+  const signedMode = Boolean(signaturePath || publicKeyPath);
+  if (Boolean(signaturePath) !== Boolean(publicKeyPath)) fail('Both policy signature and trusted public-key paths are required.');
+  if (!signedMode && !/^[a-f0-9]{64}$/.test(trusted)) fail('Trusted manifest-ignore SHA-256 is required unless a signature is supplied.');
+  if (signedMode && trusted !== '-' && !/^[a-f0-9]{64}$/.test(trusted)) fail('Trusted digest must be 64 hex characters or - when signature verification is enabled.');
   const pst = await lstat(policyPath);
   if (!pst.isFile() || pst.isSymbolicLink()) fail('Manifest-ignore must be a regular file.');
   const actualPolicyHash = await hash(policyPath);
   const sum = (await readFile(policySumPath, 'utf8')).trim().match(/^([a-f0-9]{64})\s+\*?(.+)$/);
-  if (!sum || sum[1] !== actualPolicyHash || sum[2] !== path.basename(policyPath) || actualPolicyHash !== trusted) {
+  if (!sum || sum[1] !== actualPolicyHash || sum[2] !== path.basename(policyPath) || (trusted !== '-' && actualPolicyHash !== trusted)) {
     fail('Manifest-ignore checksum/trusted-digest verification failed.');
+  }
+  if (signedMode) {
+    const sigStat = await lstat(signaturePath), keyStat = await lstat(publicKeyPath);
+    if (!sigStat.isFile() || sigStat.isSymbolicLink() || !keyStat.isFile() || keyStat.isSymbolicLink()) fail('Signature and public key must be regular files.');
+    const key = createPublicKey(await readFile(publicKeyPath, 'utf8'));
+    if (key.asymmetricKeyType !== 'ed25519') fail('Trusted policy public key must be Ed25519.');
+    const signature = Buffer.from((await readFile(signaturePath, 'utf8')).trim(), 'base64');
+    if (signature.length !== 64 || !verifySignature(null, await readFile(policyPath), key, signature)) fail('Manifest-ignore Ed25519 signature verification failed.');
   }
   const policy = JSON.parse(await readFile(policyPath, 'utf8'));
   if (policy.schemaVersion !== 1 || policy.algorithm !== 'SHA256' || policy.purpose !== 'manifest-ignore' ||
@@ -100,9 +111,9 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
 async function main() {
   const [cmd, ...a] = process.argv.slice(2);
   if (cmd === 'create' && a.length === 3) return createPolicy(...a);
-  if (cmd === 'verify' && a.length === 6) return verify(...a);
+  if (cmd === 'verify' && (a.length === 6 || a.length === 8)) return verify(...a);
   console.error('Usage: customer-release-verifier.mjs create <manifest> <artifact> <manifest-ignore.json>\n' +
-    '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact> <extracted-dir> <trusted-policy-sha256>');
+    '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact> <extracted-dir> <trusted-policy-sha256|-> [<manifest-ignore.sig> <trusted-public-key.pem>]');
   process.exitCode = 2;
 }
 main().catch(e => { console.error('Customer release verification FAILED: ' + e.message); process.exitCode = 1; });
