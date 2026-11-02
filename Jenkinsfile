@@ -76,7 +76,8 @@ pipeline {
               throw "Git commit metadata is required for immutable Nexus publication paths."
             }
             $commit = $env:GIT_COMMIT.Substring(0, [Math]::Min(12, $env:GIT_COMMIT.Length))
-            $target = "$base/portfolio/$env:BUILD_NUMBER-$commit"
+            $projectPath = $env:PROJECT_NAME.ToLowerInvariant()
+            $target = "$base/$projectPath/$env:BUILD_NUMBER-$commit"
             $pair = $env:NEXUS_USER + ':' + $env:NEXUS_PASSWORD
             $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
             $headers = @{ Authorization = "Basic $encoded" }
@@ -126,6 +127,7 @@ pipeline {
   post {
     success {
       echo 'Portfolio pipeline succeeded; artifact checksums and manifest were verified.'
+      echo "Release traceability: project=${env.PROJECT_NAME}; build=${env.BUILD_NUMBER}; commit=${env.GIT_COMMIT}; artifact=${env.ARTIFACT_FILE}; manifest=${env.MANIFEST_FILE}; checksum=${env.CHECKSUM_FILE}."
     }
     failure {
       echo 'Portfolio pipeline failed. Review the first failing stage; publication is gated behind successful verification.'
