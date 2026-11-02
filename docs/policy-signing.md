@@ -4,7 +4,14 @@ The manifest-ignore policy is authenticated with an Ed25519 digital signature wh
 
 ## Key management
 
-Generate an Ed25519 key pair on a trusted machine using an approved key-management process. Protect the private key and never commit it, print it to logs, or place it in a release package. Distribute the public key independently through an authenticated channel and pin it at the customer.
+On a trusted machine with OpenSSL installed, generate a key pair once:
+
+```powershell
+openssl genpkey -algorithm ED25519 -out manifest-ignore-private.pem
+openssl pkey -in manifest-ignore-private.pem -pubout -out manifest-ignore-public.pem
+```
+
+Protect the private key and never commit it, print it to logs, or place it in a release package. Distribute the public key independently through an authenticated channel and pin it at the customer. Do not generate a fresh key on every CI run.
 
 ## GitHub Actions setup
 
@@ -27,8 +34,8 @@ Enable the `ENABLE_POLICY_SIGNING` build parameter to sign the policy. The pipel
 ## Local sign and verify
 
 ```powershell
-node scripts/policy-signature.mjs sign manifest-ignore.json manifest-ignore.sig .\private-key.pem
-node scripts/policy-signature.mjs verify manifest-ignore.json manifest-ignore.sig .\trusted-public-key.pem
+node scripts/policy-signature.mjs sign manifest-ignore.json manifest-ignore.sig .\manifest-ignore-private.pem
+node scripts/policy-signature.mjs verify manifest-ignore.json manifest-ignore.sig .\manifest-ignore-public.pem
 ```
 
 The signature covers the exact policy bytes. A public key bundled only inside the same untrusted package does not establish trust.
