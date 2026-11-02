@@ -44,6 +44,7 @@ function isAdminPath(pathname: string): boolean {
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_TRACKED_LOGIN_CLIENTS = 4096;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 function privateNotFound(): Response {
@@ -88,9 +89,12 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
 
-    const clientKey = request.headers.get("cf-connecting-ip") ??
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const clientKey = (request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown").slice(0, 128);
     const now = Date.now();
+    for (const [key, attempt] of loginAttempts) {
+      if (attempt.resetAt <= now) loginAttempts.delete(key);
+    }
     const current = loginAttempts.get(clientKey);
     if (current && current.resetAt > now && current.count >= MAX_LOGIN_ATTEMPTS) {
       return jsonResponse({ error: "Too many attempts. Try again in 15 minutes." }, 429, {
@@ -102,6 +106,11 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const password = typeof payload?.password === "string" ? payload.password : "";
     const valid = password.length > 0 && password.length <= 1024 && await verifyAdminPassword(password, env);
     if (!valid) {
+      if (!current && loginAttempts.size >= MAX_TRACKED_LOGIN_CLIENTS) {
+        return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
+          "retry-after": "60",
+        });
+      }
       loginAttempts.set(clientKey, current && current.resetAt > now
         ? { count: current.count + 1, resetAt: current.resetAt }
         : { count: 1, resetAt: now + LOGIN_WINDOW_MS });
