@@ -88,6 +88,13 @@ jobs:
             portfolio-build.tar.gz.sha256
             portfolio-manifest-ignore.json
             portfolio-manifest-ignore.json.sha256
-            portfolio-manifest-ignore.sig
-          if-no-files-found: ignore
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload signed manifest-ignore policy
+        if: hashFiles('portfolio-manifest-ignore.sig') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-policy-signature-${{ github.run_number }}
+          path: portfolio-manifest-ignore.sig
+          if-no-files-found: error
           retention-days: 7
