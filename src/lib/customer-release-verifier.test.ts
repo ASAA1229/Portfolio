@@ -15,7 +15,8 @@ function run(script: string, args: string[], ok = true) {
     cwd: root, encoding: 'utf8',
     env: { ...process.env, PROJECT_NAME: 'portfolio-customer-test', REQUIRE_BUILD_PROVENANCE: 'false' },
   });
-  if (ok) expect(result.status, result.stderr || result.stdout).toBe(0);\n  else expect(result.status, 'Expected command to fail.').not.toBe(0);
+  if (ok) expect(result.status, result.stderr || result.stdout).toBe(0);
+  else expect(result.status, 'Expected command to fail.').not.toBe(0);
   return result;
 }
 
