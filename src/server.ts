@@ -409,7 +409,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     records.push(record); await writeImageIndex(bucket, records);
     return jsonResponse({ image: record }, 201);
   }
-  const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish))?$/);
+  const match = path.match(/^\\/api\\/admin\\/images\\/([a-f0-9-]+)(?:\\/(publish|unpublish))?$/);
   if (match) {
     const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
     if (index < 0) return privateNotFound(); const record = records[index];
@@ -419,11 +419,16 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       records[index] = { ...record, status: "approved" }; await writeImageIndex(bucket, records);
       return jsonResponse({ image: records[index] }, 200);
     }
+    if (action === "unpublish" && request.method === "POST") {
+      if (record.status !== "approved") return jsonResponse({ error: "This image is not currently published." }, 409);
+      await bucket.delete(`public/profile-images/${id}`);
+      records[index] = { ...record, status: "pending" }; await writeImageIndex(bucket, records);
+      return jsonResponse({ image: records[index] }, 200);
+    }
     if (!action && request.method === "DELETE") {
       await bucket.delete(`private-admin/images/files/${id}`); await bucket.delete(`public/profile-images/${id}`); records.splice(index, 1); await writeImageIndex(bucket, records); return jsonResponse({ ok: true }, 200);
     }
-  }
-  return privateNotFound();
+  }  return privateNotFound();
 }
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
