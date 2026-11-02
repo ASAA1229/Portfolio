@@ -81,7 +81,7 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
   const expected = new Map();
   for (const e of manifest.files) {
     if (!e || typeof e.path !== 'string' || !e.path || path.isAbsolute(e.path) || path.win32.isAbsolute(e.path) ||
-        e.path.includes('\\0') || e.path.replaceAll('\\\\', '/').split('/').some(s => !s || s === '.' || s === '..') ||
+        e.path.includes(String.fromCharCode(0)) || e.path.replaceAll('\\\\', '/').split('/').some(s => !s || s === '.' || s === '..') ||
         expected.has(e.path.replaceAll('\\\\', '/')) || !Number.isSafeInteger(e.size) || e.size < 0 ||
         !/^[a-f0-9]{64}$/.test(e.sha256)) fail('Invalid or unsafe manifest inventory entry.');
     expected.set(e.path.replaceAll('\\\\', '/'), { size: e.size, sha256: e.sha256 });
