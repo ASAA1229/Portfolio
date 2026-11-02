@@ -13,7 +13,7 @@ import { DeveloperMark } from "@/components/DeveloperMark";
 import my1 from "@/assets/my_1.jpeg";
 import videoSet from "@/assets/video_set.mp4";
 
-function DynamicIntroPlayer() {
+export function DynamicIntroPlayer() {
   const [intro, setIntro] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -148,13 +148,27 @@ function DynamicIntroPlayer() {
   );
 }
 
-export function AiIntro({ compact = false }: { compact?: boolean }) {
-  const [open, setOpen] = useState(false);
+export function AiIntro({
+  compact = false,
+  controlledOpen,
+  onControlledOpenChange,
+}: {
+  compact?: boolean;
+  controlledOpen?: boolean;
+  onControlledOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onControlledOpenChange?.(next);
+    if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => {
-      setOpen(next);
-      if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className={`min-h-11 ${compact ? "text-xs" : "px-5"}`}>
           <Bot /> Meet my AI intro

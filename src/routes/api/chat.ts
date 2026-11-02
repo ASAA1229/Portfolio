@@ -135,7 +135,7 @@ export const Route = createFileRoute("/api/chat")({
                       : code === "rate_limit_exceeded"
                         ? "Live AI is temporarily rate-limited. Please wait a moment and try again."
                         : "Live AI could not complete this response. Please try again later.";
-                    controller.enqueue(encoder.encode("\\n\\n" + friendlyError));
+                    controller.enqueue(encoder.encode("\n\n" + friendlyError));
                     controller.terminate();
                   }
                 } catch {
