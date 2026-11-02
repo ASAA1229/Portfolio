@@ -119,4 +119,4 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [ ] After validation resumes, regenerate/inspect the TanStack route tree and directly open `/education` plus `/people/ammu/education`, `/people/bava/education`, and `/people/sai/education`; the 404 fix is implemented but not yet acceptance-verified.
 
 - [x] Fix a source-inspection issue in JPEG filename validation: the escaped dot now matches `.jpg` and `.jpeg` filenames as intended (commit `7d7f87c`). This is a code change only; upload behavior remains untested while validation is paused.
-- [ ] Add image unpublish/rollback so an approved image can be removed from public galleries without deleting the private original.
+- [x] Add image unpublish/rollback so an approved image can be removed from public galleries without deleting the private original (commits `d7ea286`, `23ae216`). Source changes only; behavior is not runtime-verified while testing is paused.
