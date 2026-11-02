@@ -409,7 +409,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     records.push(record); await writeImageIndex(bucket, records);
     return jsonResponse({ image: record }, 201);
   }
-  const match = path.match(/^\\/api\\/admin\\/images\\/([a-f0-9-]+)(?:\\/(publish|unpublish))?$/);
+  const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
     const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
     if (index < 0) return privateNotFound(); const record = records[index];
