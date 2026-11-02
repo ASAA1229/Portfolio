@@ -45,6 +45,7 @@ describe('customer release verifier', () => {
     expect(success.stdout).toMatch(/Stage 1 PASSED:[\s\S]*Stage 2 PASSED:[\s\S]*Stage 3 PASSED/);
     writeFileSync(path.join(dist, 'index.html'), '<main>tampered</main>');
     expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, trusted], false).stderr).toContain('Package inventory failed');
+    writeFileSync(path.join(dist, 'index.html'), '<main>release</main>');
     const { privateKey, publicKey } = generateKeyPairSync('ed25519');
     const privatePath = path.join(temp, 'policy-private.pem'), publicPath = path.join(temp, 'policy-public.pem');
     const signaturePath = path.join(temp, 'manifest-ignore.sig');
@@ -52,7 +53,7 @@ describe('customer release verifier', () => {
     writeFileSync(publicPath, publicKey.export({ type: 'spki', format: 'pem' }));
     run(signer, ['sign', policy, signaturePath, privatePath]);
     const signedGood = run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '-', signaturePath, publicPath]);
-    expect(signedGood.stdout).toMatch(/Stage 1 PASSED:[\\s\\S]*Stage 2 PASSED:[\\s\\S]*Stage 3 PASSED/);
+    expect(signedGood.stdout).toMatch(/Stage 1 PASSED:[\s\S]*Stage 2 PASSED:[\s\S]*Stage 3 PASSED/);
     const originalPolicy = readFileSync(policy);
     writeFileSync(policy, Buffer.concat([originalPolicy, Buffer.from(' ')]));
     run(integrity, ['hash', policy, policySum]);
