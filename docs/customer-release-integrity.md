@@ -2,31 +2,37 @@
 
 The customer verification order is intentionally strict:
 
-1. Verify `manifest-ignore.json` against its SHA-256 sidecar and a trusted SHA-256 value received through a separate trusted channel. Do not obtain the trusted value from the same untrusted package.
-2. Verify the manifest's filename and SHA-256 against the already-verified policy.
+1. Verify `manifest-ignore.json` using its SHA-256 sidecar and either an independently trusted SHA-256 digest or an Ed25519 signature verified with an independently trusted public key.
+2. Verify the manifest's filename and SHA-256 against the already-authenticated policy.
 3. Verify the package archive's name, size and SHA-256 against both policy and manifest.
 4. Compare every extracted package file against the manifest inventory; missing, changed, extra or unsafe-path files fail closed.
 
 ## Build the policy
 
-After producing `manifest.json` and the release archive:
-
 ```powershell
-node scripts/customer-release-verifier.mjs create manifest.json release.tar.gz manifest-ignore.json
-node scripts/artifact-integrity.mjs hash manifest-ignore.json manifest-ignore.json.sha256
+node scripts/customer-release-verifier.mjs create portfolio-manifest.json portfolio-build.tar.gz portfolio-manifest-ignore.json
+node scripts/artifact-integrity.mjs hash portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256
+node scripts/policy-signature.mjs sign portfolio-manifest-ignore.json portfolio-manifest-ignore.sig .\private-key.pem
 ```
 
-Distribute `manifest-ignore.json`, its sidecar, the manifest, the archive, and the extracted package. Separately communicate the SHA-256 digest of `manifest-ignore.json` through a trusted channel (for example, an authenticated release record). The local CI invocation uses the sidecar's digest to exercise the validation path; that local self-check is not an independent authenticity guarantee.
+Keep the Ed25519 private key in a protected secret store; never commit it or place it in the artifact. Distribute the public key independently through an authenticated channel and pin it at the customer. The policy signature covers the exact policy bytes.
 
 ## Verify at the customer
 
-After safely extracting the archive into a staging directory (do not extract untrusted archives as an administrator):
+Signature-based verification (recommended for automated distribution):
+
+```powershell
+node scripts/policy-signature.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.sig .\trusted-public-key.pem
+node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz .\staging - portfolio-manifest-ignore.sig .\trusted-public-key.pem
+```
+
+If a trusted policy digest is delivered through a separate authenticated channel, the digest-only mode remains available:
 
 ```powershell
 $trustedPolicyHash = '<64-hex-character digest obtained separately>'
-node scripts/customer-release-verifier.mjs verify manifest-ignore.json manifest-ignore.json.sha256 manifest.json release.tar.gz .\staging $trustedPolicyHash
+node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz .\staging $trustedPolicyHash
 ```
 
-The verifier rejects symbolic links in the extracted tree and fails on any missing, unexpected, modified, or unsafe-path file. Keep the extracted directory isolated until all stages pass.
+After safely extracting the archive into a staging directory (do not extract untrusted archives as an administrator), keep the directory isolated until all stages pass. The verifier rejects symbolic links in the extracted tree and fails on any missing, unexpected, modified, or unsafe-path file.
 
-**Security note:** SHA-256 detects changes only when the expected digest is trusted. A checksum sidecar stored beside the file it protects can be replaced together with that file. For automated customer distribution, the trusted digest must come from an authenticated channel; a future signed policy (Ed25519 or another approved signature scheme) can make that trust distribution easier to automate.
+**Security note:** a checksum sidecar stored beside the file it protects can be replaced together with that file. A signature only establishes authenticity when the public key is obtained independently from the package and trusted by the customer.
