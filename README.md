@@ -39,33 +39,39 @@ The portfolio chatbot API is handled server-side by `src/routes/api/chat.ts` and
 
 Add `OPENAI_API_KEY` as a **server-side environment secret** in the hosting provider's dashboard, then redeploy. Do not put the secret into frontend build variables. No Lovable AI key is needed while Lovable AI is paused. OpenAI API access and usage billing are managed separately from ChatGPT subscriptions.
 
-## Private resume administration
+## CI/CD artifact integrity and Nexus publication
 
-The private admin routes are protected in the server entry before TanStack renders them. Unauthenticated requests to `/admin/resumes` and `/api/admin/*` receive a generic 404. The only public admin screen is `/admin/login`; it does not appear in public navigation.
+The Jenkins pipeline builds the project, creates a packaged release artifact, generates a SHA-256 file inventory manifest, and verifies both the manifest and the package checksum before archiving the release outputs.
 
-### Configure local admin access
+### Required build provenance
 
-1. Copy `.env.example` to `.env.local`.
-2. Set `PORTFOLIO_ADMIN_PASSWORD` to a strong, unique password.
-3. Generate a separate signing secret using `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and put it in `PORTFOLIO_ADMIN_SESSION_SECRET`.
-4. Restart the development server, then open `/admin/login`.
+The pipeline sets `REQUIRE_BUILD_PROVENANCE=true`. Manifest creation and verification therefore require a full Git commit SHA and build number. Verification also compares those values with the current Jenkins build environment; a manifest copied from a different build is rejected.
 
-Never commit `.env.local`, and do not use `VITE_` prefixes for admin secrets. Configure both values as server-side deployment secrets before deploying. The session cookie is HttpOnly, SameSite=Strict, signed, and expires after eight hours. Login attempts are rate-limited per process; configure an additional edge/platform rate limit for production.
+### Optional Nexus Raw publication
 
-### Private resume storage and workflow
+Nexus publication runs only when `NEXUS_RAW_REPOSITORY_URL` is configured in Jenkins. Configure it as an HTTPS URL for the target Raw repository **without** embedded credentials, query parameters, or fragments. Store the Nexus username/password in Jenkins Credentials under the ID `nexus-credentials` (Username with password); do not add credentials to source control or the URL.
 
-The resume manager supports private PDF/DOCX upload (10 MB maximum), listing, authenticated download, deletion, manual review/editing, and explicit approval. Only approved display name, headline, summary, skills, and record ID are returned by the public `/api/published-resumes` endpoint. Original documents are stored under private object keys and are never returned by that endpoint.
+The release path uses the lower-case project name, Jenkins build number, and short Git commit; this aligns the Nexus coordinate with the manifest's project/build/commit identity. `verify-release` rejects a manifest whose project differs from `PROJECT_NAME`, and its successful verification output records the project, build number, full source commit, artifact name, size, and SHA-256. Jenkins also emits a concise release-traceability line naming the artifact, manifest, and checksum sidecar. Before upload, the pipeline checks each expected release asset using authenticated `HEAD` requests. It refuses to overwrite existing assets and stops if it cannot establish that an asset is absent. After upload, it downloads the files and compares SHA-256 digests with the local copies.
 
-#### Configure Cloudflare R2
+**Repository compatibility note:** the configured Nexus Raw repository and its access policy must support authenticated `HEAD` requests and return HTTP 404 for absent paths. Validate this behavior with your Nexus administrator before enabling publication. The HEAD preflight is a guard against accidental overwrite, not an atomic immutability guarantee; use repository-side permissions or immutable storage controls where available.
 
-1. Create a **private** Cloudflare R2 bucket named `portfolio-private-resumes` (or change the bucket name in `wrangler.jsonc`).
-2. Ensure the deployment uses the `RESUME_BUCKET` R2 binding from `wrangler.jsonc`. Do not enable public bucket access or expose the bucket URL.
-3. Set `PORTFOLIO_ADMIN_PASSWORD` and `PORTFOLIO_ADMIN_SESSION_SECRET` as server-side runtime secrets in the hosting environment. Keep them out of frontend build variables.
-4. For local development, use a local R2 binding/emulator supported by your Cloudflare development workflow. The manager returns a clear 503 response if the bucket binding is absent.
-5. Configure a platform/edge rate limit for `POST /api/admin/login`; the in-memory limiter is only a secondary guard and does not coordinate across multiple instances.
+### Verify a downloaded release before extraction
 
-#### Review and publishing behavior
+Before unpacking a downloaded release archive, verify its checksum sidecar and confirm the manifest's packaged-artifact name, size, and SHA-256 agree with the archive:
 
-Uploaded files are **not parsed automatically**. Open the original file, verify the facts, fill in the editable fields, and click **Approve & publish**. Only approved summary fields are published. The public JSON endpoint is a data feed; it does not automatically rewrite existing hard-coded portfolio pages. Integrate that feed into the relevant portfolio/profile component if the visible site should render these records.
+```sh
+node scripts/artifact-integrity.mjs verify-release <artifact.tar.gz> <manifest.json> <artifact.tar.gz.sha256>
+```
 
-Never upload real resumes until the private bucket and server secrets are configured. Do not commit resumes, environment files, or secrets to Git.
+When `REQUIRE_BUILD_PROVENANCE=true`, set `GIT_COMMIT` (or `GIT_COMMIT_SHA`) and `BUILD_NUMBER` (or `GITHUB_RUN_NUMBER`) to the expected approved release values; the command rejects a manifest whose provenance differs. This pre-extraction check validates the archive against its sidecar and manifest metadata. After extraction, also run the existing `verify` command against the extracted directory and manifest to validate every packaged file.
+
+### Published build outputs
+
+- Packaged application archive
+- JSON manifest listing packaged files, sizes, and SHA-256 digests, with build provenance
+- SHA-256 checksum sidecar for the archive
+
+### Operational status
+
+Changes to the pipeline and integrity scripts must be validated in Jenkins before being treated as release-ready. A successful local commit or PR update alone does not prove that the configured Jenkins agent, Nexus permissions, or repository behavior works end to end.
+
