@@ -13,17 +13,21 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as CertificationsRouteImport } from './routes/certifications'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as EducationRouteImport } from './routes/education'
 import { Route as ExperienceRouteImport } from './routes/experience'
-import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as SkillsRouteImport } from './routes/skills'
+import { Route as AdminImagesRouteImport } from './routes/admin.images'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminResumesRouteImport } from './routes/admin.resumes'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as PeoplePersonRouteImport } from './routes/people.$person'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsSlugRouteImport } from './routes/projects.$slug'
 import { Route as PeoplePersonIndexRouteImport } from './routes/people.$person.index'
 import { Route as PeoplePersonSectionRouteImport } from './routes/people.$person.$section'
+import { Route as PeoplePersonEducationRouteImport } from './routes/people.$person.education'
 import { Route as PeoplePersonProjectsSlugRouteImport } from './routes/people.$person.projects.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -46,14 +50,14 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EducationRoute = EducationRouteImport.update({
+  id: '/education',
+  path: '/education',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExperienceRoute = ExperienceRouteImport.update({
   id: '/experience',
   path: '/experience',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortfolioRoute = PortfolioRouteImport.update({
-  id: '/portfolio',
-  path: '/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfilesRoute = ProfilesRouteImport.update({
@@ -69,6 +73,21 @@ const ProjectsRoute = ProjectsRouteImport.update({
 const SkillsRoute = SkillsRouteImport.update({
   id: '/skills',
   path: '/skills',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminImagesRoute = AdminImagesRouteImport.update({
+  id: '/admin/images',
+  path: '/admin/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminResumesRoute = AdminResumesRouteImport.update({
+  id: '/admin/resumes',
+  path: '/admin/resumes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -101,6 +120,11 @@ const PeoplePersonSectionRoute = PeoplePersonSectionRouteImport.update({
   path: '/$section',
   getParentRoute: () => PeoplePersonRoute,
 } as any)
+const PeoplePersonEducationRoute = PeoplePersonEducationRouteImport.update({
+  id: '/education',
+  path: '/education',
+  getParentRoute: () => PeoplePersonRoute,
+} as any)
 const PeoplePersonProjectsSlugRoute =
   PeoplePersonProjectsSlugRouteImport.update({
     id: '/projects/$slug',
@@ -113,16 +137,20 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
+  '/education': typeof EducationRoute
   '/experience': typeof ExperienceRoute
-  '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/skills': typeof SkillsRoute
+  '/admin/images': typeof AdminImagesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/resumes': typeof AdminResumesRoute
   '/api/chat': typeof ApiChatRoute
   '/people/$person': typeof PeoplePersonRouteWithChildren
   '/projects/$slug': typeof ProjectsSlugRoute
   '/projects/': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
+  '/people/$person/education': typeof PeoplePersonEducationRoute
   '/people/$person/': typeof PeoplePersonIndexRoute
   '/people/$person/projects/$slug': typeof PeoplePersonProjectsSlugRoute
 }
@@ -131,14 +159,18 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
+  '/education': typeof EducationRoute
   '/experience': typeof ExperienceRoute
-  '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
+  '/admin/images': typeof AdminImagesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/resumes': typeof AdminResumesRoute
   '/api/chat': typeof ApiChatRoute
   '/projects/$slug': typeof ProjectsSlugRoute
   '/projects': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
+  '/people/$person/education': typeof PeoplePersonEducationRoute
   '/people/$person': typeof PeoplePersonIndexRoute
   '/people/$person/projects/$slug': typeof PeoplePersonProjectsSlugRoute
 }
@@ -148,16 +180,20 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/certifications': typeof CertificationsRoute
   '/contact': typeof ContactRoute
+  '/education': typeof EducationRoute
   '/experience': typeof ExperienceRoute
-  '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
   '/skills': typeof SkillsRoute
+  '/admin/images': typeof AdminImagesRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/resumes': typeof AdminResumesRoute
   '/api/chat': typeof ApiChatRoute
   '/people/$person': typeof PeoplePersonRouteWithChildren
   '/projects/$slug': typeof ProjectsSlugRoute
   '/projects/': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
+  '/people/$person/education': typeof PeoplePersonEducationRoute
   '/people/$person/': typeof PeoplePersonIndexRoute
   '/people/$person/projects/$slug': typeof PeoplePersonProjectsSlugRoute
 }
@@ -168,16 +204,20 @@ export interface FileRouteTypes {
     | '/about'
     | '/certifications'
     | '/contact'
+    | '/education'
     | '/experience'
-    | '/portfolio'
     | '/profiles'
     | '/projects'
     | '/skills'
+    | '/admin/images'
+    | '/admin/login'
+    | '/admin/resumes'
     | '/api/chat'
     | '/people/$person'
     | '/projects/$slug'
     | '/projects/'
     | '/people/$person/$section'
+    | '/people/$person/education'
     | '/people/$person/'
     | '/people/$person/projects/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -186,14 +226,18 @@ export interface FileRouteTypes {
     | '/about'
     | '/certifications'
     | '/contact'
+    | '/education'
     | '/experience'
-    | '/portfolio'
     | '/profiles'
     | '/skills'
+    | '/admin/images'
+    | '/admin/login'
+    | '/admin/resumes'
     | '/api/chat'
     | '/projects/$slug'
     | '/projects'
     | '/people/$person/$section'
+    | '/people/$person/education'
     | '/people/$person'
     | '/people/$person/projects/$slug'
   id:
@@ -202,16 +246,20 @@ export interface FileRouteTypes {
     | '/about'
     | '/certifications'
     | '/contact'
+    | '/education'
     | '/experience'
-    | '/portfolio'
     | '/profiles'
     | '/projects'
     | '/skills'
+    | '/admin/images'
+    | '/admin/login'
+    | '/admin/resumes'
     | '/api/chat'
     | '/people/$person'
     | '/projects/$slug'
     | '/projects/'
     | '/people/$person/$section'
+    | '/people/$person/education'
     | '/people/$person/'
     | '/people/$person/projects/$slug'
   fileRoutesById: FileRoutesById
@@ -221,11 +269,14 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   CertificationsRoute: typeof CertificationsRoute
   ContactRoute: typeof ContactRoute
+  EducationRoute: typeof EducationRoute
   ExperienceRoute: typeof ExperienceRoute
-  PortfolioRoute: typeof PortfolioRoute
   ProfilesRoute: typeof ProfilesRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
   SkillsRoute: typeof SkillsRoute
+  AdminImagesRoute: typeof AdminImagesRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminResumesRoute: typeof AdminResumesRoute
   ApiChatRoute: typeof ApiChatRoute
   PeoplePersonRoute: typeof PeoplePersonRouteWithChildren
 }
@@ -260,18 +311,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/education': {
+      id: '/education'
+      path: '/education'
+      fullPath: '/education'
+      preLoaderRoute: typeof EducationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/experience': {
       id: '/experience'
       path: '/experience'
       fullPath: '/experience'
       preLoaderRoute: typeof ExperienceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portfolio': {
-      id: '/portfolio'
-      path: '/portfolio'
-      fullPath: '/portfolio'
-      preLoaderRoute: typeof PortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profiles': {
@@ -293,6 +344,27 @@ declare module '@tanstack/react-router' {
       path: '/skills'
       fullPath: '/skills'
       preLoaderRoute: typeof SkillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/images': {
+      id: '/admin/images'
+      path: '/admin/images'
+      fullPath: '/admin/images'
+      preLoaderRoute: typeof AdminImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/resumes': {
+      id: '/admin/resumes'
+      path: '/admin/resumes'
+      fullPath: '/admin/resumes'
+      preLoaderRoute: typeof AdminResumesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -337,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeoplePersonSectionRouteImport
       parentRoute: typeof PeoplePersonRoute
     }
+    '/people/$person/education': {
+      id: '/people/$person/education'
+      path: '/education'
+      fullPath: '/people/$person/education'
+      preLoaderRoute: typeof PeoplePersonEducationRouteImport
+      parentRoute: typeof PeoplePersonRoute
+    }
     '/people/$person/projects/$slug': {
       id: '/people/$person/projects/$slug'
       path: '/projects/$slug'
@@ -363,12 +442,14 @@ const ProjectsRouteWithChildren = ProjectsRoute._addFileChildren(
 
 interface PeoplePersonRouteChildren {
   PeoplePersonSectionRoute: typeof PeoplePersonSectionRoute
+  PeoplePersonEducationRoute: typeof PeoplePersonEducationRoute
   PeoplePersonIndexRoute: typeof PeoplePersonIndexRoute
   PeoplePersonProjectsSlugRoute: typeof PeoplePersonProjectsSlugRoute
 }
 
 const PeoplePersonRouteChildren: PeoplePersonRouteChildren = {
   PeoplePersonSectionRoute: PeoplePersonSectionRoute,
+  PeoplePersonEducationRoute: PeoplePersonEducationRoute,
   PeoplePersonIndexRoute: PeoplePersonIndexRoute,
   PeoplePersonProjectsSlugRoute: PeoplePersonProjectsSlugRoute,
 }
@@ -382,11 +463,14 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   CertificationsRoute: CertificationsRoute,
   ContactRoute: ContactRoute,
+  EducationRoute: EducationRoute,
   ExperienceRoute: ExperienceRoute,
-  PortfolioRoute: PortfolioRoute,
   ProfilesRoute: ProfilesRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
   SkillsRoute: SkillsRoute,
+  AdminImagesRoute: AdminImagesRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminResumesRoute: AdminResumesRoute,
   ApiChatRoute: ApiChatRoute,
   PeoplePersonRoute: PeoplePersonRouteWithChildren,
 }

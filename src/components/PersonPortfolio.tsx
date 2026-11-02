@@ -1,3 +1,4 @@
+import { PortfolioNavbar } from "@/components/navigation/PortfolioNavbar";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -60,40 +61,6 @@ export function PersonShell({
   profile: PersonPortfolio;
   children: ReactNode;
 }) {
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  const [menu, setMenu] = useState(false);
-  useEffect(() => {
-    setMenu(false);
-  }, [path]);
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(false);
-    };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
-  }, []);
-  const nav = (
-    <>
-      <PersonLink
-        person={profile.id}
-        className={path === `/people/${profile.id}` ? "person-nav-active" : undefined}
-      >
-        Home
-      </PersonLink>
-      {PERSON_SECTIONS.map((section) => (
-        <PersonLink
-          key={section.id}
-          person={profile.id}
-          section={section.id}
-          className={
-            path.startsWith(`/people/${profile.id}/${section.id}`) ? "person-nav-active" : undefined
-          }
-        >
-          {section.label}
-        </PersonLink>
-      ))}
-    </>
-  );
   return (
     <div className={`site-shell person-shell person-${profile.id}`}>
       <a
@@ -102,58 +69,7 @@ export function PersonShell({
       >
         Skip to content
       </a>
-      <header className="site-nav">
-        <div className="site-container flex min-h-20 items-center justify-between gap-4">
-          <PersonLink
-            person={profile.id}
-            className="person-brand"
-          >
-            <span>GA</span><i aria-hidden="true">.</i>
-          </PersonLink>
-          <nav aria-label={`${profile.displayName} navigation`} className="person-desktop-nav">
-            {nav}
-          </nav>
-          <div className="person-nav-actions">
-            <button
-              type="button"
-              className="person-nav-ai"
-              onClick={() => {
-                setMenu(false);
-                window.dispatchEvent(new Event("portfolio:open-ai-intro"));
-              }}
-            >
-              <Bot size={20} aria-hidden="true" />
-              <span>AI Intro</span>
-            </button>
-            <Button asChild variant="outline" size="icon" className="person-nav-icon">
-              <Link to="/profiles" aria-label="Switch profiles" title="Switch profiles">
-                <Clapperboard />
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="person-nav-icon"
-              aria-label={menu ? "Close navigation" : "Open navigation"}
-              aria-expanded={menu}
-              aria-controls="person-navigation"
-              onClick={() => setMenu(!menu)}
-            >
-              {menu ? <X /> : <Menu />}
-            </Button>
-          </div>
-        </div>
-        {menu && (
-          <nav
-            id="person-navigation"
-            aria-label="Mobile portfolio navigation"
-            className="person-mobile-nav site-container"
-          >
-            {nav}
-            <Link to="/profiles">Switch profiles</Link>
-          </nav>
-        )}
-      </header>
+      <PortfolioNavbar person={profile} />
       <div id="person-content">{children}</div>
       <PersonPortfolioAssistant profile={profile} />
       <footer className="site-footer">
@@ -185,7 +101,8 @@ export function PersonUnavailable({
 }) {
   return (
     <div className="site-shell person-shell">
-      <div className="site-container flex min-h-svh flex-col items-center justify-center py-12 text-center">
+      <PortfolioNavbar />
+      <div className="site-container flex min-h-[calc(100svh-92px)] flex-col items-center justify-center py-12 text-center">
         <span className="person-coming-mark" aria-hidden="true">
           {person === "bava" ? "A" : "?"}
         </span>
@@ -276,6 +193,48 @@ function ProjectTile({
     </article>
   );
 }
+type PublishedResume = { id: string; profileId: string; displayName: string; headline: string; summary: string; skills: string[] };
+
+function PublishedResumeHighlights({ profileId }: { profileId: string }) {
+  const [resumes, setResumes] = useState<PublishedResume[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-resumes", { headers: { accept: "application/json" } })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { resumes?: PublishedResume[] } | null) => {
+        if (!active || !Array.isArray(payload?.resumes)) return;
+        setResumes(payload.resumes.filter((item) => item.profileId === profileId &&
+          typeof item.id === "string" && typeof item.displayName === "string" &&
+          typeof item.headline === "string" && typeof item.summary === "string" &&
+          Array.isArray(item.skills)));
+      })
+      .catch(() => { if (active) setResumes([]); });
+    return () => { active = false; };
+  }, [profileId]);
+
+  if (resumes.length === 0) return null;
+  return (
+    <section className="site-container py-10" aria-label="Published resume highlights">
+      <div className="mb-6 border-t border-border pt-6">
+        <p className="font-mono text-xs text-primary">VERIFIED PROFILE UPDATES</p>
+        <h2 className="mt-3 text-3xl">Recently published.</h2>
+      </div>
+      <div className="grid gap-5 md:grid-cols-2">
+        {resumes.map((resume) => (
+          <article key={resume.id} className="rounded-lg border border-border bg-card p-6">
+            <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
+            {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
+            {resume.summary && <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>}
+            {resume.skills.length > 0 && <div className="mt-5 flex flex-wrap gap-2">
+              {resume.skills.slice(0, 20).map((skill, index) => <span key={skill + index} className="rounded-full border border-border px-3 py-1 text-xs">{skill}</span>)}
+            </div>}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   return (
     <>
@@ -320,6 +279,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
           </Reveal>
         </div>
       </section>
+      <PublishedResumeHighlights profileId={profile.id} />
       <section className="home-disciplines">
         <div className="site-container grid gap-7 py-8 md:grid-cols-3">
           {profile.strengths.map((strength, index) => (
@@ -411,6 +371,21 @@ export function PersonContent({
   profile: PersonPortfolio;
   section: PortfolioSection;
 }) {
+  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string }[] }) => {
+        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id));
+      })
+      .catch(() => { if (active) setPublishedImages([]); });
+    return () => { active = false; };
+  }, [profile.id]);
+  const galleryPhotos = [
+    ...profile.gallery,
+    ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
+  ];
   const title = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
   const descriptions: Record<PortfolioSection, string> = {
     about: profile.story,
@@ -452,11 +427,11 @@ export function PersonContent({
             </div>
             <div>
               <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
-              {profile.gallery.length > 0 && (
+              {galleryPhotos.length > 0 && (
                 <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
-                  {profile.gallery.map((photo) => (
+                  {galleryPhotos.map((photo) => (
                     <img
-                      key={photo.src}
+                      key={"id" in photo ? photo.id : photo.src}
                       src={photo.src}
                       alt={photo.alt}
                       loading="lazy"
