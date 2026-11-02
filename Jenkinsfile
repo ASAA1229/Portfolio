@@ -46,16 +46,25 @@ pipeline {
             throw "Build succeeded but no supported output directory (.output or dist) was found."
           }
           tar -czf "$env:ARTIFACT_FILE" -C "$artifactDir" .
+          if ($LASTEXITCODE -ne 0) { throw "Release package creation failed." }
           $env:PROJECT_NAME = "portfolio"
           node scripts/artifact-integrity.mjs create "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
+          if ($LASTEXITCODE -ne 0) { throw "Manifest creation failed." }
           node scripts/artifact-integrity.mjs verify "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
+          if ($LASTEXITCODE -ne 0) { throw "Manifest verification failed." }
           node scripts/artifact-integrity.mjs hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
+          if ($LASTEXITCODE -ne 0) { throw "Artifact hashing failed." }
           node scripts/artifact-integrity.mjs verify-hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
+          if ($LASTEXITCODE -ne 0) { throw "Artifact checksum verification failed." }
           node scripts/artifact-integrity.mjs verify-release "$env:ARTIFACT_FILE" "$env:MANIFEST_FILE" "$env:CHECKSUM_FILE"
+          if ($LASTEXITCODE -ne 0) { throw "Release verification failed." }
           node scripts/customer-release-verifier.mjs create "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "portfolio-manifest-ignore.json"
+          if ($LASTEXITCODE -ne 0) { throw "Manifest-ignore policy creation failed." }
           node scripts/artifact-integrity.mjs hash "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256"
+          if ($LASTEXITCODE -ne 0) { throw "Manifest-ignore policy hashing failed." }
           $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
           node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
+          if ($LASTEXITCODE -ne 0) { throw "Customer release verification failed." }
         '''
         archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256', fingerprint: true
       }
@@ -155,7 +164,9 @@ pipeline {
                 Write-Output "Published and verified $file at immutable build path $env:BUILD_NUMBER-$commit"
               }
               node scripts/artifact-integrity.mjs verify-hash (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back checksum verification failed." }
               node scripts/artifact-integrity.mjs verify-release (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back release verification failed." }
               $trustedPolicyHash = (Get-Content (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256')).Split(' ')[0]
               $remotePolicy = Join-Path $verificationDir 'portfolio-manifest-ignore.json'
               $artifactDir = @('.output', 'dist') | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
