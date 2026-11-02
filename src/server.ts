@@ -65,9 +65,22 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
+function validateContentLength(request: Request, maxBytes: number): Response | null {
+  const raw = request.headers.get("content-length");
+  if (raw === null) return null;
+  if (!/^\\d+$/.test(raw)) return jsonResponse({ error: "Invalid content length." }, 400);
+  const length = Number(raw);
+  if (!Number.isSafeInteger(length) || length > maxBytes) {
+    return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+  }
+  return null;
+}
+
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path === "/api/admin/login" && request.method === "POST") {
+    const lengthError = validateContentLength(request, 4 * 1024);
+    if (lengthError) return lengthError;
     if (!adminAuthConfigured(env)) {
       console.error("Admin authentication is disabled: required server secrets are missing.");
       return jsonResponse({ error: "Admin authentication is not configured." }, 503);
@@ -187,10 +200,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
   }
   if (path === "/api/admin/resumes" && request.method === "POST") {
-    const contentLength = Number(request.headers.get("content-length") ?? "0");
-    if (contentLength > MAX_RESUME_BYTES + 1024 * 1024) {
-      return jsonResponse({ error: "Upload exceeds the 10 MB limit." }, 413);
-    }
+    const lengthError = validateContentLength(request, MAX_RESUME_BYTES + 1024 * 1024);
+    if (lengthError) return lengthError;
   }
   const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (!bucket) return bucketNotConfigured();
@@ -265,6 +276,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (action === "draft" && request.method === "POST") {
+      const lengthError = validateContentLength(request, 32 * 1024);
+      if (lengthError) return lengthError;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -302,6 +315,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (action === "publish" && request.method === "POST") {
+      const lengthError = validateContentLength(request, 32 * 1024);
+      if (lengthError) return lengthError;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -386,6 +401,8 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   }
   if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket) }, 200);
   if (path === "/api/admin/images" && request.method === "POST") {
+    const lengthError = validateContentLength(request, MAX_IMAGE_BYTES + 1024 * 1024);
+    if (lengthError) return lengthError;
     const form = await request.formData().catch(() => null);
     const file = form?.get("file");
     const profileId = form?.get("profileId");
