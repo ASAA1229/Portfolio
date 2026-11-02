@@ -56,9 +56,11 @@ describe('customer release verifier', () => {
     expect(signedGood.stdout).toMatch(/Stage 1 PASSED:[\s\S]*Stage 2 PASSED:[\s\S]*Stage 3 PASSED/);
     const originalPolicy = readFileSync(policy);
     writeFileSync(policy, Buffer.concat([originalPolicy, Buffer.from(' ')]));
+    rmSync(policySum, { force: true });
     run(integrity, ['hash', policy, policySum]);
     expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '-', signaturePath, publicPath], false).stderr).toContain('Ed25519 signature verification failed');
     writeFileSync(policy, originalPolicy);
+    rmSync(policySum, { force: true });
     run(integrity, ['hash', policy, policySum]);
     expect(run(verifier, ['verify', policy, policySum, manifest, artifact, dist, '0'.repeat(64)], false).stderr).toContain('trusted-digest verification failed');
   });
