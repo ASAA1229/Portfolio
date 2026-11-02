@@ -243,6 +243,10 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
   }
 
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const expectedProject = process.env.PROJECT_NAME;
+  if (expectedProject && manifest.project !== expectedProject) {
+    throw new Error(`Release manifest project mismatch: expected ${expectedProject}, found ${manifest.project}.`);
+  }
   if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' ||
       typeof manifest.project !== 'string' || !manifest.project.trim() ||
       !manifest.source || typeof manifest.source.gitCommit !== 'string' ||
@@ -270,7 +274,7 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
       throw new Error('Release manifest provenance is missing or does not match this build context.');
     }
   }
-  console.log('Release bundle verification PASSED: checksum sidecar and manifest metadata match the artifact.');
+  console.log(`Release bundle verification PASSED: project=${manifest.project}; build=${manifest.source.buildNumber}; commit=${manifest.source.gitCommit}; artifact=${manifest.artifact.name}; size=${stat.size}; sha256=${actualHash}.`);
 }
 async function main() {
   const [command, ...args] = process.argv.slice(2);
