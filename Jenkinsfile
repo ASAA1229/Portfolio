@@ -12,6 +12,9 @@ pipeline {
     MANIFEST_FILE = 'portfolio-manifest.json'
     CHECKSUM_FILE = 'portfolio-build.tar.gz.sha256'
   }
+  parameters {
+    booleanParam(name: 'ENABLE_POLICY_SIGNING', defaultValue: false, description: 'Sign manifest-ignore with the configured Ed25519 Jenkins credentials.')
+  }
   stages {
     stage('Checkout') {
       steps {
@@ -57,6 +60,37 @@ pipeline {
         archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256', fingerprint: true
       }
     }
+    stage('Sign manifest-ignore policy (optional)') {
+      when {
+        expression { return params.ENABLE_POLICY_SIGNING }
+      }
+      steps {
+        withCredentials([
+          string(credentialsId: 'manifest-ignore-private-key', variable: 'MANIFEST_IGNORE_PRIVATE_KEY'),
+          string(credentialsId: 'manifest-ignore-public-key', variable: 'MANIFEST_IGNORE_PUBLIC_KEY')
+        ]) {
+          powershell '''
+            $ErrorActionPreference = "Stop"
+            $privatePath = Join-Path $env:TEMP "portfolio-policy-private-$env:BUILD_NUMBER.pem"
+            $publicPath = Join-Path $env:WORKSPACE ".manifest-ignore-public.pem"
+            try {
+              [IO.File]::WriteAllText($privatePath, $env:MANIFEST_IGNORE_PRIVATE_KEY)
+              [IO.File]::WriteAllText($publicPath, $env:MANIFEST_IGNORE_PUBLIC_KEY)
+              node scripts/policy-signature.mjs sign "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.sig" $privatePath
+              if ($LASTEXITCODE -ne 0) { throw "Manifest-ignore signing failed." }
+              node scripts/policy-signature.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.sig" $publicPath
+              if ($LASTEXITCODE -ne 0) { throw "Manifest-ignore signature verification failed." }
+              $artifactDir = @(".output", "dist") | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
+              node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" "-" "portfolio-manifest-ignore.sig" $publicPath
+              if ($LASTEXITCODE -ne 0) { throw "Signed customer release verification failed." }
+            } finally {
+              Remove-Item -Force $privatePath -ErrorAction SilentlyContinue
+            }
+          '''
+          archiveArtifacts artifacts: 'portfolio-manifest-ignore.sig', fingerprint: true
+        }
+      }
+    }
     stage('Publish to Nexus (optional)') {
       when {
         expression { return env.NEXUS_RAW_REPOSITORY_URL?.trim() }
@@ -90,7 +124,9 @@ pipeline {
             New-Item -ItemType Directory -Force -Path $verificationDir | Out-Null
             try {
               # Do not silently replace an artifact at an already-used release path.
-              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE, 'portfolio-manifest-ignore.json', 'portfolio-manifest-ignore.json.sha256')) {
+              $releaseFiles = @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE, 'portfolio-manifest-ignore.json', 'portfolio-manifest-ignore.json.sha256')
+              if (Test-Path 'portfolio-manifest-ignore.sig' -PathType Leaf) { $releaseFiles += 'portfolio-manifest-ignore.sig' }
+              foreach ($file in $releaseFiles) {
                 $uri = "$target/$file"
                 try {
                   $existing = Invoke-WebRequest -Uri $uri -Method Head -Headers $headers -UseBasicParsing -ErrorAction Stop
@@ -121,9 +157,17 @@ pipeline {
               node scripts/artifact-integrity.mjs verify-hash (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
               node scripts/artifact-integrity.mjs verify-release (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
               $trustedPolicyHash = (Get-Content (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256')).Split(' ')[0]
+              $remotePolicy = Join-Path $verificationDir 'portfolio-manifest-ignore.json'
               $artifactDir = @('.output', 'dist') | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
               if (!$artifactDir) { throw 'Build output directory missing during Nexus read-back verification.' }
-              node scripts/customer-release-verifier.mjs verify (Join-Path $verificationDir 'portfolio-manifest-ignore.json') (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $artifactDir $trustedPolicyHash
+              if (Test-Path (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') -PathType Leaf) {
+                node scripts/policy-signature.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
+                if ($LASTEXITCODE -ne 0) { throw "Nexus read-back policy signature verification failed." }
+                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $artifactDir '-' (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
+              } else {
+                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $artifactDir $trustedPolicyHash
+              }
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back customer release verification failed." }
             } finally {
               Remove-Item -Recurse -Force -LiteralPath $verificationDir -ErrorAction SilentlyContinue
               Remove-Variable pair, encoded, headers -ErrorAction SilentlyContinue
@@ -140,6 +184,9 @@ pipeline {
     }
     failure {
       echo 'Portfolio pipeline failed. Review the first failing stage; publication is gated behind successful verification.'
+    }
+    always {
+      powershell 'Remove-Item -Force (Join-Path $env:WORKSPACE ".manifest-ignore-public.pem") -ErrorAction SilentlyContinue'
     }
   }
 }
