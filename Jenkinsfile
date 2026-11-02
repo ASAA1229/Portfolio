@@ -49,8 +49,12 @@ pipeline {
           node scripts/artifact-integrity.mjs hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
           node scripts/artifact-integrity.mjs verify-hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
           node scripts/artifact-integrity.mjs verify-release "$env:ARTIFACT_FILE" "$env:MANIFEST_FILE" "$env:CHECKSUM_FILE"
+          node scripts/customer-release-verifier.mjs create "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "portfolio-manifest-ignore.json"
+          node scripts/artifact-integrity.mjs hash "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256"
+          $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
+          node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
         '''
-        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256', fingerprint: true
+        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256', fingerprint: true
       }
     }
     stage('Publish to Nexus (optional)') {
@@ -86,7 +90,7 @@ pipeline {
             New-Item -ItemType Directory -Force -Path $verificationDir | Out-Null
             try {
               # Do not silently replace an artifact at an already-used release path.
-              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
+              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE, 'portfolio-manifest-ignore.json', 'portfolio-manifest-ignore.json.sha256')) {
                 $uri = "$target/$file"
                 try {
                   $existing = Invoke-WebRequest -Uri $uri -Method Head -Headers $headers -UseBasicParsing -ErrorAction Stop
@@ -102,7 +106,7 @@ pipeline {
                   }
                 }
               }
-              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE)) {
+              foreach ($file in @($env:ARTIFACT_FILE, $env:MANIFEST_FILE, $env:CHECKSUM_FILE, 'portfolio-manifest-ignore.json', 'portfolio-manifest-ignore.json.sha256')) {
                 $uri = "$target/$file"
                 Invoke-WebRequest -Uri $uri -Method Put -InFile $file -Headers $headers -UseBasicParsing | Out-Null
                 $download = Join-Path $verificationDir $file
@@ -116,6 +120,10 @@ pipeline {
               }
               node scripts/artifact-integrity.mjs verify-hash (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
               node scripts/artifact-integrity.mjs verify-release (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              $trustedPolicyHash = (Get-Content (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256')).Split(' ')[0]
+              $artifactDir = @('.output', 'dist') | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
+              if (!$artifactDir) { throw 'Build output directory missing during Nexus read-back verification.' }
+              node scripts/customer-release-verifier.mjs verify (Join-Path $verificationDir 'portfolio-manifest-ignore.json') (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $artifactDir $trustedPolicyHash
             } finally {
               Remove-Item -Recurse -Force -LiteralPath $verificationDir -ErrorAction SilentlyContinue
               Remove-Variable pair, encoded, headers -ErrorAction SilentlyContinue
