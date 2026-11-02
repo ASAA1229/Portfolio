@@ -120,3 +120,9 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 - [x] Fix a source-inspection issue in JPEG filename validation: the escaped dot now matches `.jpg` and `.jpeg` filenames as intended (commit `7d7f87c`). This is a code change only; upload behavior remains untested while validation is paused.
 - [x] Add image unpublish/rollback so an approved image can be removed from public galleries without deleting the private original (commits `d7ea286`, `23ae216`). Source changes only; behavior is not runtime-verified while testing is paused.
+
+
+## Shared profile design and image refresh
+
+- [x] Extract the shared cinematic profile layout rules into `src/styles/profiles.css`; all four profile routes consume the same imported stylesheet and design tokens (commits `6bdf67d`, `9490d8e`).
+- [ ] Replace legacy static profile image assets and every source reference with the files from the newly supplied `images.zip`. The archive includes HEIC photos, which need conversion to browser-friendly formats before references can safely be switched. Do not delete the currently referenced assets until the replacement binaries have been added to the branch; otherwise profile images would break. Testing remains paused.
