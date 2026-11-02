@@ -126,3 +126,11 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 - [x] Extract the shared cinematic profile layout rules into `src/styles/profiles.css`; all four profile routes consume the same imported stylesheet and design tokens (commits `6bdf67d`, `9490d8e`).
 - [ ] Replace legacy static profile image assets and every source reference with the files from the newly supplied `images.zip`. The archive includes HEIC photos, which need conversion to browser-friendly formats before references can safely be switched. Do not delete the currently referenced assets until the replacement binaries have been added to the branch; otherwise profile images would break. Testing remains paused.
+
+## Source-level bug review (testing remains paused)
+
+- [x] Fixed the admin image publish/unpublish route matcher so it matches the actual `/api/admin/images/:id/(publish|unpublish)` paths.
+- [x] Fixed resume draft saving so edited private review notes are sent to and persisted by the existing draft API.
+- [x] Fixed streamed AI-provider error messages to use actual line breaks rather than displaying literal escaped newline characters.
+- [x] Updated the image-manager submit label to distinguish private uploads from immediate publication.
+- [ ] Continue source-only review of imports/exports, route wiring, request/response contracts, state handling, accessibility, and security. Do not run tests, builds, lint, browser checks, or audits until testing is explicitly resumed.
