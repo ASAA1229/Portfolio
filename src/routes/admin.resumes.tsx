@@ -170,7 +170,7 @@ function ResumeManager() {
       "[END MAPPED SECTIONS]",
     ].join("\n");
     const existing = (record.privateReviewNotes ?? "")
-      .replace(/\\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\\][\\s\\S]*?\\[END MAPPED SECTIONS\\]/g, "")
+      .replace(/\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\][\s\S]*?\[END MAPPED SECTIONS\]/g, "")
       .trim();
     const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
     update(record.id, {
