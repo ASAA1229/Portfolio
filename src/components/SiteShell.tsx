@@ -10,7 +10,6 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
 
   if (
-    path === "/portfolio" ||
     path === "/profiles" ||
     path.startsWith("/admin") ||
     path.startsWith("/people/") ||
@@ -52,7 +51,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
             <p>© 2026 Guda Abhishek. All rights reserved. Netflix-inspired portfolio concept.</p>
-            <Link to="/portfolio" search={{ profile: "guest" }}>
+            <Link to="/projects">
               Explore The Series <ArrowUpRight className="inline size-3" />
             </Link>
           </div>
