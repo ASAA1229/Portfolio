@@ -212,11 +212,41 @@ const ALLOWED_RESUME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+function isResumeRecord(value: unknown): value is ResumeRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<ResumeRecord>;
+  const validProfiles = ["abhishek", "ammu", "bava", "sai", "unassigned"];
+  const validSections = ["experience", "education", "projects", "certifications"] as const;
+  const sections = record.structuredSections;
+  return typeof record.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
+    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    ALLOWED_RESUME_TYPES.has(String(record.contentType)) &&
+    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_RESUME_BYTES &&
+    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    (record.status === "pending" || record.status === "approved") &&
+    (record.profileId === undefined || validProfiles.includes(record.profileId)) &&
+    typeof record.displayName === "string" && typeof record.headline === "string" &&
+    typeof record.summary === "string" && Array.isArray(record.skills) &&
+    record.skills.every((skill) => typeof skill === "string") &&
+    (record.privateReviewNotes === undefined || typeof record.privateReviewNotes === "string") &&
+    (sections === undefined || (!!sections && typeof sections === "object" &&
+      validSections.every((section) => Array.isArray(sections[section]) &&
+        sections[section].every((entry) => typeof entry === "string"))));
+}
+
 async function readResumeIndex(bucket: PrivateBucket): Promise<ResumeRecord[]> {
   const object = await bucket.get(RESUME_INDEX_KEY);
   if (!object) return [];
-  const records = await object.json<unknown>();
-  return Array.isArray(records) ? records as ResumeRecord[] : [];
+  const value = await object.json<unknown>();
+  if (!Array.isArray(value) || !value.every(isResumeRecord)) {
+    throw new Error("Stored resume index failed integrity validation.");
+  }
+  const ids = new Set(value.map((record) => record.id));
+  if (ids.size !== value.length) {
+    throw new Error("Stored resume index contains duplicate record IDs.");
+  }
+  return value;
 }
 
 async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
@@ -295,20 +325,31 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || "resume";
     const id = crypto.randomUUID();
     const key = `private-admin/resumes/files/${id}`;
-    await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: type } });
-    const records = await readResumeIndex(bucket);
-    records.push({
-      id, filename: safeName, contentType: type, size: file.size,
-      uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
-      displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
-      headline: "", summary: "", skills: [],
-      structuredSections: { experience: [], education: [], projects: [], certifications: [] },
-    });
-    await writeResumeIndex(bucket, records);
-    return jsonResponse({ resume: records[records.length - 1] }, 201);
+    let storedFile = false;
+    try {
+      await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: type } });
+      storedFile = true;
+      const records = await readResumeIndex(bucket);
+      const record: ResumeRecord = {
+        id, filename: safeName, contentType: type, size: file.size,
+        uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
+        displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
+        headline: "", summary: "", skills: [],
+        structuredSections: { experience: [], education: [], projects: [], certifications: [] },
+      };
+      records.push(record);
+      await writeResumeIndex(bucket, records);
+      return jsonResponse({ resume: record }, 201);
+    } catch (error) {
+      if (storedFile) {
+        try { await bucket.delete(key); }
+        catch (cleanupError) { console.error("Failed to clean up an incomplete resume upload.", cleanupError); }
+      }
+      throw error;
+    }
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|extract|publish|draft|unpublish))?$/);
+  const match = path.match(/^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i);
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
