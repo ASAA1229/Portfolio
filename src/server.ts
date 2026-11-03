@@ -45,6 +45,7 @@ function isAdminPath(pathname: string): boolean {
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_TRACKED_LOGIN_CLIENTS = 4096;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 function privateNotFound(): Response {
@@ -66,9 +67,57 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
+async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
+  const rawLength = request.headers.get("content-length");
+  if (rawLength !== null) {
+    if (!/^\\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
+    const declaredLength = Number(rawLength);
+    if (!Number.isSafeInteger(declaredLength) || declaredLength > maxBytes) {
+      return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+    }
+  }
+  if (!request.body) return request;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return jsonResponse({ error: "Could not read request body." }, 400);
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const headers = new Headers(request.headers);
+  headers.delete("content-length");
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body,
+    redirect: request.redirect,
+  });
+}
+
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path === "/api/admin/login" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, 4 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
     if (!adminAuthConfigured(env)) {
       console.error("Admin authentication is disabled: required server secrets are missing.");
       return jsonResponse({ error: "Admin authentication is not configured." }, 503);
@@ -76,9 +125,12 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
 
-    const clientKey = request.headers.get("cf-connecting-ip") ??
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const clientKey = (request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown").slice(0, 128);
     const now = Date.now();
+    for (const [key, attempt] of loginAttempts) {
+      if (attempt.resetAt <= now) loginAttempts.delete(key);
+    }
     const current = loginAttempts.get(clientKey);
     if (current && current.resetAt > now && current.count >= MAX_LOGIN_ATTEMPTS) {
       return jsonResponse({ error: "Too many attempts. Try again in 15 minutes." }, 429, {
@@ -90,6 +142,11 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const password = typeof payload?.password === "string" ? payload.password : "";
     const valid = password.length > 0 && password.length <= 1024 && await verifyAdminPassword(password, env);
     if (!valid) {
+      if (!current && loginAttempts.size >= MAX_TRACKED_LOGIN_CLIENTS) {
+        return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
+          "retry-after": "60",
+        });
+      }
       loginAttempts.set(clientKey, current && current.resetAt > now
         ? { count: current.count + 1, resetAt: current.resetAt }
         : { count: 1, resetAt: now + LOGIN_WINDOW_MS });
@@ -194,6 +251,11 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       return jsonResponse({ error: "Upload exceeds the 10 MB limit." }, 413);
     }
   }
+  if (path === "/api/admin/resumes" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, MAX_RESUME_BYTES + 1024 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
+  }
   const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (!bucket) return bucketNotConfigured();
 
@@ -285,6 +347,9 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (action === "draft" && request.method === "POST") {
+      const boundedRequest = await limitRequestBody(request, 32 * 1024);
+      if (boundedRequest instanceof Response) return boundedRequest;
+      request = boundedRequest;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -329,6 +394,9 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (action === "publish" && request.method === "POST") {
+      const boundedRequest = await limitRequestBody(request, 32 * 1024);
+      if (boundedRequest instanceof Response) return boundedRequest;
+      request = boundedRequest;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -422,6 +490,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   }
   if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket) }, 200);
   if (path === "/api/admin/images" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, MAX_IMAGE_BYTES + 1024 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
     const form = await request.formData().catch(() => null);
     const file = form?.get("file");
     const profileId = form?.get("profileId");
