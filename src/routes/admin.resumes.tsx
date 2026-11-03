@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
-import { mapResumeSections } from "@/lib/resume-mapping";
+import { mapResumeSections, splitResumeSectionEntries } from "@/lib/resume-mapping";
 
 type ResumeRecord = {
   id: string;
@@ -177,10 +177,10 @@ function ResumeManager() {
     update(record.id, {
       skills: mapped.skills.length ? mapped.skills : record.skills,
       structuredSections: {
-        experience: mapped.sections.experience ? [mapped.sections.experience] : record.structuredSections?.experience ?? [],
-        education: mapped.sections.education ? [mapped.sections.education] : record.structuredSections?.education ?? [],
-        projects: mapped.sections.projects ? [mapped.sections.projects] : record.structuredSections?.projects ?? [],
-        certifications: mapped.sections.certifications ? [mapped.sections.certifications] : record.structuredSections?.certifications ?? [],
+        experience: mapped.sections.experience ? splitResumeSectionEntries(mapped.sections.experience) : record.structuredSections?.experience ?? [],
+        education: mapped.sections.education ? splitResumeSectionEntries(mapped.sections.education) : record.structuredSections?.education ?? [],
+        projects: mapped.sections.projects ? splitResumeSectionEntries(mapped.sections.projects) : record.structuredSections?.projects ?? [],
+        certifications: mapped.sections.certifications ? splitResumeSectionEntries(mapped.sections.certifications) : record.structuredSections?.certifications ?? [],
       },
       privateReviewNotes: notes,
     });
