@@ -60,6 +60,16 @@ export const Route = createFileRoute("/api/chat")({
         const model = "gpt-4.1-mini";
         const abortController = new AbortController();
         const timeout = setTimeout(() => abortController.abort(), 45_000);
+        const cleanupRequest = () => {
+          clearTimeout(timeout);
+          request.signal.removeEventListener("abort", onRequestAbort);
+        };
+        const onRequestAbort = () => {
+          abortController.abort();
+          cleanupRequest();
+        };
+        request.signal.addEventListener("abort", onRequestAbort, { once: true });
+        if (request.signal.aborted) onRequestAbort();
 
         let upstream: Response;
         try {
@@ -82,7 +92,7 @@ export const Route = createFileRoute("/api/chat")({
             signal: abortController.signal,
           });
         } catch (error) {
-          clearTimeout(timeout);
+          cleanupRequest();
           const message = error instanceof Error && error.name === "AbortError"
             ? "The AI request timed out. Please try again."
             : "Could not connect to the AI service. Please try again shortly.";
@@ -90,7 +100,7 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         if (!upstream.ok || !upstream.body) {
-          clearTimeout(timeout);
+          cleanupRequest();
           const status = upstream.status || 502;
           const upstreamText = await upstream.text().catch(() => "");
           // Avoid returning raw provider errors that may contain implementation details.
@@ -144,7 +154,7 @@ export const Route = createFileRoute("/api/chat")({
               }
             },
             flush() {
-              clearTimeout(timeout);
+              cleanupRequest();
             },
           }),
         );
