@@ -246,6 +246,43 @@ function ResumeManager() {
     setResumes((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   }
 
+  function updateStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+    index: number,
+    value: string,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    const entries = [...current[section]];
+    entries[index] = value.slice(0, section === "certifications" ? 500 : 1200);
+    update(record.id, { structuredSections: { ...current, [section]: entries } });
+  }
+
+  function addStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    const max = section === "certifications" ? 40 : section === "education" ? 20 : 30;
+    if (current[section].length >= max) {
+      setError(`The ${section} section has reached its ${max}-entry limit.`);
+      setMessage("");
+      return;
+    }
+    update(record.id, { structuredSections: { ...current, [section]: [...current[section], ""] } });
+    setError("");
+    setMessage("");
+  }
+
+  function removeStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+    index: number,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    update(record.id, { structuredSections: { ...current, [section]: current[section].filter((_, entryIndex) => entryIndex !== index) } });
+  }
+
   if (checking) return <div className="flex min-h-screen items-center justify-center bg-[#09090d] text-sm text-white/60">Verifying private session…</div>;
 
   return (
@@ -338,12 +375,31 @@ function ResumeManager() {
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <div className="sm:col-span-2 rounded border border-white/10 p-4">
                   <h4 className="text-sm font-semibold text-white/80">Structured profile sections</h4>
-                  <p className="mt-1 text-xs text-white/40">Review and edit each section. Separate multiple entries with a blank line. These fields are public only after approval.</p>
-                  {(["experience", "education", "projects", "certifications"] as const).map((section) => (
-                    <label key={section} className="mt-3 block text-xs capitalize text-white/60">{section}
-                      <textarea value={(record.structuredSections?.[section] ?? []).join("\n\n")} onChange={(event) => update(record.id, { structuredSections: { experience: record.structuredSections?.experience ?? [], education: record.structuredSections?.education ?? [], projects: record.structuredSections?.projects ?? [], certifications: record.structuredSections?.certifications ?? [], [section]: event.target.value.split(/\n\s*\n/).map((entry) => entry.trim()).filter(Boolean).slice(0, section === "certifications" ? 40 : 30) } })} rows={3} className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
-                    </label>
-                  ))}
+                  <p className="mt-1 text-xs text-white/40">Edit, add or remove individual entries. Changes stay private until you explicitly approve and publish this resume.</p>
+                  {(["experience", "education", "projects", "certifications"] as const).map((section) => {
+                    const entries = record.structuredSections?.[section] ?? [];
+                    const max = section === "certifications" ? 40 : section === "education" ? 20 : 30;
+                    return (
+                      <div key={section} className="mt-4 border-t border-white/10 pt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h5 className="text-xs font-semibold capitalize text-white/75">{section} <span className="font-mono text-white/35">({entries.length}/{max})</span></h5>
+                          <button type="button" disabled={busy || entries.length >= max} onClick={() => addStructuredEntry(record, section)} className="min-h-8 border border-violet-300/25 px-3 text-xs text-violet-100 disabled:opacity-40">Add entry</button>
+                        </div>
+                        {entries.length === 0 && <p className="mt-2 text-xs text-white/35">No entries yet.</p>}
+                        <div className="mt-2 space-y-2">
+                          {entries.map((entry, index) => (
+                            <div key={section + "-" + index} className="border border-white/10 bg-black/20 p-3">
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <label htmlFor={`resume-${record.id}-${section}-${index}`} className="text-[11px] text-white/45">Entry {index + 1}</label>
+                                <button type="button" disabled={busy} onClick={() => removeStructuredEntry(record, section, index)} className="min-h-8 px-2 text-xs text-red-200/80 underline underline-offset-4 disabled:opacity-40">Remove</button>
+                              </div>
+                              <textarea id={`resume-${record.id}-${section}-${index}`} value={entry} onChange={(event) => updateStructuredEntry(record, section, index, event.target.value)} maxLength={section === "certifications" ? 500 : 1200} rows={3} className="w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <label className="text-xs text-white/60 sm:col-span-2">Private source-text notes (never published)
                   <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Extracted document text or private notes for reviewing the public fields. This content is never published." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
