@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { extractResumeText } from "./lib/resume-extraction";
 import {
   adminAuthConfigured,
   adminCookieHeader,
@@ -243,7 +244,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     return jsonResponse({ resume: records[records.length - 1] }, 201);
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|publish|draft|unpublish))?$/);
+  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|extract|publish|draft|unpublish))?$/);
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
@@ -251,6 +252,23 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (index < 0) return privateNotFound();
     const record = records[index];
     const fileKey = `private-admin/resumes/files/${id}`;
+
+    if (action === "extract" && request.method === "POST") {
+      const object = await bucket.get(fileKey);
+      if (!object) return privateNotFound();
+      try {
+        const extracted = await extractResumeText(new Uint8Array(await object.arrayBuffer()), record.contentType);
+        return jsonResponse({
+          text: extracted.text,
+          method: extracted.method,
+          warning: extracted.warning ?? null,
+        }, 200);
+      } catch (error) {
+        return jsonResponse({
+          error: error instanceof Error ? error.message : "Could not extract text from this resume.",
+        }, 422);
+      }
+    }
 
     if (action === "download" && request.method === "GET") {
       const object = await bucket.get(fileKey);
