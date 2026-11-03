@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { extractResumeText } from "./lib/resume-extraction";
 import {
   adminAuthConfigured,
   adminCookieHeader,
@@ -133,6 +134,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
   privateReviewNotes?: string;
 };
 
@@ -238,12 +240,13 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
       displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
       headline: "", summary: "", skills: [],
+      structuredSections: { experience: [], education: [], projects: [], certifications: [] },
     });
     await writeResumeIndex(bucket, records);
     return jsonResponse({ resume: records[records.length - 1] }, 201);
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|publish|draft|unpublish))?$/);
+  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|extract|publish|draft|unpublish))?$/);
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
@@ -251,6 +254,23 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (index < 0) return privateNotFound();
     const record = records[index];
     const fileKey = `private-admin/resumes/files/${id}`;
+
+    if (action === "extract" && request.method === "POST") {
+      const object = await bucket.get(fileKey);
+      if (!object) return privateNotFound();
+      try {
+        const extracted = await extractResumeText(new Uint8Array(await object.arrayBuffer()), record.contentType);
+        return jsonResponse({
+          text: extracted.text,
+          method: extracted.method,
+          warning: extracted.warning ?? null,
+        }, 200);
+      } catch (error) {
+        return jsonResponse({
+          error: error instanceof Error ? error.message : "Could not extract text from this resume.",
+        }, 422);
+      }
+    }
 
     if (action === "download" && request.method === "GET") {
       const object = await bucket.get(fileKey);
@@ -269,6 +289,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
           payload.skills.some((skill) => typeof skill !== "string") ||
+          (payload.structuredSections !== undefined && (!payload.structuredSections || typeof payload.structuredSections !== "object" || !["experience", "education", "projects", "certifications"].every((section) => Array.isArray(payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>]) && (payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>] as unknown[]).every((entry) => typeof entry === "string")))) ||
           (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
           !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
         return jsonResponse({ error: "Provide valid reviewed details and select the correct profile." }, 400);
@@ -280,13 +301,19 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
+        structuredSections: {
+          experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
+          education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => entry.slice(0, 1200)),
+          projects: (payload.structuredSections?.projects ?? record.structuredSections?.projects ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
+          certifications: (payload.structuredSections?.certifications ?? record.structuredSections?.certifications ?? []).slice(0, 40).map((entry) => entry.slice(0, 500)),
+        },
         privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
         status: "pending",
       };
       await writeResumeIndex(bucket, records);
       await bucket.put("public/approved-resumes.json", JSON.stringify({
         updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills }) => ({ id, profileId, displayName, headline, summary, skills })),
+        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
       }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
@@ -296,7 +323,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       await writeResumeIndex(bucket, records);
       await bucket.put("public/approved-resumes.json", JSON.stringify({
         updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills }) => ({ id, profileId, displayName, headline, summary, skills })),
+        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
       }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
@@ -306,6 +333,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
           payload.skills.some((skill) => typeof skill !== "string") ||
+          (payload.structuredSections !== undefined && (!payload.structuredSections || typeof payload.structuredSections !== "object" || !["experience", "education", "projects", "certifications"].every((section) => Array.isArray(payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>]) && (payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>] as unknown[]).every((entry) => typeof entry === "string")))) ||
+          (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
           !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
         return jsonResponse({ error: "Provide valid reviewed details and select the correct profile." }, 400);
       }
@@ -319,12 +348,19 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
+        structuredSections: {
+          experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
+          education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => entry.slice(0, 1200)),
+          projects: (payload.structuredSections?.projects ?? record.structuredSections?.projects ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
+          certifications: (payload.structuredSections?.certifications ?? record.structuredSections?.certifications ?? []).slice(0, 40).map((entry) => entry.slice(0, 500)),
+        },
+        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
         status: "approved",
       };
       await writeResumeIndex(bucket, records);
       await bucket.put("public/approved-resumes.json", JSON.stringify({
         updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills }) => ({ id, profileId, displayName, headline, summary, skills })),
+        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
       }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
@@ -335,7 +371,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       await writeResumeIndex(bucket, records);
       await bucket.put("public/approved-resumes.json", JSON.stringify({
         updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills }) => ({ id, profileId, displayName, headline, summary, skills })),
+        resumes: records.filter((item) => item.status === "approved" && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
       }), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
       return jsonResponse({ ok: true }, 200);
     }
