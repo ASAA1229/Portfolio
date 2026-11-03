@@ -15,6 +15,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
   privateReviewNotes?: string;
 };
 
@@ -124,7 +125,7 @@ function ResumeManager() {
       const response = await fetch(`/api/admin/resumes/${record.id}/publish`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, privateReviewNotes: record.privateReviewNotes ?? "" }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not approve the resume.");
@@ -175,6 +176,12 @@ function ResumeManager() {
     const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
     update(record.id, {
       skills: mapped.skills.length ? mapped.skills : record.skills,
+      structuredSections: {
+        experience: mapped.sections.experience ? [mapped.sections.experience] : record.structuredSections?.experience ?? [],
+        education: mapped.sections.education ? [mapped.sections.education] : record.structuredSections?.education ?? [],
+        projects: mapped.sections.projects ? [mapped.sections.projects] : record.structuredSections?.projects ?? [],
+        certifications: mapped.sections.certifications ? [mapped.sections.certifications] : record.structuredSections?.certifications ?? [],
+      },
       privateReviewNotes: notes,
     });
     setMessage(
@@ -191,7 +198,7 @@ function ResumeManager() {
       const response = await fetch(`/api/admin/resumes/${record.id}/draft`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, privateReviewNotes: record.privateReviewNotes ?? "" }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not save the draft.");
@@ -329,6 +336,15 @@ function ResumeManager() {
                 <label className="text-xs text-white/60">Headline<input value={record.headline} onChange={(event) => update(record.id, { headline: event.target.value })} maxLength={180} placeholder="e.g. Software Developer" className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Public summary<textarea value={record.summary} onChange={(event) => update(record.id, { summary: event.target.value })} maxLength={3000} rows={4} placeholder="Write and verify the summary that may be public." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
+                <div className="sm:col-span-2 rounded border border-white/10 p-4">
+                  <h4 className="text-sm font-semibold text-white/80">Structured profile sections</h4>
+                  <p className="mt-1 text-xs text-white/40">Review and edit each section. Separate multiple entries with a blank line. These fields are public only after approval.</p>
+                  {(["experience", "education", "projects", "certifications"] as const).map((section) => (
+                    <label key={section} className="mt-3 block text-xs capitalize text-white/60">{section}
+                      <textarea value={(record.structuredSections?.[section] ?? []).join("\n\n")} onChange={(event) => update(record.id, { structuredSections: { experience: record.structuredSections?.experience ?? [], education: record.structuredSections?.education ?? [], projects: record.structuredSections?.projects ?? [], certifications: record.structuredSections?.certifications ?? [], [section]: event.target.value.split(/\n\s*\n/).map((entry) => entry.trim()).filter(Boolean).slice(0, section === "certifications" ? 40 : 30) } })} rows={3} className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                    </label>
+                  ))}
+                </div>
                 <label className="text-xs text-white/60 sm:col-span-2">Private source-text notes (never published)
                   <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Extracted document text or private notes for reviewing the public fields. This content is never published." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
                   <span className="mt-1 block text-[11px] text-white/35">Up to 12,000 characters. Stored only with the private review record; save as a private draft to persist it.</span>
@@ -340,7 +356,7 @@ function ResumeManager() {
                 <p className="mt-1 text-lg">{record.headline.trim() || "Headline not set"}</p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/60">{record.summary.trim() || "Public summary not set"}</p>
                 <div className="mt-3 flex flex-wrap gap-2">{record.skills.filter(Boolean).map((skill, index) => <span key={skill + index} className="border border-white/15 px-2 py-1 text-xs text-white/70">{skill}</span>)}</div>
-                <p className="mt-3 text-[11px] text-white/35">Only these reviewed fields are published. The source document stays private.</p>
+                <p className="mt-3 text-[11px] text-white/35">Only reviewed fields are published. Structured sections remain separate from existing profile facts; the source document and private notes stay private.</p>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <a href={`/api/admin/resumes/${record.id}/download`} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5"><Download className="size-4" /> Download original</a>
@@ -358,7 +374,7 @@ function ResumeManager() {
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text can be mapped by recognizable headings into private review notes and skill suggestions. Mapping never updates public profile sections; review and save a private draft, then explicitly approve only the public fields.</p>
+          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes reviewed display name, headline, summary, skills and optional structured sections; original files and private notes remain private. Document text can be mapped by recognizable headings into private review notes and skill suggestions. Mapping never updates public profile sections; review and save a private draft, then explicitly approve only the public fields.</p>
         </div>
         <p className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/30"><FileLock2 className="size-3" /> Private workspace · No public navigation</p>
       </div>
