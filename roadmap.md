@@ -60,7 +60,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Add client-side search across filename, display name, headline, summary and skills.
    - [x] Add status filtering (all, pending review, approved/published), clear-filters action, result count and published/pending summary counts (commit `f1ed72e`).
    - [x] Save reviewed metadata as a private pending draft without publishing; moving an approved record back to draft removes it from the public approved-resume feed.
-   - [ ] Implement document parsing/extraction with a safe manual-review/edit step before any public approval.
+   - [x] Add bounded best-effort PDF/DOCX text extraction into private review notes with a manual edit step; scanned PDFs/OCR and complex PDF font encodings remain unsupported (commit `0f5a5bb`).
    - [x] Add explicit profile assignment (Abhishek, Amulya, Anjini Kumar or Sai); publishing rejects missing/invalid assignment and excludes unassigned or legacy records from the public feed.
    - [x] Render approved resume metadata only on its matching public profile homepage, with no source-file links and no changes to the existing hardcoded portfolio facts (commit `5373a93`).
    - [ ] Authentication/session, storage, upload/download/delete and file-boundary validation are deferred while testing is paused.
@@ -105,7 +105,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [x] Keep image uploads associated with a selected profile and serve approved images through the dynamic profile gallery feed.
 - [x] Add an explicit publish-immediately option to the image upload form; server publishes the stored image and marks it approved in the same upload workflow (commits `b75f9d5`, `8638d47`).
 - [ ] Add reliable PDF/DOCX text extraction to prefill editable resume fields and profile content from the uploaded document. Current runtime dependencies do not include a document parser; choose and integrate an appropriate parser before claiming extraction is automated.
-- [ ] Build a reviewable content-mapping step from extracted resume sections into profile experience, education, skills, projects and certifications. Preserve profile-specific facts and require approval before public changes.
+- [x] Add conservative heading-based mapping for experience, education, skills, projects and certifications into private review notes; suggest skills in the editable review form. This does not yet populate the structured public profile sections, and explicit approval remains required (commits `f281381`, `230ff68`, `2bc68a8`).
 - [ ] Define whether image uploads should support an explicit publish-on-upload option; current behavior intentionally keeps uploads private/pending until publication.
 - [ ] Validate upload-to-profile mapping, extraction quality, draft editing, publication and rollback when testing resumes.
 
