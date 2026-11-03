@@ -66,3 +66,31 @@ export function mapResumeSections(text: string): ResumeSectionMapping {
     unmappedText: unmapped.join("\n").trim(),
   };
 }
+
+/**
+ * Breaks recognized section text into editable review entries without inventing
+ * structure. Blank lines and explicit list markers create boundaries; wrapped
+ * lines stay with the preceding entry.
+ */
+export function splitResumeSectionEntries(sectionText: string): string[] {
+  const entries: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    const value = current.join("\\n").trim();
+    if (value) entries.push(value);
+    current = [];
+  };
+
+  for (const rawLine of sectionText.replace(/\\r\\n?/g, "\\n").split("\\n")) {
+    const line = rawLine.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+    const startsListItem = /^(?:[•●▪◦*-]|\\d+[.)])\\s+/.test(line);
+    if (startsListItem && current.length) flush();
+    current.push(line.replace(/^(?:[•●▪◦*-]|\\d+[.)])\\s+/, ""));
+  }
+  flush();
+  return entries.slice(0, 40).map((entry) => entry.slice(0, 1200));
+}
