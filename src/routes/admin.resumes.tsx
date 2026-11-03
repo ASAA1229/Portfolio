@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine } from "lucide-react";
+import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
+import { mapResumeSections } from "@/lib/resume-mapping";
 
 type ResumeRecord = {
   id: string;
@@ -154,6 +155,34 @@ function ResumeManager() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function mapSections(record: ResumeRecord) {
+    const mapped = mapResumeSections(record.privateReviewNotes ?? "");
+    const sectionNames = Object.keys(mapped.sections);
+    const privateBlock = [
+      "[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY]",
+      ...sectionNames.flatMap((name) => [
+        name.toUpperCase(),
+        mapped.sections[name as keyof typeof mapped.sections] ?? "",
+        "",
+      ]),
+      "[END MAPPED SECTIONS]",
+    ].join("\n");
+    const existing = (record.privateReviewNotes ?? "")
+      .replace(/\\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\\][\\s\\S]*?\\[END MAPPED SECTIONS\\]/g, "")
+      .trim();
+    const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
+    update(record.id, {
+      skills: mapped.skills.length ? mapped.skills : record.skills,
+      privateReviewNotes: notes,
+    });
+    setMessage(
+      sectionNames.length
+        ? `Mapped ${sectionNames.length} recognizable sections. Skills were suggested where a Skills heading was found. Review all suggestions and save as a private draft.`
+        : "No recognized section headings were found. No public fields were changed; review the extracted text manually.",
+    );
+    setError("");
   }
 
   async function saveDraft(record: ResumeRecord) {
@@ -315,7 +344,7 @@ function ResumeManager() {
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <a href={`/api/admin/resumes/${record.id}/download`} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5"><Download className="size-4" /> Download original</a>
-                <button disabled={busy} onClick={() => extractText(record)} className="inline-flex min-h-10 items-center gap-2 border border-sky-300/25 px-3 text-xs text-sky-100 hover:bg-sky-300/5 disabled:opacity-50"><FilePenLine className="size-4" /> Extract document text</button>
+                <button disabled={busy} onClick={() => extractText(record)} className="inline-flex min-h-10 items-center gap-2 border border-sky-300/25 px-3 text-xs text-sky-100 hover:bg-sky-300/5 disabled:opacity-50"><FilePenLine className="size-4" /> Extract document text</button>\n                <button disabled={busy || !(record.privateReviewNotes ?? "").trim()} onClick={() => mapSections(record)} className="inline-flex min-h-10 items-center gap-2 border border-violet-300/25 px-3 text-xs text-violet-100 hover:bg-violet-300/5 disabled:opacity-50"><ListTree className="size-4" /> Map resume sections</button>
                 <button disabled={busy} onClick={() => saveDraft(record)} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5 disabled:opacity-50"><FilePenLine className="size-4" /> Save private draft</button>
                 <button disabled={busy} onClick={() => saveResume(record)} className="inline-flex min-h-10 items-center gap-2 bg-violet-300 px-3 text-xs font-semibold text-black disabled:opacity-50"><Save className="size-4" /> Approve & publish</button>
                 {record.status === "approved" && <button disabled={busy} onClick={() => unpublishResume(record)} className="inline-flex min-h-10 items-center gap-2 border border-amber-300/25 px-3 text-xs text-amber-100 hover:bg-amber-300/5 disabled:opacity-50">Unpublish / rollback</button>}
@@ -329,7 +358,7 @@ function ResumeManager() {
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text can be extracted into private review notes. Extracted text is never published; verify every public field manually.</p>
+          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text can be mapped by recognizable headings into private review notes and skill suggestions. Mapping never updates public profile sections; review and save a private draft, then explicitly approve only the public fields.</p>
         </div>
         <p className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/30"><FileLock2 className="size-3" /> Private workspace · No public navigation</p>
       </div>
