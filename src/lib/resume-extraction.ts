@@ -13,7 +13,7 @@ function decodeXml(value: string): string {
     const point = Number.parseInt(code, radix);
     return point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff)
       ? String.fromCodePoint(point)
-      : "\\uFFFD";
+      : String.fromCharCode(0xfffd);
   };
   return value
     .replace(/&#x([\da-f]+);/gi, (_, code: string) => decodeCodePoint(code, 16))
