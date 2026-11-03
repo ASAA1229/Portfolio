@@ -51,9 +51,9 @@ describe("PortfolioNavbar standardization", () => {
     expect(brandLink).toBeInTheDocument();
     expect(brandLink.getAttribute("href")).toBe("/");
 
-    const monogram = container.querySelector(".brand-monogram");
-    expect(monogram).toBeInTheDocument();
-    expect(monogram?.textContent).toBe("GA.");
+    const logo = container.querySelector(".site-nav-logo");
+    expect(logo).toBeInTheDocument();
+    expect(logo?.getAttribute("alt")).toBe("GA.");
   });
 
   it("renders all 8 primary navigation items in exact required order for Abhishek", () => {
@@ -131,10 +131,10 @@ describe("PortfolioNavbar standardization", () => {
     expect(aiIntroBtn).toBeInTheDocument();
     expect(aiIntroBtn.textContent).toContain("AI Intro");
 
-    // 2. Movie button linking to /portfolio
+    // 2. Movie button links to the current projects page
     const movieBtn = container.querySelector(".site-nav-movie");
     expect(movieBtn).toBeInTheDocument();
-    expect(movieBtn?.getAttribute("href")).toBe("/portfolio");
+    expect(movieBtn?.getAttribute("href")).toBe("/projects");
 
     // 3. Choose profile button
     const chooseProfile = screen.getByRole("link", { name: /choose profile/i });
@@ -177,7 +177,7 @@ describe("PortfolioNavbar standardization", () => {
 
     const header = container.querySelector("header.site-nav");
     expect(header).toBeInTheDocument();
-    expect(header?.querySelector(".brand-monogram")?.textContent).toBe("GA.");
+    expect(header?.querySelector(".site-nav-logo")?.getAttribute("alt")).toBe("GA.");
     expect(header?.querySelector(".site-primary-nav")).toBeInTheDocument();
     expect(header?.querySelector(".site-nav-movie")).toBeInTheDocument();
     expect(header?.querySelector(".site-nav-ai")).toBeInTheDocument();
