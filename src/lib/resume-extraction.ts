@@ -9,9 +9,15 @@ export type ResumeExtractionResult = {
 };
 
 function decodeXml(value: string): string {
+  const decodeCodePoint = (code: string, radix: number) => {
+    const point = Number.parseInt(code, radix);
+    return point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff)
+      ? String.fromCodePoint(point)
+      : "\\uFFFD";
+  };
   return value
-    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => decodeCodePoint(code, 16))
+    .replace(/&#(\d+);/g, (_, code: string) => decodeCodePoint(code, 10))
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -144,7 +150,11 @@ function decodePdfString(token: string): string {
       for (let index = 2; index + 1 < bytes.length; index += 2) {
         units.push((bytes[index] << 8) | bytes[index + 1]);
       }
-      return String.fromCharCode(...units);
+      let decoded = "";
+      for (let offset = 0; offset < units.length; offset += 8192) {
+        decoded += String.fromCharCode(...units.slice(offset, offset + 8192));
+      }
+      return decoded;
     }
     return new TextDecoder("windows-1252").decode(bytes);
   }
@@ -204,6 +214,7 @@ async function extractPdf(bytes: Uint8Array): Promise<string> {
   if (!binary.startsWith("%PDF-")) throw new Error("The PDF header is invalid.");
 
   const chunks: string[] = [];
+  let totalCharacters = 0;
   const streamPattern = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   for (const match of binary.matchAll(streamPattern)) {
     const dictionary = match[1];
@@ -221,8 +232,12 @@ async function extractPdf(bytes: Uint8Array): Promise<string> {
       continue;
     }
 
-    chunks.push(...extractPdfTextFromContent(content));
-    if (chunks.join("").length >= MAX_EXTRACTED_CHARS) break;
+    for (const text of extractPdfTextFromContent(content)) {
+      chunks.push(text);
+      totalCharacters += text.length;
+      if (totalCharacters >= MAX_EXTRACTED_CHARS) break;
+    }
+    if (totalCharacters >= MAX_EXTRACTED_CHARS) break;
   }
 
   return normalizeExtractedText(chunks.join("\n"));
