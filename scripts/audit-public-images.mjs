@@ -27,7 +27,7 @@ try { await stat(rootHtml); files.push(rootHtml); } catch {}
 const sourceFiles = files.filter((file) => /\.(?:tsx?|jsx?|css|html|json|md)$/i.test(file) && !file.endsWith("audit-public-images.mjs"));
 for (const file of sourceFiles) {
   const text = await readFile(file, "utf8");
-  const patterns = [/(?:src|href|poster)\\s*=\\s*["\\x27]([^"\\x27]+\\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\\?[^"\\x27]*)?)["\\x27]/gi, /\\b(?:from\\s*|import\\s*)["\\x27]([^"\\x27]+\\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\\?[^"\\x27]*)?)["\\x27]/gi, /["\\x27](\\/images\\/[^"\\x27]+)["\\x27]/gi, /url\\(\\s*["\\x27]?([^)"\\x27]+\\.(?:avif|gif|heic|jpe?g|png|svg|webp))["\\x27]?\\s*\\)/gi];
+  const patterns = [/(?:src|href|poster)\s*=\s*["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi, /\b(?:from\s*|import\s*)["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi, /["\x27](\/images\/[^"\x27]+)["\x27]/gi, /url\(\s*["\x27]?([^)"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp))["\x27]?\s*\)/gi];
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const raw = match[1].split("?")[0];
