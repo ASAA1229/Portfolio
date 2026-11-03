@@ -64,6 +64,10 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Add explicit profile assignment (Abhishek, Amulya, Anjini Kumar or Sai); publishing rejects missing/invalid assignment and excludes unassigned or legacy records from the public feed.
    - [x] Render approved resume metadata only on its matching public profile homepage, with no source-file links and no changes to the existing hardcoded portfolio facts (commit `5373a93`).
    - [ ] Authentication/session, storage, upload/download/delete and file-boundary validation are deferred while testing is paused.
+   - [x] Add strict validation for persisted private resume-index records, including UUIDs, allowed content types, size bounds, profile IDs, structured-section shapes and duplicate IDs; corrupted indexes fail closed rather than being silently treated as empty (source change only, commit `b5b3006`).
+   - [x] Make resume upload storage/index updates clean up the newly stored private file if index persistence fails, preventing orphaned uploads where cleanup succeeds (source change only, commit `b5b3006`).
+   - [x] Restrict resume record API paths to canonical UUIDs before resolving private storage keys (source change only, commit `b5b3006`).
+   - [ ] Verify these storage and boundary behaviors with failure-injection tests and hosted storage checks when validation resumes.
 4. **EPIC-08 — Dynamic profile updates and publishing**
    - [x] Add a public metadata-only resume highlights section filtered by profile ID; private resume files remain inaccessible from public profile pages (commit `5373a93`).
    - [x] Add an in-manager public-field preview, explicit unpublish/rollback to private pending status, and require profile assignment before publishing (commits `34c10a1`, `9298ca8`, `77b4f54`).
