@@ -70,7 +70,7 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
 async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
   const rawLength = request.headers.get("content-length");
   if (rawLength !== null) {
-    if (!/^\\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
+    if (!/^\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
     const declaredLength = Number(rawLength);
     if (!Number.isSafeInteger(declaredLength) || declaredLength > maxBytes) {
       return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
