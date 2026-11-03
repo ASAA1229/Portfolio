@@ -134,6 +134,28 @@ function ResumeManager() {
     } finally { setBusy(false); }
   }
 
+  async function extractText(record: ResumeRecord) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch(`/api/admin/resumes/${record.id}/extract`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = await response.json() as { text?: string; warning?: string | null; error?: string };
+      if (!response.ok || typeof payload.text !== "string") {
+        throw new Error(payload.error ?? "Could not extract text from this document.");
+      }
+      update(record.id, { privateReviewNotes: payload.text });
+      setMessage(payload.warning
+        ? `Text extracted into private review notes. ${payload.warning}`
+        : "Text extracted into private review notes. Review it, then save the private draft.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not extract document text.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveDraft(record: ResumeRecord) {
     setBusy(true); setError(""); setMessage("");
     try {
@@ -279,7 +301,7 @@ function ResumeManager() {
                 <label className="text-xs text-white/60 sm:col-span-2">Public summary<textarea value={record.summary} onChange={(event) => update(record.id, { summary: event.target.value })} maxLength={3000} rows={4} placeholder="Write and verify the summary that may be public." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Private source-text notes (never published)
-                  <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Paste text copied manually from the private PDF/DOCX to help review the public fields. This is not automatic extraction." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                  <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Extracted document text or private notes for reviewing the public fields. This content is never published." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
                   <span className="mt-1 block text-[11px] text-white/35">Up to 12,000 characters. Stored only with the private review record; save as a private draft to persist it.</span>
                 </label>
               </div>
@@ -293,6 +315,7 @@ function ResumeManager() {
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <a href={`/api/admin/resumes/${record.id}/download`} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5"><Download className="size-4" /> Download original</a>
+                <button disabled={busy} onClick={() => extractText(record)} className="inline-flex min-h-10 items-center gap-2 border border-sky-300/25 px-3 text-xs text-sky-100 hover:bg-sky-300/5 disabled:opacity-50"><FilePenLine className="size-4" /> Extract document text</button>
                 <button disabled={busy} onClick={() => saveDraft(record)} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5 disabled:opacity-50"><FilePenLine className="size-4" /> Save private draft</button>
                 <button disabled={busy} onClick={() => saveResume(record)} className="inline-flex min-h-10 items-center gap-2 bg-violet-300 px-3 text-xs font-semibold text-black disabled:opacity-50"><Save className="size-4" /> Approve & publish</button>
                 {record.status === "approved" && <button disabled={busy} onClick={() => unpublishResume(record)} className="inline-flex min-h-10 items-center gap-2 border border-amber-300/25 px-3 text-xs text-amber-100 hover:bg-amber-300/5 disabled:opacity-50">Unpublish / rollback</button>}
@@ -306,7 +329,7 @@ function ResumeManager() {
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text is not automatically extracted. Optional source-text notes are private and never included in the public feed; verify every public field manually.</p>
+          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text can be extracted into private review notes. Extracted text is never published; verify every public field manually.</p>
         </div>
         <p className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/30"><FileLock2 className="size-3" /> Private workspace · No public navigation</p>
       </div>
