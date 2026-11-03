@@ -155,7 +155,9 @@ pipeline {
                 Write-Output "Published and verified $file at immutable build path $env:BUILD_NUMBER-$commit"
               }
               node scripts/artifact-integrity.mjs verify-hash (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back checksum verification failed." }
               node scripts/artifact-integrity.mjs verify-release (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back release verification failed." }
               # Inspect archive paths before extraction to block path traversal.
               $archivePath = Join-Path $verificationDir $env:ARTIFACT_FILE
               $archiveEntries = & tar -tzf $archivePath
