@@ -5,7 +5,7 @@ import process from "node:process";
 const root = process.cwd();
 const publicRoot = path.join(root, "public");
 const sourceRoots = ["src", "public"];
-const imageExtensions = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
+const imageExtensions = new Set([".avif", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
 const references = new Map();
 const files = [];
 
@@ -22,10 +22,12 @@ async function walk(directory) {
 }
 
 await Promise.all(sourceRoots.map((directory) => walk(path.join(root, directory))));
+const rootHtml = path.join(root, "index.html");
+try { await stat(rootHtml); files.push(rootHtml); } catch {}
 const sourceFiles = files.filter((file) => /\.(?:tsx?|jsx?|css|html|json|md)$/i.test(file) && !file.endsWith("audit-public-images.mjs"));
 for (const file of sourceFiles) {
   const text = await readFile(file, "utf8");
-  const patterns = [/(?:src|href|poster)\s*=\s*["\x27]([^"\x27]+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi, /["\x27](\/images\/[^"\x27]+)["\x27]/gi, /url\(\s*["\x27]?([^)"\x27]+\.(?:avif|gif|jpe?g|png|svg|webp))["\x27]?\s*\)/gi];
+  const patterns = [/(?:src|href|poster)\s*=\s*["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi, /\b(?:from\s*|import\s*)["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi, /["\x27](\/images\/[^"\x27]+)["\x27]/gi, /url\(\s*["\x27]?([^)"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp))["\x27]?\s*\)/gi];
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) {
       const raw = match[1].split("?")[0];

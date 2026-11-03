@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine } from "lucide-react";
+import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
+import { mapResumeSections, splitResumeSectionEntries } from "@/lib/resume-mapping";
 
 type ResumeRecord = {
   id: string;
@@ -14,6 +15,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
   privateReviewNotes?: string;
 };
 
@@ -123,7 +125,7 @@ function ResumeManager() {
       const response = await fetch(`/api/admin/resumes/${record.id}/publish`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, privateReviewNotes: record.privateReviewNotes ?? "" }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not approve the resume.");
@@ -134,13 +136,69 @@ function ResumeManager() {
     } finally { setBusy(false); }
   }
 
+  async function extractText(record: ResumeRecord) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const response = await fetch(`/api/admin/resumes/${record.id}/extract`, {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = await response.json() as { text?: string; warning?: string | null; error?: string };
+      if (!response.ok || typeof payload.text !== "string") {
+        throw new Error(payload.error ?? "Could not extract text from this document.");
+      }
+      update(record.id, { privateReviewNotes: payload.text });
+      setMessage(payload.warning
+        ? `Text extracted into private review notes. ${payload.warning}`
+        : "Text extracted into private review notes. Review it, then save the private draft.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not extract document text.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function mapSections(record: ResumeRecord) {
+    const mapped = mapResumeSections(record.privateReviewNotes ?? "");
+    const sectionNames = Object.keys(mapped.sections);
+    const privateBlock = [
+      "[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY]",
+      ...sectionNames.flatMap((name) => [
+        name.toUpperCase(),
+        mapped.sections[name as keyof typeof mapped.sections] ?? "",
+        "",
+      ]),
+      "[END MAPPED SECTIONS]",
+    ].join("\n");
+    const existing = (record.privateReviewNotes ?? "")
+      .replace(/\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\][\s\S]*?\[END MAPPED SECTIONS\]/g, "")
+      .trim();
+    const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
+    update(record.id, {
+      skills: mapped.skills.length ? mapped.skills : record.skills,
+      structuredSections: {
+        experience: mapped.sections.experience ? splitResumeSectionEntries(mapped.sections.experience) : record.structuredSections?.experience ?? [],
+        education: mapped.sections.education ? splitResumeSectionEntries(mapped.sections.education) : record.structuredSections?.education ?? [],
+        projects: mapped.sections.projects ? splitResumeSectionEntries(mapped.sections.projects) : record.structuredSections?.projects ?? [],
+        certifications: mapped.sections.certifications ? splitResumeSectionEntries(mapped.sections.certifications) : record.structuredSections?.certifications ?? [],
+      },
+      privateReviewNotes: notes,
+    });
+    setMessage(
+      sectionNames.length
+        ? `Mapped ${sectionNames.length} recognizable sections. Skills were suggested where a Skills heading was found. Review all suggestions and save as a private draft.`
+        : "No recognized section headings were found. No public fields were changed; review the extracted text manually.",
+    );
+    setError("");
+  }
+
   async function saveDraft(record: ResumeRecord) {
     setBusy(true); setError(""); setMessage("");
     try {
       const response = await fetch(`/api/admin/resumes/${record.id}/draft`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, privateReviewNotes: record.privateReviewNotes ?? "" }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not save the draft.");
@@ -186,6 +244,43 @@ function ResumeManager() {
 
   function update(id: string, patch: Partial<ResumeRecord>) {
     setResumes((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
+  }
+
+  function updateStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+    index: number,
+    value: string,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    const entries = [...current[section]];
+    entries[index] = value.slice(0, section === "certifications" ? 500 : 1200);
+    update(record.id, { structuredSections: { ...current, [section]: entries } });
+  }
+
+  function addStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    const max = section === "certifications" ? 40 : section === "education" ? 20 : 30;
+    if (current[section].length >= max) {
+      setError(`The ${section} section has reached its ${max}-entry limit.`);
+      setMessage("");
+      return;
+    }
+    update(record.id, { structuredSections: { ...current, [section]: [...current[section], ""] } });
+    setError("");
+    setMessage("");
+  }
+
+  function removeStructuredEntry(
+    record: ResumeRecord,
+    section: keyof NonNullable<ResumeRecord["structuredSections"]>,
+    index: number,
+  ) {
+    const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
+    update(record.id, { structuredSections: { ...current, [section]: current[section].filter((_, entryIndex) => entryIndex !== index) } });
   }
 
   if (checking) return <div className="flex min-h-screen items-center justify-center bg-[#09090d] text-sm text-white/60">Verifying private session…</div>;
@@ -278,8 +373,36 @@ function ResumeManager() {
                 <label className="text-xs text-white/60">Headline<input value={record.headline} onChange={(event) => update(record.id, { headline: event.target.value })} maxLength={180} placeholder="e.g. Software Developer" className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Public summary<textarea value={record.summary} onChange={(event) => update(record.id, { summary: event.target.value })} maxLength={3000} rows={4} placeholder="Write and verify the summary that may be public." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
+                <div className="sm:col-span-2 rounded border border-white/10 p-4">
+                  <h4 className="text-sm font-semibold text-white/80">Structured profile sections</h4>
+                  <p className="mt-1 text-xs text-white/40">Edit, add or remove individual entries. Changes stay private until you explicitly approve and publish this resume.</p>
+                  {(["experience", "education", "projects", "certifications"] as const).map((section) => {
+                    const entries = record.structuredSections?.[section] ?? [];
+                    const max = section === "certifications" ? 40 : section === "education" ? 20 : 30;
+                    return (
+                      <div key={section} className="mt-4 border-t border-white/10 pt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h5 className="text-xs font-semibold capitalize text-white/75">{section} <span className="font-mono text-white/35">({entries.length}/{max})</span></h5>
+                          <button type="button" disabled={busy || entries.length >= max} onClick={() => addStructuredEntry(record, section)} className="min-h-8 border border-violet-300/25 px-3 text-xs text-violet-100 disabled:opacity-40">Add entry</button>
+                        </div>
+                        {entries.length === 0 && <p className="mt-2 text-xs text-white/35">No entries yet.</p>}
+                        <div className="mt-2 space-y-2">
+                          {entries.map((entry, index) => (
+                            <div key={section + "-" + index} className="border border-white/10 bg-black/20 p-3">
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <label htmlFor={`resume-${record.id}-${section}-${index}`} className="text-[11px] text-white/45">Entry {index + 1}</label>
+                                <button type="button" disabled={busy} onClick={() => removeStructuredEntry(record, section, index)} className="min-h-8 px-2 text-xs text-red-200/80 underline underline-offset-4 disabled:opacity-40">Remove</button>
+                              </div>
+                              <textarea id={`resume-${record.id}-${section}-${index}`} value={entry} onChange={(event) => updateStructuredEntry(record, section, index, event.target.value)} maxLength={section === "certifications" ? 500 : 1200} rows={3} className="w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
                 <label className="text-xs text-white/60 sm:col-span-2">Private source-text notes (never published)
-                  <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Paste text copied manually from the private PDF/DOCX to help review the public fields. This is not automatic extraction." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                  <textarea value={record.privateReviewNotes ?? ""} onChange={(event) => update(record.id, { privateReviewNotes: event.target.value })} maxLength={12000} rows={5} placeholder="Extracted document text or private notes for reviewing the public fields. This content is never published." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
                   <span className="mt-1 block text-[11px] text-white/35">Up to 12,000 characters. Stored only with the private review record; save as a private draft to persist it.</span>
                 </label>
               </div>
@@ -289,10 +412,11 @@ function ResumeManager() {
                 <p className="mt-1 text-lg">{record.headline.trim() || "Headline not set"}</p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-white/60">{record.summary.trim() || "Public summary not set"}</p>
                 <div className="mt-3 flex flex-wrap gap-2">{record.skills.filter(Boolean).map((skill, index) => <span key={skill + index} className="border border-white/15 px-2 py-1 text-xs text-white/70">{skill}</span>)}</div>
-                <p className="mt-3 text-[11px] text-white/35">Only these reviewed fields are published. The source document stays private.</p>
+                <p className="mt-3 text-[11px] text-white/35">Only reviewed fields are published. Structured sections remain separate from existing profile facts; the source document and private notes stay private.</p>
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
                 <a href={`/api/admin/resumes/${record.id}/download`} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5"><Download className="size-4" /> Download original</a>
+                <button disabled={busy} onClick={() => extractText(record)} className="inline-flex min-h-10 items-center gap-2 border border-sky-300/25 px-3 text-xs text-sky-100 hover:bg-sky-300/5 disabled:opacity-50"><FilePenLine className="size-4" /> Extract document text</button>\n                <button disabled={busy || !(record.privateReviewNotes ?? "").trim()} onClick={() => mapSections(record)} className="inline-flex min-h-10 items-center gap-2 border border-violet-300/25 px-3 text-xs text-violet-100 hover:bg-violet-300/5 disabled:opacity-50"><ListTree className="size-4" /> Map resume sections</button>
                 <button disabled={busy} onClick={() => saveDraft(record)} className="inline-flex min-h-10 items-center gap-2 border border-white/15 px-3 text-xs hover:bg-white/5 disabled:opacity-50"><FilePenLine className="size-4" /> Save private draft</button>
                 <button disabled={busy} onClick={() => saveResume(record)} className="inline-flex min-h-10 items-center gap-2 bg-violet-300 px-3 text-xs font-semibold text-black disabled:opacity-50"><Save className="size-4" /> Approve & publish</button>
                 {record.status === "approved" && <button disabled={busy} onClick={() => unpublishResume(record)} className="inline-flex min-h-10 items-center gap-2 border border-amber-300/25 px-3 text-xs text-amber-100 hover:bg-amber-300/5 disabled:opacity-50">Unpublish / rollback</button>}
@@ -306,7 +430,7 @@ function ResumeManager() {
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes only display name, headline, summary, skills and a generated record ID. Document text is not automatically extracted. Optional source-text notes are private and never included in the public feed; verify every public field manually.</p>
+          <p className="text-xs leading-5 text-white/55">Private originals are not exposed by the public API. Publishing exposes reviewed display name, headline, summary, skills and optional structured sections; original files and private notes remain private. Document text can be mapped by recognizable headings into private review notes and skill suggestions. Mapping never updates public profile sections; review and save a private draft, then explicitly approve only the public fields.</p>
         </div>
         <p className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/30"><FileLock2 className="size-3" /> Private workspace · No public navigation</p>
       </div>
