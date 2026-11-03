@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/chat")({
         // Enforce a transport limit before parsing JSON to avoid oversized request bodies.
         const contentLength = request.headers.get("content-length");
         if (contentLength !== null) {
-          if (!/^\\d+$/.test(contentLength)) {
+          if (!/^\d+$/.test(contentLength)) {
             return Response.json({ error: "Invalid request length" }, { status: 400 });
           }
           if (!Number.isSafeInteger(Number(contentLength)) || Number(contentLength) > 70 * 1024) {
