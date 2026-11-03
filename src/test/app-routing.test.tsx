@@ -14,18 +14,18 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
-  it("preserves the legacy portfolio and profile picker alongside all new pages", () => {
+  it("matches the profile picker and all current primary pages", () => {
     const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
     for (const path of [
       "/",
       "/profiles",
-      "/portfolio",
       "/about",
       "/skills",
       "/projects",
       "/projects/neo-ai",
       "/experience",
       "/certifications",
+      "/education",
       "/contact",
     ]) {
       expect(router.matchRoutes(path).at(-1)?.routeId, path).not.toBe(rootRouteId);
