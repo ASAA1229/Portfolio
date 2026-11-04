@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { CONTACT, MISSIONS, MILESTONES, PROJECTS } from "@/lib/portfolio-data";
-import { PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
+import { getPersonPortfolio, PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
 
 describe("Portfolio factual and contact rules", () => {
@@ -14,6 +16,28 @@ describe("Portfolio factual and contact rules", () => {
     const portfolioProfile = PERSON_PORTFOLIOS.ammu;
     expect(selectorProfile?.avatar).toBe("/images/profiles/amulya/amulya_main.webp");
     expect(portfolioProfile.portrait).toBe(selectorProfile?.avatar);
+  });
+  it("references only profile image assets that exist in the public directory", () => {
+    const imagePaths = new Set<string>();
+
+    for (const person of PEOPLE) imagePaths.add(person.avatar);
+    for (const profile of Object.values(PERSON_PORTFOLIOS)) {
+      imagePaths.add(profile.portrait);
+      for (const image of profile.gallery) imagePaths.add(image.src);
+    }
+
+    const missing = [...imagePaths].filter((assetPath) =>
+      !existsSync(resolve(process.cwd(), "public", assetPath.replace(/^\\/+/, ""))),
+    );
+
+    expect(missing).toEqual([]);
+  });
+  it("keeps the profile directory and portfolio data aligned for supported profile routes", () => {
+    for (const person of PEOPLE) {
+      if (person.id === "abhishek") continue;
+      expect(getPersonPortfolio(person.id)?.id).toBe(person.id);
+    }
+    expect(getPersonPortfolio("unknown-profile")).toBeUndefined();
   });
   it("keeps profile project slugs unique within each profile", () => {
     for (const profile of Object.values(PERSON_PORTFOLIOS)) {
