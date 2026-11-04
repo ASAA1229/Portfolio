@@ -124,12 +124,10 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
 function adminAuthBypassed(env: unknown): boolean {
   // Temporary testing switch. Require an explicit flag and always fail closed in production.
   const bindings = env as { PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown; NODE_ENV?: unknown; ENVIRONMENT?: unknown } | undefined;
-  const processEnv = typeof process !== "undefined" ? process.env : undefined;
-  const enabled = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" ||
-    processEnv?.["PORTFOLIO_ADMIN_AUTH_BYPASS"] === "true";
+  const enabled = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true";
   const production = bindings?.NODE_ENV === "production" ||
     bindings?.ENVIRONMENT === "production" ||
-    processEnv?.["NODE_ENV"] === "production";
+    import.meta.env.PROD;
   return enabled && !production;
 }
 
