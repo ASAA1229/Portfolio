@@ -72,12 +72,22 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
   const cookie = cookieHeader.split(";").map((part) => part.trim())
     .find((part) => part.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
   if (!cookie) return false;
-  const separator = cookie.indexOf(".");
-  if (separator < 1) return false;
-  const payload = cookie.slice(0, separator);
-  const signature = base64UrlToBytes(cookie.slice(separator + 1));
+
+  // A SHA-256 HMAC has a fixed 32-byte signature (43 unpadded base64url
+  // characters). Reject non-canonical or oversized cookie values before
+  // decoding or performing cryptographic work.
+  const match = cookie.match(/^([1-9]\\d{9,15})\\.([A-Za-z0-9_-]{43})$/);
+  if (!match) return false;
+  const [, payload, encodedSignature] = match;
+  const signature = base64UrlToBytes(encodedSignature);
   const expiry = Number(payload);
-  if (!signature || !Number.isSafeInteger(expiry) || expiry <= Math.floor(Date.now() / 1000)) return false;
+  if (
+    !signature ||
+    signature.length !== 32 ||
+    bytesToBase64Url(signature) !== encodedSignature ||
+    !Number.isSafeInteger(expiry) ||
+    expiry <= Math.floor(Date.now() / 1000)
+  ) return false;
   return constantTimeEqual(signature, await hmac(payload, key));
 }
 
