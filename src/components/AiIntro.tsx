@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { Bot, Pause, Play, RotateCcw, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ function DynamicIntroPlayer() {
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -73,10 +75,14 @@ function DynamicIntroPlayer() {
   useEffect(() => {
     const element = video.current;
     if (!element) return;
+    if (shouldReduceMotion) {
+      element.pause();
+      return;
+    }
     const played = element.play?.();
     if (played && typeof played.catch === "function") played.catch(() => undefined);
     return () => element.pause();
-  }, []);
+  }, [shouldReduceMotion]);
 
   function playVoice() {
     if (!intro.trim() || !("speechSynthesis" in window)) return;
@@ -118,7 +124,7 @@ function DynamicIntroPlayer() {
               muted
               playsInline
               loop
-              autoPlay
+              autoPlay={!shouldReduceMotion}
               preload="metadata"
               aria-label="AI portfolio host video"
               className="h-full w-full object-contain"
@@ -177,13 +183,27 @@ function DynamicIntroPlayer() {
   );
 }
 
-export function AiIntro({ compact = false }: { compact?: boolean }) {
-  const [open, setOpen] = useState(false);
+export function AiIntro({
+  compact = false,
+  controlledOpen,
+  onControlledOpenChange,
+}: {
+  compact?: boolean;
+  controlledOpen?: boolean;
+  onControlledOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onControlledOpenChange?.(next);
+    if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => {
-      setOpen(next);
-      if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className={`min-h-11 ${compact ? "text-xs" : "px-5"}`}>
           <Bot /> Meet my AI intro

@@ -1,40 +1,23 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Menu, X, ArrowUpRight } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { ArrowUpRight } from "lucide-react";
+import type { ReactNode } from "react";
+import { PortfolioNavbar } from "@/components/navigation/PortfolioNavbar";
 import { PortfolioChat } from "@/components/PortfolioChat";
 import { SocialLinks, ResumeAction } from "@/components/SitePrimitives";
 import { CONTACT } from "@/lib/portfolio-data";
 
-const links = [
-  ["/", "Home"],
-  ["/about", "About"],
-  ["/skills", "Skills"],
-  ["/projects", "Projects"],
-  ["/experience", "Experience"],
-  ["/certifications", "Certifications"],
-  ["/contact", "Contact"],
-] as const;
 export function SiteShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  const [menu, setMenu] = useState(false);
-  useEffect(() => {
-    setMenu(false);
-  }, [path]);
-  useEffect(() => {
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(false);
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, []);
+
   if (
-    path === "/portfolio" ||
     path === "/profiles" ||
+    path.startsWith("/admin") ||
     path.startsWith("/people/") ||
     path.startsWith("/api/")
-  )
+  ) {
     return children;
+  }
+
   return (
     <div className="site-shell">
       <a
@@ -43,77 +26,17 @@ export function SiteShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <header className="site-nav">
-        <div className="site-container flex min-h-20 items-center justify-between gap-3">
-          <Link to="/" className="flex shrink-0 items-center gap-3" aria-label="Guda Abhishek home">
-            <span className="brand-monogram">
-              GA<span className="text-primary">.</span>
-            </span>
-            <span className="hidden font-mono text-[9px] text-muted-foreground xl:block">
-              GUDA ABHISHEK
-              <br />
-              THE DEVELOPER SERIES
-            </span>
-          </Link>
-          <nav aria-label="Main navigation" className="hidden items-center gap-1 lg:flex">
-            {links.map(([to, label]) => (
-              <Button key={to} asChild variant="bare" className="px-2 text-xs">
-                <Link
-                  to={to}
-                  activeOptions={{ exact: to === "/" }}
-                  activeProps={{ className: "text-violet" }}
-                >
-                  {label}
-                </Link>
-              </Button>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="bare" className="hidden text-xs sm:inline-flex">
-              <Link to="/profiles">Choose profile</Link>
-            </Button>
-            <Button asChild className="hidden text-xs xl:inline-flex">
-              <Link to="/contact">
-                Let's talk <ArrowUpRight />
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="min-h-11 min-w-11 lg:hidden"
-              aria-label={menu ? "Close navigation" : "Open navigation"}
-              aria-expanded={menu}
-              aria-controls="mobile-navigation"
-              onClick={() => setMenu(!menu)}
-            >
-              {menu ? <X /> : <Menu />}
-            </Button>
-          </div>
-        </div>
-        {menu && (
-          <nav
-            id="mobile-navigation"
-            aria-label="Mobile navigation"
-            className="site-container grid grid-cols-2 gap-2 border-t border-border py-4 lg:hidden"
-          >
-            {links.map(([to, label]) => (
-              <Button key={to} asChild variant="ghost" className="min-h-11 justify-start">
-                <Link to={to}>{label}</Link>
-              </Button>
-            ))}
-            <Button asChild variant="ghost" className="min-h-11 justify-start">
-              <Link to="/profiles">Choose profile</Link>
-            </Button>
-          </nav>
-        )}
-      </header>
+
+      <PortfolioNavbar />
+
       <div id="page-content">{children}</div>
+
       <footer className="site-footer">
         <div className="site-container">
           <div className="flex flex-wrap items-center justify-between gap-8">
             <div>
               <p className="font-mono text-xs text-violet">THE NEXT CHAPTER</p>
-              <h2 className="mt-3 text-4xl font-semibold">Let's build something meaningful.</h2>
+              <h2 className="mt-3 text-4xl font-semibold">Let&apos;s build something meaningful.</h2>
               <a
                 href={`mailto:${CONTACT.email}`}
                 className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
@@ -128,7 +51,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
             <p>© 2026 Guda Abhishek. All rights reserved. Netflix-inspired portfolio concept.</p>
-            <Link to="/portfolio" search={{ profile: "guest" }}>
+            <Link to="/projects">
               Explore The Series <ArrowUpRight className="inline size-3" />
             </Link>
           </div>

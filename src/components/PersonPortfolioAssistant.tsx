@@ -91,7 +91,7 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
           /* The server may return a non-JSON error page. */
         }
         const reason = response.status === 503 && detail.toLowerCase().includes("not configured")
-          ? "The AI service is not configured on the server (missing LOVABLE_API_KEY)."
+          ? "The AI service is not configured on the server (missing OPENAI_API_KEY)."
           : response.status === 401 || response.status === 403
             ? "The AI service rejected its server credentials (HTTP " + response.status + ")."
             : response.status === 402
@@ -120,6 +120,12 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
     }
     if ((speakReplies || mode === "intro") && answer.trim()) speak(answer);
   }
+  function stopResponse() {
+    controller.current?.abort();
+    controller.current = null;
+    setBusy(false);
+  }
+
   sendRef.current = send;
 
   return (
@@ -146,7 +152,11 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
             <button type="button" className="flex items-center gap-2 text-xs text-muted-foreground" aria-pressed={speakReplies} onClick={() => { setSpeakReplies(!speakReplies); if (speakReplies) window.speechSynthesis?.cancel(); }}>
               {speakReplies ? <Volume2 size={16} /> : <VolumeX size={16} />} Read replies aloud
             </button>
-            <Button variant="ghost" size="sm" onClick={() => { window.speechSynthesis?.cancel(); if (messages.length) speak(messages[messages.length - 1]?.content ?? ""); }} disabled={!messages.some((m) => m.role === "assistant" && m.content)}><Volume2 size={15} /> Replay</Button>
+            {busy ? (
+              <Button variant="ghost" size="sm" onClick={stopResponse}>Stop response</Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => { window.speechSynthesis?.cancel(); if (messages.length) speak(messages[messages.length - 1]?.content ?? ""); }} disabled={!messages.some((m) => m.role === "assistant" && m.content)}><Volume2 size={15} /> Replay</Button>
+            )}
           </div>
           <form className="flex gap-2 border-t border-border p-3" onSubmit={(event) => { event.preventDefault(); void send(); }}>
             <input value={input} onChange={(event) => setInput(event.target.value)} maxLength={1000} aria-label="Ask the portfolio assistant" placeholder="Ask about this portfolio…" className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm" />

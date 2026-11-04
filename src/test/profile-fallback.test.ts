@@ -24,7 +24,9 @@ describe("profile-grounded AI fallback", () => {
 
   it("does not invent contact handles when they are absent", () => {
     const answer = fallbackProfileAnswer(PERSON_PORTFOLIOS.sai, "How can I contact you?");
-    expect(answer).toContain("No social profile handles are listed");
+    expect(answer).toContain("LinkedIn: not provided");
+    expect(answer).toContain("GitHub: not provided");
+    expect(answer).not.toMatch(/LinkedIn: https?:|GitHub: https?:/);
   });
 
   it("offers useful guidance for questions outside known sections", () => {

@@ -1,19 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getPersonPortfolio, personHead } from "@/lib/person-portfolios";
+import { getPersonPortfolio } from "@/lib/person-portfolios";
 import { PersonHome, PersonUnavailable } from "@/components/PersonPortfolio";
+
 export const Route = createFileRoute("/people/$person/")({
-  head: ({ params }) =>
-    personHead(
-      params.person,
-      "Home",
-      getPersonPortfolio(params.person)?.story ??
-        "Anjini Kumar’s data analytics portfolio featuring data quality, KPI reporting, dashboards, Python, SQL, and AI-assisted analysis.",
-      `/people/${params.person}`,
-    ),
-  component: Home,
+  head: ({ params }) => {
+    const profile = getPersonPortfolio(params.person);
+    return {
+      meta: [
+        { title: profile ? `${profile.name} — Portfolio` : "Portfolio" },
+        { name: "description", content: profile?.summary ?? "Explore this personal portfolio." },
+      ],
+    };
+  },
+  component: PersonIndex,
 });
-function Home() {
+
+function PersonIndex() {
   const { person } = Route.useParams();
   const profile = getPersonPortfolio(person);
-  return profile ? <PersonHome profile={profile} /> : <PersonUnavailable person={person} />;
+  return profile ? <PersonHome profile={profile} /> : <PersonUnavailable missing />;
 }

@@ -5,7 +5,6 @@ import { PageBody, ResumeAction } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
 import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
-import collaboration from "@/assets/code-contribution.svg.asset.json";
 import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/about")({
@@ -100,9 +99,18 @@ function About() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
             {[
-              { src: "/images/profiles/abhishek/abhishek_main.jpeg", alt: "Abhishek at his graduation celebration" },
-              { src: "/images/profiles/abhishek/abhishek_1.jpeg", alt: "Abhishek presenting in a classroom" },
-              { src: "/images/profiles/abhishek/abhishek_2.jpg", alt: "Abhishek standing on the college campus" },
+              {
+               src:"/images/profiles/abhishek/abhishek_main.jpeg",
+                alt: "Abhishek at his graduation celebration",
+              },
+              {
+                src: "/images/profiles/abhishek/abhishek_1.jpeg",
+                alt: "Abhishek presenting in a classroom",
+              },
+              {
+                src: "/images/profiles/abhishek/abhishek_2.jpeg",
+                alt: "Abhishek standing on the college campus",
+              },
             ].map((photo) => (
               <img
                 key={photo.src}
@@ -120,7 +128,7 @@ function About() {
         <Reveal>
           <figure className="about-illustration">
             <img
-              src={collaboration.url}
+              src="/images/profiles/abhishek/abhishek_2.jpeg"
               alt="Illustration of developers collaborating on code"
               width={836}
               height={800}

@@ -39,7 +39,7 @@ export const SYSTEM_PROMPT = `You are the portfolio assistant for Guda Abhishek.
 
 /** Honest offline answers built from portfolio data, used when live AI is unavailable. */
 export function fallbackAnswer(question: string): string {
-  const q = question.toLowerCase();
+  const q = question.toLowerCase().replace(/\\bstudies\\b/g, "study").replace(/\\bstudying\\b/g, "study");
   const has = (...w: string[]) => w.some((x) => q.includes(x));
   if (has("contact", "email", "reach", "hire", "phone", "linkedin", "github"))
     return `You can reach Abhishek at **${CONTACT.email}** or ${CONTACT.phone}. LinkedIn: ${CONTACT.linkedin} · GitHub: ${CONTACT.github}. See the **Contact** section to draft an email.`;

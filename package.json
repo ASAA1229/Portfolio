@@ -10,8 +10,9 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run && node --test scripts/on-site-change-detection.test.mjs",
+    "test:watch": "vitest",
+    "audit:images": "node scripts/audit-public-images.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
