@@ -32,9 +32,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizeSkills(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
-    .filter((skill): skill is string => typeof skill === "string" && skill.trim().length > 0)
+    .filter((skill): skill is string => typeof skill === "string" && skill.trim().length > 0 && skill.trim().length <= 80)
     .slice(0, 20)
-    .map((skill) => skill.trim().slice(0, 80));
+    .map((skill) => skill.trim());
 }
 
 function normalizeSections(value: unknown): PublishedProfileResume["structuredSections"] {
