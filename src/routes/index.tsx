@@ -19,6 +19,7 @@ export const Route = createFileRoute("/")({
 });
 function Home() {
   const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
+  const [publishedResume, setPublishedResume] = useState<{ headline: string; summary: string; uploadedAt?: string } | null>(null);
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
@@ -29,6 +30,19 @@ function Home() {
         setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
       })
       .catch(() => { if (active) setPublishedPortrait(null); });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-resumes", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { resumes: [] })
+      .then((payload: { resumes?: { profileId: string; headline: string; summary: string; uploadedAt?: string }[] }) => {
+        if (!active) return;
+        const resumes = (payload.resumes ?? []).filter((item) => item.profileId === "abhishek");
+        resumes.sort((a, b) => Date.parse(b.uploadedAt ?? "") - Date.parse(a.uploadedAt ?? ""));
+        setPublishedResume(resumes[0] ?? null);
+      })
+      .catch(() => { if (active) setPublishedResume(null); });
     return () => { active = false; };
   }, []);
   return (
@@ -56,14 +70,10 @@ function Home() {
                 <span className="text-primary">.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg font-semibold leading-7">
-                Software Engineer
-                <br />
-                <span className="text-violet">AI & Full-Stack Developer</span>
+                {publishedResume?.headline || <>Software Engineer<br /><span className="text-violet">AI & Full-Stack Developer</span></>}
               </p>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                Building practical products with React, Java, REST APIs and Generative AI.
-                Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to
-                real experiences.
+                {publishedResume?.summary || "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild className="min-h-11 px-5">
