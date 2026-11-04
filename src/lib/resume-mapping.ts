@@ -76,20 +76,20 @@ export function splitResumeSectionEntries(sectionText: string): string[] {
   const entries: string[] = [];
   let current: string[] = [];
   const flush = () => {
-    const value = current.join("\\n").trim();
+    const value = current.join("\n").trim();
     if (value) entries.push(value);
     current = [];
   };
 
-  for (const rawLine of sectionText.replace(/\\r\\n?/g, "\\n").split("\\n")) {
+  for (const rawLine of sectionText.replace(/\r\n?/g, "\n").split("\n")) {
     const line = rawLine.trim();
     if (!line) {
       flush();
       continue;
     }
-    const startsListItem = /^(?:[•●▪◦*-]|\\d+[.)])\\s+/.test(line);
+    const startsListItem = /^(?:[•●▪◦*-]|\d+[.)])\s+/.test(line);
     if (startsListItem && current.length) flush();
-    current.push(line.replace(/^(?:[•●▪◦*-]|\\d+[.)])\\s+/, ""));
+    current.push(line.replace(/^(?:[•●▪◦*-]|\d+[.)])\s+/, ""));
   }
   flush();
   return entries.slice(0, 40).map((entry) => entry.slice(0, 1200));
