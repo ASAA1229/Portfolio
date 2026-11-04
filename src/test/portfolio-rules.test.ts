@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { CONTACT, MISSIONS, MILESTONES, PROJECTS } from "@/lib/portfolio-data";
+import { PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
 
 describe("Portfolio factual and contact rules", () => {
+  it("keeps the four profile identifiers unique", () => {
+    const ids = PEOPLE.map((person) => person.id);
+    expect(new Set(ids).size).toBe(4);
+    expect(ids).toEqual(["abhishek", "ammu", "bava", "sai"]);
+  });
+  it("uses the same approved primary portrait in Amulya's profile selector and portfolio", () => {
+    const selectorProfile = PEOPLE.find((person) => person.id === "ammu");
+    const portfolioProfile = PERSON_PORTFOLIOS.ammu;
+    expect(selectorProfile?.avatar).toBe("/images/profiles/amulya/amulya_main.webp");
+    expect(portfolioProfile.portrait).toBe(selectorProfile?.avatar);
+  });
+  it("keeps profile project slugs unique within each profile", () => {
+    for (const profile of Object.values(PERSON_PORTFOLIOS)) {
+      const slugs = profile.projects.map((project) => project.slug);
+      expect(new Set(slugs).size).toBe(slugs.length);
+    }
+  });
   it("uses the exact supplied social profile URLs", () => {
     expect(CONTACT.linkedin).toBe("https://linkedin.com/in/Guda-Abhishek");
     expect(CONTACT.github).toBe("https://github.com/Guda-Abhishek");
