@@ -512,49 +512,53 @@ export function PersonContent({
         </div>
       )}
       {section === "projects" && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {profile.projects.map((project, index) => (
-            <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
-          ))}
-        </div>
-        <PublishedStructuredSections profileId={profile.id} section="projects" />
+        <>
+          <div className="grid gap-6 md:grid-cols-2">
+            {profile.projects.map((project, index) => (
+              <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
+            ))}
+          </div>
+          <PublishedStructuredSections profileId={profile.id} section="projects" />
+        </>
       )}
       {section === "experience" && (
-        <div className="person-timeline">
-          {profile.experience.map((job, index) => (
-            <section
-              key={job.role}
-              className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
-            >
-              <div>
-                <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
-                <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
-                <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
-                {job.company && <p className="mt-3 text-sm">{job.role}</p>}
-                {!job.company && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Employer not specified in the resume.
-                  </p>
-                )}
-                {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
-              </div>
-              <div>
-                <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
-                  {job.points.map((point) => (
-                    <li key={point} className="flex gap-3">
-                      <span className="text-primary" aria-hidden="true">
-                        —
-                      </span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-                <TechnologyList items={job.tech} />
-              </div>
-            </section>
-          ))}
-        </div>
-        <PublishedStructuredSections profileId={profile.id} section="experience" />
+        <>
+          <div className="person-timeline">
+            {profile.experience.map((job, index) => (
+              <section
+                key={job.role}
+                className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
+              >
+                <div>
+                  <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
+                  <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
+                  <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
+                  {job.company && <p className="mt-3 text-sm">{job.role}</p>}
+                  {!job.company && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Employer not specified in the resume.
+                    </p>
+                  )}
+                  {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
+                </div>
+                <div>
+                  <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
+                    {job.points.map((point) => (
+                      <li key={point} className="flex gap-3">
+                        <span className="text-primary" aria-hidden="true">
+                          —
+                        </span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <TechnologyList items={job.tech} />
+                </div>
+              </section>
+            ))}
+          </div>
+          <PublishedStructuredSections profileId={profile.id} section="experience" />
+        </>
       )}
       {section === "certifications" && (
         <>
