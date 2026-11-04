@@ -13,7 +13,7 @@ export const PEOPLE = [
     name: "Amulya",
     nickname: "Ammu",
     initials: "DA",
-    avatar: "/images/profiles/amulya/ammu5.jpeg",
+    avatar: "/images/profiles/amulya/amulya_main.webp",
     color: "profile-green",
     status: "Portfolio",
   },
@@ -99,7 +99,7 @@ const ammu: PersonPortfolio = {
   displayName: "Amulya",
   nickname: "Ammu",
   initials: "DA",
-  portrait: "/images/profiles/amulya/ammu5.jpeg",
+  portrait: "/images/profiles/amulya/amulya_main.webp",
   gallery: [
     { src: "/images/profiles/amulya/ammu3.jpeg", alt: "Amulya, portrait photo" },
     { src: "/images/profiles/amulya/ammu4.jpeg", alt: "Amulya, portrait photo" },
