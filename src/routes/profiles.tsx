@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,22 @@ export const Route = createFileRoute("/profiles")({
 });
 
 function ProfileSelect() {
+  const [portraitOverrides, setPortraitOverrides] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
+        if (!active) return;
+        const overrides: Record<string, string> = {};
+        for (const image of payload.images ?? []) {
+          if (image.slot === "portrait") overrides[image.profileId] = image.src;
+        }
+        setPortraitOverrides(overrides);
+      })
+      .catch(() => { if (active) setPortraitOverrides({}); });
+    return () => { active = false; };
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -97,9 +114,9 @@ function ProfileSelect() {
                       className={`${profile.color} relative flex aspect-square w-full items-center justify-center overflow-hidden rounded font-display text-6xl text-primary-foreground shadow-2xl ring-1 ring-white/10 sm:text-7xl`}
                     >
                       <span className="absolute inset-0 flex items-center justify-center">{profile.initials}</span>
-                      {profile.avatar && (
+                      {(portraitOverrides[profile.id] ?? profile.avatar) && (
                         <img
-                          src={profile.avatar}
+                          src={portraitOverrides[profile.id] ?? profile.avatar}
                           alt=""
                           loading="eager"
                           decoding="async"
