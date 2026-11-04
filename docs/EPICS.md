@@ -144,3 +144,8 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 ## PORT-E01 / PORT-E02 implementation note — profile asset integrity
 
 Automated checks now cover committed avatar, portrait and gallery asset references, plus supported profile-route data alignment. See PORT-US-023. Tests are authored; execution and exact-head CI remain pending.
+
+
+## PORT-E04 implementation note — published resume payload validation
+
+A pure normalizer and regression tests were added for profile-scoped published-resume highlight data. The UI component has not yet been wired to the normalizer; this is an incomplete hardening increment, not a completed acceptance item. See `src/lib/published-resume.ts` and `src/test/portfolio-rules.test.ts`.
