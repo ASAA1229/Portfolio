@@ -96,6 +96,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Respect the operating system reduced-motion preference by disabling the autoplaying intro video and decorative particle animation when reduced motion is requested (commits `eb6c337`, `17a47b5`). Source-only accessibility improvement; browser and assistive-technology behavior remains unverified.
    - [x] Make the floating portfolio chat an explicitly modal dialog for assistive technology and keep keyboard Tab/Shift+Tab navigation inside it; Escape closes it and returns focus to the launcher (commit `cbb84e9`). Source-only improvement; screen-reader and browser behavior remain unverified.
    - [x] Improve responsive navigation keyboard behavior: opening the mobile menu moves focus to its first item, and Escape closes it and restores focus to the menu toggle (commit `f4e7414`). Source-only improvement; browser and assistive-technology behavior remains unverified.
+   - [x] Enforce the chat API's 70 KB request limit while reading the body, not only from the optional `Content-Length` header, so chunked requests cannot bypass the transport bound (commit `84adc97`). Source-only security hardening; runtime behavior remains unverified.
 10. **EPIC-10 — End-to-end acceptance and release**
     - [ ] Run the full acceptance matrix on the candidate branch and record results.
     - [ ] Review the complete branch diff and outstanding issues.
