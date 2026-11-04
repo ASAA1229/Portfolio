@@ -1,122 +1,141 @@
-# Portfolio POC — Current Baseline and Remaining Work
+# Portfolio POC — Scope, Current State and Remaining Work
 
-**Planning branch:** `new`  
-**Reviewed branch head:** `32ee3bf7b89fabcb33bc8d69848587e8416a4f12`  
+**Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
+**Branch:** `new`  
 **Review date:** 2026-11-05  
-**Status:** IN PROGRESS — NOT RELEASE-READY
+**Status:** IN PROGRESS — documentation baseline; release acceptance remains open.
 
-## 1. Product objective
+## 1. Product vision
 
-Deliver a polished, responsive, Netflix-inspired multi-profile developer portfolio for Abhishek, Amulya, Anjini and Sai. Each profile should share a consistent design system while presenting its own verified biography, skills, projects, experience, education, certifications and contact details. The portfolio includes a data-aware AI introduction/chat experience and a protected admin workflow for maintaining profile content and resumes.
+Build a cinematic, Netflix-inspired, multi-person portfolio experience for Abhishek, Amulya, Anjini and Sai. The experience should present each person's verified profile information through a consistent shared design system, with dedicated pages for About, Skills, Projects, Experience, Education, Certifications and Contact.
 
-## 2. Repository baseline observed
+The product also includes an optional AI portfolio introduction/chat, a video-backed introduction, and a protected owner-only admin workflow for maintaining profile content, resumes and images.
 
-- React 19, TypeScript, TanStack Start/Router, Vite and Tailwind CSS.
-- Shared portfolio components, profile data modules, route-driven profile pages and shared profile styles.
-- Profile routes and section routes, project detail routes, skills, experience, education, certifications, contact and profile selection pages.
-- AI introduction/chat components, server-side chat route and portfolio knowledge/resume extraction/mapping modules.
-- Admin login, image and resume routes, plus admin-auth implementation/tests.
-- Vitest/Testing Library tests, ESLint and Prettier.
-- CI workflows for portfolio verification and artifact integrity.
-- Node scripts for artifact manifests/checksums, customer release verification, policy signatures and on-site change detection.
-- Jenkins pipeline and Nexus Raw publication behavior are described in README; actual Jenkins/Nexus execution remains environment-dependent.
+## 2. Product scope
 
-This is a source-tree review, not a claim that all routes, content, integrations or deployment workflows have been accepted.
+### In scope
+- Four separate profile experiences with correct identity, facts, media and routes.
+- Shared components, navigation, typography, layout and styling across profiles.
+- Responsive cinematic pages and project detail experiences.
+- Profile-aware AI introduction/chat grounded in approved portfolio data.
+- Optional user-started intro narration/video with accessible controls.
+- Protected admin login and resume/image upload, review, publishing and rollback.
+- Secure server-side API handling, accessibility, performance and SEO.
+- Automated build, lint, unit/integration and browser acceptance checks.
 
-## 3. POC capabilities and boundaries
+### Out of scope for this portfolio
+- Shared DevOps/CMM pipeline configuration tooling.
+- Customer environment snapshot utilities and on-site change detection products.
+- External customer package validation workflows or CMM-specific Nexus release management.
+- Any feature that exposes private resumes, credentials or admin data publicly.
 
-### Portfolio experience
-- Four profile identities and profile-specific data are represented in the repository.
-- Shared page/component and styling foundations exist.
-- Main navigation, profile pages, section pages, project details and contact flows have automated test coverage.
-- Remaining visual parity, content accuracy, accessibility, responsive behavior and real-browser checks require verification.
+## 3. Current technical baseline
 
-### AI portfolio assistant
-- Server-side chat route uses the OpenAI Responses API; Lovable AI is not the active fallback.
-- The server requires `OPENAI_API_KEY` supplied through a private environment secret.
-- Never expose API keys in client code, Vite-prefixed variables, logs, repository files or generated artifacts.
-- Confirm current portfolio data is used as the source of truth and unsupported claims are not invented.
-- API availability/cost is external and is not included as a free/zero-cost guarantee.
+Repository source inspection indicates the application uses:
+- React, TypeScript, TanStack Start/Router, Vite and Tailwind CSS.
+- Shared profile/page components and profile-specific data modules.
+- Route-driven profile pages and project/section routes.
+- Server-side chat/API handling using the OpenAI Responses API.
+- Admin authentication and resume/image management routes.
+- Vitest/Testing Library, ESLint, Prettier and GitHub Actions configuration.
 
-### Admin and resume workflow
-- Admin login, resume and image route modules exist.
-- Verify authentication and authorization on every server-side read/write operation; hiding a route is not access control.
-- Verify upload type/size limits, safe parsing, file storage, profile mapping, error handling and auditability.
-- Confirm public profile content changes only through an authorized workflow.
+The repository also contains build/artifact-integrity and Jenkins-related automation. Treat these as supporting delivery infrastructure only; they are not the portfolio's customer-facing product scope. A workflow definition or source file does not prove a successful external Jenkins or deployment run.
 
-### Build and release integrity
-- CI workflow and scripts exist for manifest generation, SHA-256 integrity checks, signed policy verification and on-site change detection.
-- README documents optional authenticated Nexus Raw publication through Jenkins credentials.
-- A local script or workflow definition is not proof of successful Jenkins-agent or Nexus operation.
-- The customer must obtain signing public keys or trusted policy digests independently from the package.
+## 4. Existing capabilities observed
 
-## 4. Remaining work — prioritized
+- Four profile identities and profile-specific data structures are present.
+- Shared cinematic visual foundations and reusable page components exist.
+- Profile, section and project routes are implemented.
+- AI chat/introduction components and a server-side API route exist.
+- Admin login, resume and image workflows have implementation in the source tree.
+- Resume-derived structured content supports review before publication.
+- Accessibility and security hardening changes are present in source.
+- Automated tests and CI configuration exist.
 
-### P0 — Correctness and security
-- [ ] Run install, production build, lint and full test suite on the exact `new` head.
-- [ ] Audit route tree, imports/exports, loaders/actions and generated route registration for broken or duplicate routes.
-- [ ] Verify admin authentication, session handling, authorization and server-only secret boundaries.
-- [ ] Test resume/image upload validation, path traversal protection, file limits and failure cleanup.
-- [ ] Verify chat API input validation, rate/size limits, error redaction and API-key isolation.
-- [ ] Review dependencies and record security-audit findings.
+**Important:** these are implementation observations, not a claim that every workflow is fully tested or accepted. Current runtime behavior, content accuracy, external integrations and production readiness must be verified against the exact branch commit.
 
-### P1 — Consistent four-profile experience
-- [ ] Compare all four profiles section-by-section against Abhishek's approved baseline.
-- [ ] Enforce one shared styling system and remove unintended profile-specific layout drift.
-- [ ] Verify profile-specific content, links, images and fallback behavior.
-- [ ] Check navigation, active states, responsive layout, typography, spacing, motion and reduced-motion behavior.
-- [ ] Verify all profile and section routes, including education, projects and direct URL refresh/deep links.
-- [ ] Test keyboard navigation, focus visibility, contrast, alt text and mobile/tablet/desktop layouts.
+## 5. Remaining work — prioritized
 
-### P1 — Dynamic portfolio content and AI
-- [ ] Verify AI responses are grounded in the current profile data and selected profile.
-- [ ] Verify resume extraction maps to the correct profile and does not overwrite verified fields silently.
-- [ ] Define approval/review before publishing extracted resume changes.
-- [ ] Test missing key, invalid key, provider timeout, malformed response and rate-limit behavior.
-- [ ] Verify no secret or private resume content leaks to public routes or client bundles.
+### P0 — Establish a trustworthy baseline
+- [ ] Run a clean dependency install on branch `new`.
+- [ ] Run production build, lint and the complete automated test suite.
+- [ ] Capture exact commit SHA and command outputs; fix all failures.
+- [ ] Inspect TypeScript errors, route generation, imports/exports and runtime warnings.
+- [ ] Review open CI failures and ensure the workflow checks the intended branch/PR events.
 
-### P1 — Admin and content management
-- [ ] Test unauthenticated and unauthorized access to every admin route and mutation.
-- [ ] Verify secure session expiry/logout and CSRF/origin protections where applicable.
-- [ ] Validate PDF/DOCX MIME, extension, size and parser failure cases.
-- [ ] Verify image replacement, safe filenames, storage limits and rollback.
-- [ ] Add clear success/failure feedback and prevent partial profile updates.
+### P0 — Security and privacy
+- [ ] Verify server-side authentication and authorization for every admin loader, action and API.
+- [ ] Verify session expiry, logout, invalid-session handling and unauthorized access.
+- [ ] Exercise resume/image upload type, size, content, filename and parser failure cases.
+- [ ] Verify private files and review notes cannot be fetched from public routes.
+- [ ] Verify AI credentials remain server-side and are absent from client bundles, logs and error responses.
+- [ ] Verify request validation, rate limits, error redaction and safe failure behavior.
 
-### P2 — CI/CD and release delivery
-- [ ] Execute GitHub Actions on the exact branch head and resolve all failures.
-- [ ] Validate Jenkins pipeline on the intended agent and confirm artifact reproducibility.
-- [ ] Validate Nexus credentials, permissions, HEAD preflight, upload, download and checksum comparison with the Nexus administrator.
-- [ ] Verify customer package in a clean staging directory, including manifest-ignore policy, signature, archive and extracted-file inventory.
-- [ ] Test on-site change detection against modified, missing, extra and restored files.
-- [ ] Document release, rollback, signing-key rotation and customer handoff procedures.
+### P1 — Four-profile consistency
+- [ ] Compare Abhishek, Amulya, Anjini and Sai page-by-page against the approved shared design.
+- [ ] Keep one shared styling system; remove unintended profile-specific CSS/layout drift.
+- [ ] Verify profile facts, social links, project links, resume actions and images.
+- [ ] Confirm profile switching never leaks data or assistant context between people.
+- [ ] Verify missing media and optional data use graceful fallbacks.
 
-### P2 — Release readiness
-- [ ] Run browser-based end-to-end checks on all public routes and all four profiles.
-- [ ] Check performance, image loading, SEO metadata, sitemap/robots and error pages.
-- [ ] Verify production environment variables and hosting configuration without exposing secrets.
-- [ ] Record exact commit, build artifact, manifest, checksum, test results and known limitations.
-- [ ] Obtain owner approval before production release.
+### P1 — Routes and navigation
+- [ ] Test every profile and section route with direct URL load, in-app navigation and refresh.
+- [ ] Verify project detail slugs, education routes, 404 handling and legacy route compatibility.
+- [ ] Verify active navigation, mobile menu, footer and all internal/external destinations.
+- [ ] Fix dead links, route mismatches and inconsistent page metadata.
 
-## 5. Evidence and status rules
+### P1 — AI introduction, chat and video
+- [ ] Verify AI responses use only the selected profile's approved/current data.
+- [ ] Verify unknown facts are acknowledged and never fabricated.
+- [ ] Test missing/invalid API key, timeout, provider errors, cancellation and rate limiting.
+- [ ] Test voice permissions, unsupported browser fallback and explicit user-started playback.
+- [ ] Verify video play/pause/replay, cleanup, mobile fallback and reduced-motion behavior.
+- [ ] Confirm the intro never starts audio unexpectedly.
 
-- **IMPLEMENTED:** source code exists.
-- **TEST-AUTHORED:** automated test exists.
-- **CI-VERIFIED:** successful workflow ran against the exact commit.
-- **ENVIRONMENT-VERIFIED:** actual Jenkins/Nexus/hosting environment was exercised.
-- **ACCEPTED:** applicable functional, security, accessibility and release gates passed.
-- **BLOCKED:** external dependency prevents progress and the owner/action is recorded.
+### P1 — Admin content lifecycle
+- [ ] Verify resume upload → extraction → manual review → draft → publish → unpublish/rollback.
+- [ ] Verify image upload → review → publish → unpublish/rollback.
+- [ ] Confirm profile assignment is mandatory and all public content is filtered by profile.
+- [ ] Verify partial failures do not leave inconsistent public/private state.
+- [ ] Confirm existing verified portfolio facts are not silently overwritten by extracted resume data.
 
-Do not mark a capability complete from source inspection alone. Record commit SHA, command or workflow run, environment, expected/actual result and limitations.
+### P1 — Responsive design and accessibility
+- [ ] Check desktop, tablet and mobile layouts for all four profiles.
+- [ ] Verify keyboard-only navigation, visible focus, dialog focus management and Escape behavior.
+- [ ] Check semantic headings, labels, accessible names, alt text and color contrast.
+- [ ] Verify reduced-motion preference and avoid forced autoplay.
+- [ ] Check image loading, overflow, typography, spacing and long-content behavior.
 
-## 6. Scope controls
+### P2 — Performance, SEO and release
+- [ ] Review route-level loading, image optimization, bundle size and runtime performance.
+- [ ] Verify page titles, descriptions, canonical URLs, sitemap/robots and social previews.
+- [ ] Validate production environment configuration without exposing secrets.
+- [ ] Run browser-based end-to-end acceptance for all critical journeys.
+- [ ] Record known limitations and obtain explicit owner approval before production release.
 
-- Keep work on `new`; do not modify `main` or merge branches as part of this documentation task.
-- Do not commit credentials, private keys, real resume files or customer data.
-- Keep the four-profile shared design consistent; profile data may differ, shared layout rules should not drift.
-- Preserve the existing artifact integrity and customer verification sequence.
-- Do not publish resume-derived changes without explicit owner review.
-- No PR is created unless separately requested.
+## 6. Acceptance evidence rules
 
-## 7. Completion definition
+Use these distinct statuses:
+- **IMPLEMENTED** — source implementation exists.
+- **TEST-AUTHORED** — automated test exists.
+- **TEST-PASSED** — test executed successfully against the stated commit.
+- **BROWSER-VERIFIED** — real-browser scenario passed and evidence is recorded.
+- **ACCEPTED** — owner-approved behavior and release criteria are satisfied.
+- **BLOCKED** — dependency or missing input prevents completion; record the owner and next action.
 
-The POC is complete only when the epic exit criteria in [EPICS.md](EPICS.md) are satisfied, all user stories in [USER_STORIES.md](USER_STORIES.md) have evidence-backed disposition, exact-head CI passes, admin/AI/security boundaries are verified, and the intended Jenkins/Nexus release path is validated or explicitly documented as out of scope.
+Do not mark a task complete merely because code or a test file exists. Record commit SHA, command/workflow, result and any limitation.
+
+## 7. Working rules
+
+- All work for this task is limited to branch `new`.
+- Do not merge, raise PRs, push to other branches or deploy unless separately authorized.
+- Do not commit API keys, credentials, private resumes or personal source documents.
+- Keep shared layout/styling consistent across all four profiles.
+- Treat extracted resume content as untrusted until reviewed and explicitly approved.
+- Preserve user-provided facts; do not invent profile details or media assets.
+
+## 8. Definition of done
+
+The portfolio is ready for owner acceptance when P0 security and baseline checks pass, all four profiles and their routes work consistently, AI/admin workflows respect profile and privacy boundaries, responsive/accessibility checks pass, and the exact release candidate has successful CI and browser evidence. Production release still requires explicit owner approval.
+
+See [EPICS.md](EPICS.md) for delivery workstreams and [USER_STORIES.md](USER_STORIES.md) for testable acceptance criteria.
