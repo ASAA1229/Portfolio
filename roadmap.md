@@ -92,6 +92,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [ ] Validate shared navigation/footer, active states, keyboard operation, responsive layouts and all route links.
 9. **EPIC-09 — Security, accessibility and performance**
    - [ ] Audit access control, upload validation, public/private data boundaries, keyboard/screen-reader behavior and performance.
+   - [x] Stop using caller-supplied `X-Forwarded-For` as the login rate-limit identity; use only the platform-provided `CF-Connecting-IP` value and fall back to a shared `unknown` bucket when unavailable (commit `45e3134`). Source-only security hardening; proxy behavior and distributed rate-limit coverage remain unverified.
 10. **EPIC-10 — End-to-end acceptance and release**
     - [ ] Run the full acceptance matrix on the candidate branch and record results.
     - [ ] Review the complete branch diff and outstanding issues.
