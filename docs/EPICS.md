@@ -1,145 +1,132 @@
 # Portfolio — Epic Register and Delivery Plan
 
+**Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
 **Branch:** `new`  
-**Baseline:** `32ee3bf7b89fabcb33bc8d69848587e8416a4f12`  
-**Status:** All epics remain OPEN until evidence-backed exit criteria pass.
+**Status:** OPEN until acceptance criteria have evidence.
 
-See [POC.md](POC.md) for the repository baseline and remaining work, and [USER_STORIES.md](USER_STORIES.md) for testable acceptance criteria.
+See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_STORIES.md) for detailed user stories.
 
 ## Delivery principles
+- One shared design system across Abhishek, Amulya, Anjini and Sai.
+- Profile facts and resume-derived content must be accurate, profile-scoped and reviewed.
+- Admin data and API credentials remain private/server-side.
+- Distinguish implementation from executed test and owner acceptance.
+- No merge, PR or deployment without explicit approval.
 
-- Preserve one shared design system across all four profiles.
-- Treat profile/resume data as untrusted until reviewed and approved.
-- Keep API keys and signing keys server-side and out of source control.
-- Distinguish code presence, authored tests, CI results and real environment acceptance.
-- Validate Jenkins and Nexus against the actual configured services; do not infer success from pipeline definitions.
-- Work on `new` only; no automated changes to `main`, no merge and no PR unless explicitly requested.
-
-## Epic summary
+## Epic overview
 
 | ID | Epic | Priority | Outcome |
 |---|---|---:|---|
-| PORT-E01 | Shared UI and Four-Profile Experience | P1 | Consistent, responsive experience across Abhishek, Amulya, Anjini and Sai |
-| PORT-E02 | Routing, Navigation and Content Integrity | P0 | Every route and profile section loads the correct verified content |
-| PORT-E03 | AI Portfolio Assistant | P1 | Server-side, profile-aware answers grounded in current portfolio data |
-| PORT-E04 | Admin, Resume and Image Management | P0 | Secure owner-only maintenance with validated uploads and reviewed changes |
-| PORT-E05 | CI Quality and Automated Testing | P0 | Exact-head build, lint, unit and browser acceptance |
-| PORT-E06 | Build Provenance and Artifact Integrity | P1 | Reproducible package with manifest and SHA-256 verification |
-| PORT-E07 | Jenkins and Nexus Delivery | P2 | Authenticated, verified artifact publication and retrieval |
-| PORT-E08 | Customer Verification and On-Site Change Detection | P1 | Customer-side verification and trustworthy drift reports |
-| PORT-E09 | Production Readiness and Operations | P2 | Secure deployment, observability, rollback and release evidence |
+| PORT-E01 | Shared Design System and Four-Profile UI | P1 | Consistent cinematic experience across all four profiles |
+| PORT-E02 | Routes, Navigation and Portfolio Content | P0 | Correct, complete and reliable profile/section navigation |
+| PORT-E03 | AI Introduction and Portfolio Chat | P1 | Grounded, profile-aware assistant with safe failure behavior |
+| PORT-E04 | Admin, Resume and Image Management | P0 | Secure owner-managed content lifecycle |
+| PORT-E05 | Quality Engineering and Automated Testing | P0 | Repeatable build, lint, unit and browser quality gates |
+| PORT-E06 | Accessibility and Responsive Experience | P1 | Inclusive and usable experience across devices |
+| PORT-E07 | Performance, SEO and Production Readiness | P2 | Fast, discoverable and supportable portfolio release |
 
-## PORT-E01 — Shared UI and Four-Profile Experience
-**Goal:** Ensure all profiles share the same layout, navigation, typography, spacing, responsive rules and reusable components while retaining distinct content and imagery.
+## PORT-E01 — Shared Design System and Four-Profile UI
+**Goal:** Deliver a cohesive Netflix-inspired portfolio while preserving each person's distinct identity and approved content.
 
 **Remaining work**
-- Compare all four profile pages and sections against the approved Abhishek baseline.
-- Remove unintended duplicate or profile-specific styling overrides.
-- Verify image selection, crop, alt text, fallbacks and responsive behavior.
-- Validate keyboard, focus, contrast, reduced motion and mobile/tablet/desktop layouts.
+- Compare all four profiles across Home, About, Skills, Projects, Experience, Education, Certifications and Contact.
+- Standardize shared CSS/tokens, layout, typography, spacing, cards, buttons and responsive behavior.
+- Remove unintended profile-specific visual overrides and duplicated components.
+- Verify supplied images, crop/focal point, alt text, fallback and licensing/attribution where applicable.
 
-**Exit gate:** visual and functional parity checks pass for all four profiles with approved content and no unintended style divergence.
+**Exit criteria**
+- All four profiles use the same shared layout and visual rules.
+- Differences are limited to intentional profile content/media.
+- Desktop/tablet/mobile visual review is recorded and accepted.
 
-## PORT-E02 — Routing, Navigation and Content Integrity
-**Goal:** Ensure all profile, section, project, education, experience, skill, certification and contact routes work on direct navigation and refresh.
-
-**Remaining work**
-- Audit route definitions and generated route tree.
-- Verify profile slugs, section links, project slugs, 404s and fallback behavior.
-- Validate internal/external links and active navigation states.
-- Confirm profile data is correct and no profile content leaks into another profile.
-
-**Exit gate:** route matrix passes direct-load, in-app navigation, refresh, invalid route and responsive navigation scenarios.
-
-## PORT-E03 — AI Portfolio Assistant
-**Goal:** Provide useful profile-aware introductions and chat responses based on verified portfolio/resume information.
+## PORT-E02 — Routes, Navigation and Portfolio Content
+**Goal:** Ensure all portfolio content is reachable, correct and isolated by profile.
 
 **Remaining work**
-- Verify server-only Responses API key handling and request validation.
-- Ground retrieval in the selected profile and current approved data.
-- Handle missing/invalid keys, timeouts, rate limits and malformed responses.
-- Prevent invented credentials, experience, projects or personal facts.
-- Test data freshness and privacy boundaries.
+- Audit route definitions, generated route tree, loaders/actions and direct URL behavior.
+- Verify profile slugs, section routes, project detail slugs and legacy route compatibility.
+- Verify navigation active states, mobile menu, footer, internal links and external destinations.
+- Check every profile's facts, social links, resume actions and empty/fallback states.
 
-**Exit gate:** API tests pass; responses remain grounded; secrets and private resume data never enter the client bundle or public response.
+**Exit criteria**
+- Route matrix passes direct load, refresh, in-app navigation, invalid route and mobile navigation scenarios.
+- No broken links, wrong-profile content or unintended cross-profile data exposure.
+
+## PORT-E03 — AI Introduction and Portfolio Chat
+**Goal:** Provide optional introductions and useful chat responses grounded in the selected profile's approved information.
+
+**Remaining work**
+- Verify the server-side OpenAI Responses API integration and server-only key handling.
+- Ground responses in current, approved profile data; update context when the selected profile changes.
+- Prevent invented skills, experience, education, projects or personal details.
+- Test missing/invalid key, timeout, rate limit, malformed response, cancellation and offline fallback.
+- Verify voice permissions, explicit playback controls, transcript and privacy behavior.
+
+**Exit criteria**
+- Assistant answers are profile-aware and fact-grounded.
+- Secret and private resume data never enter client bundles or public responses.
+- All provider failure states have safe, understandable user feedback.
 
 ## PORT-E04 — Admin, Resume and Image Management
-**Goal:** Provide owner-controlled content maintenance with secure authorization and safe file handling.
+**Goal:** Allow the owner to maintain portfolio content through a secure review-and-publish workflow.
 
 **Remaining work**
-- Enforce authorization on every admin loader/action/API, not only route visibility.
-- Validate session expiry, logout and unauthorized access.
-- Validate PDF/DOCX/image type, size, parser behavior and safe storage.
-- Require review before resume-derived data is published.
-- Provide rollback and actionable failure feedback.
+- Enforce server-side authentication and authorization on every admin route/API/mutation.
+- Verify session expiry, logout, CSRF/origin controls and unauthorized behavior.
+- Exercise upload validation for supported formats, size, content, filename and parser failures.
+- Verify profile assignment, extraction/review, draft, publish, unpublish and rollback.
+- Keep original resume files and review notes private; expose only explicitly approved metadata/content.
+- Verify image replacement, storage boundaries, partial-failure cleanup and public fallback.
 
-**Exit gate:** security tests prove public/unauthorized users cannot read or mutate admin data; upload and review lifecycle passes.
+**Exit criteria**
+- Unauthorized access and mutation are rejected.
+- Resume/image lifecycle passes with correct profile scoping and rollback.
+- No private file or secret is accessible from public pages.
 
-## PORT-E05 — CI Quality and Automated Testing
-**Goal:** Establish reliable exact-commit quality gates.
-
-**Remaining work**
-- Run clean dependency installation, build, lint and all Vitest/Node tests.
-- Add missing route, admin, upload and AI failure-path coverage.
-- Run browser E2E coverage across four profiles and direct URL navigation.
-- Fix flaky tests and document test environment assumptions.
-
-**Exit gate:** required CI workflows pass on the exact release candidate and critical flows have regression coverage.
-
-## PORT-E06 — Build Provenance and Artifact Integrity
-**Goal:** Produce traceable release artifacts with file inventory, build identity and SHA-256 checks.
-
-**Existing areas:** artifact-integrity scripts and CI workflow are present.
+## PORT-E05 — Quality Engineering and Automated Testing
+**Goal:** Establish reliable, repeatable validation for each candidate commit.
 
 **Remaining work**
-- Verify manifest contents and full commit/build provenance.
-- Verify package checksum before extraction and file inventory after extraction.
-- Test missing, extra, modified and unsafe-path entries.
-- Verify signing policy authenticity using an independently trusted public key.
+- Run clean dependency install, production build, lint and all configured tests.
+- Fix TypeScript, route generation, import/export and runtime errors.
+- Add regression coverage for profile isolation, routes, admin authorization, uploads and AI failure paths.
+- Run browser E2E checks for key journeys and all four profiles.
+- Link results to exact commit SHA and resolve CI failures.
 
-**Exit gate:** tampered or mismatched artifacts fail closed; clean artifacts verify reproducibly.
+**Exit criteria**
+- Required CI checks pass on the exact candidate commit.
+- Critical user journeys have automated and browser-level evidence.
 
-## PORT-E07 — Jenkins and Nexus Delivery
-**Goal:** Publish immutable, traceable artifacts through the configured Jenkins pipeline to Nexus.
-
-**Remaining work**
-- Validate Jenkinsfile stages, agent tools, workspace and credential binding.
-- Confirm Nexus Raw repository URL and permissions with administrator.
-- Test authenticated HEAD preflight, upload, download and post-upload digest comparison.
-- Ensure credentials are stored only in Jenkins Credentials and never logged.
-- Record actual build number, commit, artifact and manifest identifiers.
-
-**Exit gate:** a real Jenkins run publishes and retrieves the artifact from Nexus with matching digests and no credential exposure.
-
-## PORT-E08 — Customer Verification and On-Site Change Detection
-**Goal:** Let a customer validate delivered package authenticity and detect local modifications.
+## PORT-E06 — Accessibility and Responsive Experience
+**Goal:** Make all profile and admin experiences usable across devices and assistive technologies.
 
 **Remaining work**
-- Verify manifest-ignore policy first, then manifest, archive and extracted file inventory.
-- Test signature/digest trust distribution independently of the package.
-- Test changed, missing, additional, unsafe and ignored files.
-- Produce a deterministic report suitable for issue resolution.
-- Document safe staging and non-admin execution.
+- Verify keyboard navigation, focus visibility, dialog focus trap/restore and Escape behavior.
+- Audit semantic headings, labels, accessible names, alt text and color contrast.
+- Test reduced-motion behavior and user-controlled audio/video.
+- Review desktop, tablet and mobile breakpoints, overflow and touch targets.
 
-**Exit gate:** tampering is detected accurately; clean packages pass; reports identify affected paths and failure reasons.
+**Exit criteria**
+- Critical journeys are keyboard-operable and have no known blocking accessibility defects.
+- Responsive review passes at agreed device sizes; reduced-motion behavior is respected.
 
-## PORT-E09 — Production Readiness and Operations
-**Goal:** Release a secure, supportable portfolio and repeatable customer package.
+## PORT-E07 — Performance, SEO and Production Readiness
+**Goal:** Prepare a secure, fast and discoverable portfolio for an approved production release.
 
 **Remaining work**
-- Validate production environment configuration and hosting behavior.
-- Verify error pages, logs, privacy, performance, SEO and accessibility.
-- Document rollback, signing-key rotation and operational ownership.
-- Obtain owner acceptance of known limitations and release evidence.
+- Review bundle size, route loading, image optimization, caching and runtime performance.
+- Verify page metadata, social previews, canonical URLs, sitemap/robots and error pages.
+- Confirm production environment variables and hosting configuration.
+- Document release evidence, known limitations and rollback/recovery steps.
+- Obtain explicit owner approval before production deployment.
 
-**Exit gate:** release checklist, rollback procedure and owner approval are recorded.
+**Exit criteria**
+- Performance/SEO review is recorded, production configuration is verified, rollback is documented and owner approval is obtained.
 
 ## Recommended execution order
-
-1. PORT-E02 and PORT-E04 — close route correctness and security-critical admin gaps.
-2. PORT-E05 — establish exact-head baseline and regression gates.
-3. PORT-E01 — complete four-profile UI parity and accessibility.
-4. PORT-E03 — verify grounded AI and privacy boundaries.
-5. PORT-E06 and PORT-E08 — complete artifact and customer verification.
-6. PORT-E07 — validate actual Jenkins/Nexus integration.
-7. PORT-E09 — final production acceptance.
+1. PORT-E05 baseline checks and PORT-E02 route/content correctness.
+2. PORT-E04 security and admin lifecycle.
+3. PORT-E01 four-profile visual consistency.
+4. PORT-E03 AI introduction/chat and voice behavior.
+5. PORT-E06 responsive/accessibility acceptance.
+6. PORT-E07 performance, SEO and production release readiness.
