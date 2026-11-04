@@ -320,7 +320,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
     }) : jsonResponse({ updatedAt: null, resumes: [] }, 200);
   }
-  if (!(await isAdminRequest(request, env))) return privateNotFound();
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (["POST", "DELETE", "PUT", "PATCH"].includes(request.method)) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
@@ -583,7 +583,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (!object) return privateNotFound();
     return new Response(await object.arrayBuffer(), { headers: { "content-type": record.contentType, "cache-control": "no-store", "x-content-type-options": "nosniff" } });
   }
-  if (!(await isAdminRequest(request, env))) return privateNotFound();
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (["POST", "DELETE"].includes(request.method)) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
