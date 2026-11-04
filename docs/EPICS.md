@@ -140,3 +140,7 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 - Added regression checks for the four unique profile identifiers, matching Amulya selector/portfolio portrait paths, and unique project slugs within each profile.
 - Confirmed the referenced image filename exists in the inspected `new` branch asset tree.
 - Exact-head CI and browser visual acceptance have not yet been verified.
+
+## PORT-E01 / PORT-E02 implementation note — profile asset integrity
+
+Automated checks now cover committed avatar, portrait and gallery asset references, plus supported profile-route data alignment. See PORT-US-023. Tests are authored; execution and exact-head CI remain pending.
