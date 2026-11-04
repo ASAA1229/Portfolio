@@ -149,5 +149,6 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [x] Fixed resume draft saving so edited private review notes are sent to and persisted by the existing draft API.
 - [x] Fixed streamed AI-provider error messages to use actual line breaks rather than displaying literal escaped newline characters.
 - [x] Updated the image-manager submit label to distinguish private uploads from immediate publication.
+- [x] Hardened admin path canonicalization by decoding bounded nested URL-encoding layers and rejecting malformed or still-encoded paths before routing (commits `8e5f724`, `54b85f9`, `999b02b`). Source-only change; route behavior remains unverified while testing is paused.
 - [ ] Continue source-only review of imports/exports, route wiring, request/response contracts, state handling, accessibility, and security. Do not run tests, builds, lint, browser checks, or audits until testing is explicitly resumed.
 - [x] Corrected resume section entry parsing to use actual newline normalization, splitting, list-marker matching and entry joining (commit `7fd49d6`). Source-only correction; behavior remains unverified while testing is paused.
