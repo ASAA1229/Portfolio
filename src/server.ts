@@ -27,15 +27,21 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-// Protect every admin path before it reaches TanStack or a route handler.
+// Canonicalize repeatedly so encoded and double-encoded admin separators or
+// path segments cannot take a different route through the auth boundary.
 function normalizedPath(request: Request): string {
   let pathname = new URL(request.url).pathname;
-  try {
-    pathname = decodeURIComponent(pathname);
-  } catch {
-    // A malformed path remains private and is rejected below.
+  for (let pass = 0; pass < 4; pass++) {
+    try {
+      const decoded = decodeURIComponent(pathname);
+      if (decoded === pathname) break;
+      pathname = decoded;
+    } catch {
+      // Fail closed: malformed paths must never reach an unprotected handler.
+      return "/__invalid_encoded_path__";
+    }
   }
-  return pathname.toLowerCase().replace(/\/+$/, "") || "/";
+  return pathname.toLowerCase().replace(/\\/+$/, "") || "/";
 }
 
 function isAdminPath(pathname: string): boolean {
@@ -70,7 +76,7 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
 async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
   const rawLength = request.headers.get("content-length");
   if (rawLength !== null) {
-    if (!/^\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
+    if (!/^\\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
     const declaredLength = Number(rawLength);
     if (!Number.isSafeInteger(declaredLength) || declaredLength > maxBytes) {
       return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
@@ -381,7 +387,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i);
+  const match = path.match(/^\\/api\\/admin\\/resumes\\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\\/(download|extract|publish|draft|unpublish))?$/i);
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
@@ -413,7 +419,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       const bytes = await object.arrayBuffer();
       return new Response(bytes, { headers: {
         "content-type": record.contentType,
-        "content-disposition": `attachment; filename="${record.filename.replace(/["\\\\]/g, "_")}"`,
+        "content-disposition": `attachment; filename="${record.filename.replace(/["\\\\\\\\]/g, "_")}"`,
         "cache-control": "private, no-store",
         "x-content-type-options": "nosniff",
       } });
@@ -557,7 +563,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType }) => ({ id, profileId, alt, filename, contentType, src: `/api/published-images/${id}` }));
     return jsonResponse({ images }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
   }
-  const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
+  const publicImage = path.match(/^\\/api\\/published-images\\/([a-f0-9-]+)$/);
   if (publicImage && request.method === "GET") {
     const record = (await readImageIndex(bucket)).find((item) => item.id === publicImage[1] && item.status === "approved");
     if (!record) return privateNotFound();
@@ -583,7 +589,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim()) return jsonResponse({ error: "Choose an image, profile and descriptive alt text." }, 400);
     if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
     const expectedExtension = IMAGE_TYPES.get(file.type);
-    if (!expectedExtension || !(file.type === "image/jpeg" ? /\.jpe?g$/i.test(file.name) : file.name.toLowerCase().endsWith(expectedExtension))) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
+    if (!expectedExtension || !(file.type === "image/jpeg" ? /\\.jpe?g$/i.test(file.name) : file.name.toLowerCase().endsWith(expectedExtension))) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
     const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
     const validSignature = file.type === "image/jpeg" ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff : file.type === "image/png" ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 : file.type === "image/webp" ? String.fromCharCode(...bytes.slice(0,4)) === "RIFF" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP" : file.type === "image/avif" ? String.fromCharCode(...bytes.slice(4,12)).includes("ftypavif") || String.fromCharCode(...bytes.slice(4,12)).includes("ftypavis") : false;
     if (!validSignature) return jsonResponse({ error: "The file signature does not match its declared image type." }, 415);
@@ -623,7 +629,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       throw error;
     }
   }
-  const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
+  const match = path.match(/^\\/api\\/admin\\/images\\/([a-f0-9-]+)(?:\\/(publish|unpublish))?$/);
   if (match) {
     const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
     if (index < 0) return privateNotFound(); const record = records[index];
