@@ -81,7 +81,15 @@ export function normalizePublishedProfileResume(payload: unknown, profileId: str
   const candidates = payload.resumes
     .map((item) => normalizeRecord(item, profileId))
     .filter((item): item is PublishedProfileResume => item !== null);
-  candidates.sort((a, b) => Date.parse(b.uploadedAt ?? "") - Date.parse(a.uploadedAt ?? ""));
+  // Invalid or missing timestamps sort behind dated records. Date.parse("") is NaN,
+  // and a NaN comparator is treated like a tie by Array#sort, which could leave
+  // an undated first record ahead of a newer, valid publication.
+  const timestamp = (value: PublishedProfileResume): number => {
+    if (!value.uploadedAt) return 0;
+    const parsed = Date.parse(value.uploadedAt);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  candidates.sort((a, b) => timestamp(b) - timestamp(a));
   return candidates[0] ?? null;
 }
 
