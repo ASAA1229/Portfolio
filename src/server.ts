@@ -564,7 +564,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   }
   if (path === "/api/published-images" && request.method === "GET") {
     const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType }) => ({ id, profileId, alt, filename, contentType, src: `/api/published-images/${id}` }));
-    return jsonResponse({ images }, 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
+    return jsonResponse({ images }, 200, { "cache-control": "no-store" });
   }
   const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
   if (publicImage && request.method === "GET") {
@@ -572,7 +572,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (!record) return privateNotFound();
     const object = await bucket.get(`public/profile-images/${record.id}`);
     if (!object) return privateNotFound();
-    return new Response(await object.arrayBuffer(), { headers: { "content-type": record.contentType, "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" } });
+    return new Response(await object.arrayBuffer(), { headers: { "content-type": record.contentType, "cache-control": "no-store", "x-content-type-options": "nosniff" } });
   }
   if (!(await isAdminRequest(request, env))) return privateNotFound();
   if (["POST", "DELETE"].includes(request.method)) {
