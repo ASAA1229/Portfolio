@@ -120,4 +120,62 @@ describe("Portfolio factual and contact rules", () => {
     expect(normalizePublishedResumeHighlights({ resumes: "not-an-array" }, "bava")).toEqual([]);
   });
 
+
+  it("validates published profile resume details and bounds structured sections", async () => {
+    const { normalizePublishedProfileResume } = await import("@/lib/published-resume");
+    const normalized = normalizePublishedProfileResume({
+      resumes: [
+        {
+          id: "newer",
+          profileId: "ammu",
+          displayName: "Amulya",
+          headline: "Data Analyst",
+          summary: "Profile summary",
+          skills: ["SQL", 12, "Python", "x".repeat(81)],
+          uploadedAt: "not-a-date",
+          structuredSections: {
+            experience: ["Analyst role", 42, " "],
+            education: ["B.Tech"],
+            ignored: ["must not be surfaced"],
+          },
+        },
+        {
+          id: "other-profile",
+          profileId: "sai",
+          displayName: "Sai",
+          headline: "Developer",
+          summary: "Private to another profile",
+          skills: ["Java"],
+        },
+        { id: "invalid", profileId: "ammu", displayName: " ", headline: "Bad", summary: "Bad", skills: [] },
+      ],
+    }, "ammu");
+
+    expect(normalized).toEqual({
+      id: "newer",
+      profileId: "ammu",
+      displayName: "Amulya",
+      headline: "Data Analyst",
+      summary: "Profile summary",
+      skills: ["SQL", "Python"],
+      structuredSections: {
+        experience: ["Analyst role"],
+        education: ["B.Tech"],
+      },
+    });
+  });
+
+  it("selects the newest valid published resume and rejects non-object payloads", async () => {
+    const { normalizePublishedProfileResume } = await import("@/lib/published-resume");
+    const payload = {
+      resumes: [
+        { id: "old", profileId: "bava", displayName: "Anjini", headline: "Old", summary: "Old", skills: [], uploadedAt: "2025-01-01" },
+        { id: "new", profileId: "bava", displayName: "Anjini", headline: "New", summary: "New", skills: [], uploadedAt: "2026-01-01" },
+      ],
+    };
+    expect(normalizePublishedProfileResume(payload, "bava")?.id).toBe("new");
+    expect(normalizePublishedProfileResume([], "bava")).toBeNull();
+    expect(normalizePublishedProfileResume({ resumes: "invalid" }, "bava")).toBeNull();
+  });
+
 });
