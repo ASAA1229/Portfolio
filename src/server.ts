@@ -255,6 +255,35 @@ async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]):
   });
 }
 
+async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
+  const publicResumes = records
+    .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
+    .map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({
+      id,
+      profileId,
+      displayName,
+      headline,
+      summary,
+      skills,
+      structuredSections: structuredSections ?? {
+        experience: [],
+        education: [],
+        projects: [],
+        certifications: [],
+      },
+    }));
+
+  await bucket.put("public/approved-resumes.json", JSON.stringify({
+    updatedAt: new Date().toISOString(),
+    resumes: publicResumes,
+  }), {
+    httpMetadata: {
+      contentType: "application/json; charset=utf-8",
+      cacheControl: "no-store",
+    },
+  } as { httpMetadata?: { contentType?: string; cacheControl?: string } });
+}
+
 function bucketNotConfigured(): Response {
   return jsonResponse({ error: "Private resume storage is not configured." }, 503);
 }
@@ -416,11 +445,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
         status: "pending",
       };
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
@@ -475,13 +501,10 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (request.method === "DELETE" && !action) {
-      await bucket.delete(fileKey);
       records.splice(index, 1);
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+      await bucket.delete(fileKey);
       return jsonResponse({ ok: true }, 200);
     }
   }
