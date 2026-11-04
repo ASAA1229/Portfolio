@@ -1,191 +1,227 @@
 # Portfolio — User Stories and Acceptance Criteria
 
+**Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
 **Branch:** `new`  
-**Baseline:** `32ee3bf7b89fabcb33bc8d69848587e8416a4f12`  
-**Status convention:** OPEN until the criteria are verified with recorded evidence.
+**Status:** OPEN until acceptance criteria are verified with recorded evidence.
 
 Epic mapping: [EPICS.md](EPICS.md)  
-POC baseline and remaining work: [POC.md](POC.md)
+Product baseline and remaining work: [POC.md](POC.md)
 
-## PORT-E01 — Shared UI and Four-Profile Experience
+## PORT-E01 — Shared Design System and Four-Profile UI
 
-### PORT-US-001 — Consistent shared design
-**As a visitor,** I want all four profile pages to use a consistent design system, so that the portfolio feels like one cohesive product.
+### PORT-US-001 — Consistent shared experience
+**As a visitor,** I want all four profiles to share a consistent design system, so that the portfolio feels like one cohesive product.
 
 **Acceptance criteria**
 - All profiles use the shared layout, navigation, typography, spacing and responsive rules.
-- Profile-specific styling is limited to documented content or intentional theme differences.
-- A change to a shared component is reflected consistently across all profiles.
-- Visual regression checks cover desktop, tablet and mobile sizes.
+- Profile-specific styling is limited to intentional, documented differences.
+- Shared component changes appear consistently across all four profiles.
+- Visual review covers desktop, tablet and mobile.
 
-### PORT-US-002 — Profile-specific content and imagery
-**As a visitor,** I want each profile to show the correct person's content and images, so that information is not mixed between profiles.
-
-**Acceptance criteria**
-- Each profile loads its own approved biography, skills, projects, experience, education and certifications.
-- Images resolve to the correct profile and have meaningful alt text.
-- Missing assets use a safe fallback and do not break layout.
-- No profile-specific private/admin data is rendered publicly.
-
-## PORT-E02 — Routing, Navigation and Content Integrity
-
-### PORT-US-003 — Reliable profile navigation
-**As a visitor,** I want to navigate between profiles and their sections, so that I can find relevant information easily.
+### PORT-US-002 — Correct profile identity and media
+**As a visitor,** I want each profile to display the correct person's facts and images, so that identities and information are never mixed.
 
 **Acceptance criteria**
-- Profile and section links navigate to the correct route.
+- Each profile displays only its own approved biography, skills, projects, experience, education and certifications.
+- Images belong to the correct profile and include meaningful alt text.
+- Missing assets use a safe fallback without breaking layout.
+- Private/admin-only information is never rendered publicly.
+
+### PORT-US-003 — Cinematic page presentation
+**As a visitor,** I want portfolio sections to have the same polished visual quality as the home page, so that the experience remains engaging throughout.
+
+**Acceptance criteria**
+- About, Skills, Projects, Experience, Certifications, Education and Contact follow the approved visual language.
+- Technology logos/assets are accurate and used with appropriate licensing/attribution.
+- Motion is purposeful, responsive and disabled or reduced when the user requests reduced motion.
+- Content remains readable at supported screen sizes.
+
+## PORT-E02 — Routes, Navigation and Portfolio Content
+
+### PORT-US-004 — Reliable profile and section navigation
+**As a visitor,** I want to navigate between profiles and their sections, so that I can find information without broken links.
+
+**Acceptance criteria**
+- Every visible navigation item opens its intended route.
 - Direct URL load and browser refresh work for every supported route.
-- Invalid profile, section or project slug returns a deliberate not-found experience.
-- Active navigation state reflects the current route.
+- Active navigation reflects the current route.
+- Invalid profile/section paths show a deliberate not-found experience.
 
-### PORT-US-004 — Complete portfolio sections
-**As a visitor,** I want working project, skills, experience, education, certification and contact pages, so that I can explore the complete portfolio.
-
-**Acceptance criteria**
-- Each section renders for the correct profile where applicable.
-- Project detail pages load the correct project by slug.
-- Empty sections have an intentional empty state rather than a broken page.
-- Contact links are valid and do not expose private data.
-
-## PORT-E03 — AI Portfolio Assistant
-
-### PORT-US-005 — Profile-aware AI introduction
-**As a visitor,** I want the AI introduction to describe the selected profile accurately, so that I receive relevant information.
+### PORT-US-005 — Complete project and section pages
+**As a visitor,** I want project and portfolio detail pages to load complete information, so that I can understand each person's work.
 
 **Acceptance criteria**
-- The assistant receives only the selected profile's approved context.
-- Claims about skills, experience, education and projects are grounded in stored data.
-- Unknown information is acknowledged rather than invented.
-- Switching profiles updates the assistant context.
+- Project detail pages resolve the correct project by stable slug.
+- Skills, experience, education and certifications show the correct profile data.
+- Empty sections have an intentional empty state.
+- Internal and external links resolve to the intended destination.
 
-### PORT-US-006 — Secure server-side AI requests
-**As the owner,** I want AI provider credentials kept server-side, so that public visitors cannot retrieve or misuse them.
+### PORT-US-006 — Preserve legacy route behavior
+**As a returning visitor,** I want existing supported portfolio links to keep working, so that updates do not break bookmarks or shared URLs.
+
+**Acceptance criteria**
+- Legacy routes either continue to work or redirect to a documented replacement.
+- Profile selection and profile-specific routes remain consistent.
+- No redirect loop or route collision is introduced.
+- Route behavior is covered by regression checks.
+
+## PORT-E03 — AI Introduction and Portfolio Chat
+
+### PORT-US-007 — Profile-aware AI introduction
+**As a visitor,** I want the introduction to describe the selected person accurately, so that I receive relevant information.
+
+**Acceptance criteria**
+- The assistant uses only the selected profile's approved context.
+- Switching profiles updates the assistant's context.
+- Unknown facts are acknowledged rather than invented.
+- The introduction can be dismissed and does not unexpectedly play audio.
+
+### PORT-US-008 — Grounded portfolio chat
+**As a recruiter or visitor,** I want to ask questions about a profile, so that I can quickly understand skills and experience.
+
+**Acceptance criteria**
+- Answers are grounded in current portfolio data and approved resume additions.
+- The assistant does not invent projects, qualifications, employers or dates.
+- Private resume files, review notes and admin data are not included in public context.
+- Empty/unknown answers are handled honestly.
+
+### PORT-US-009 — Secure and resilient AI requests
+**As the owner,** I want AI provider credentials and requests handled securely, so that the integration cannot expose secrets or fail unsafely.
 
 **Acceptance criteria**
 - The API key is read only from a server-side environment variable.
 - No key appears in client bundles, source control, logs or error responses.
-- Missing key, invalid key, timeout, rate limit and provider failure produce safe user feedback.
-- Request size and input validation are enforced.
+- Request size/input validation and rate limiting are enforced.
+- Missing/invalid key, timeout, provider failure and rate limiting return safe feedback.
+- Cancellation and retry behavior do not leave stale or duplicated responses.
+
+### PORT-US-010 — Accessible voice and video introduction
+**As a visitor,** I want optional voice/video controls, so that I can choose how to experience the introduction.
+
+**Acceptance criteria**
+- Audio/video starts only after an explicit user action.
+- Play, pause, replay and close controls remain synchronized.
+- Unsupported microphone/browser features have a usable fallback.
+- Closing the introduction stops its own playback and cleans up resources.
+- Reduced-motion preferences are respected.
 
 ## PORT-E04 — Admin, Resume and Image Management
 
-### PORT-US-007 — Protected admin access
-**As the owner,** I want admin routes protected by server-side authentication and authorization, so that only authorized users can manage portfolio content.
+### PORT-US-011 — Protected owner access
+**As the owner,** I want admin routes and APIs protected by server-side authentication and authorization, so that only I can manage portfolio content.
 
 **Acceptance criteria**
-- Unauthenticated requests cannot access admin data or mutations.
+- Unauthenticated and unauthorized requests cannot read or mutate admin data.
 - Authorization is checked on every server-side loader, action and API.
 - Session expiry and logout invalidate access.
-- Unauthorized attempts do not disclose whether protected files or records exist.
+- Errors do not reveal protected record or file existence.
 
-### PORT-US-008 — Safe resume upload and extraction
-**As the owner,** I want to upload a profile resume and extract structured information, so that portfolio updates are easier to maintain.
+### PORT-US-012 — Upload and review resumes
+**As the owner,** I want to upload a resume for a selected profile and review extracted information, so that profile updates are easier to maintain.
 
 **Acceptance criteria**
-- Only explicitly supported PDF/DOCX formats are accepted.
-- Extension, MIME/content, size and parser errors are validated safely.
+- Only supported file formats and bounded file sizes are accepted.
+- Extension, MIME/content signature, filename and parser errors are validated.
 - Extracted fields are mapped to the selected profile only.
-- Extracted data is presented for review before public publication.
-- Original resume files remain private and are not exposed by public routes.
+- Extracted facts remain private/pending until reviewed and explicitly approved.
+- Original resume files and review notes are not publicly accessible.
 
-### PORT-US-009 — Safe profile image management
-**As the owner,** I want to update profile images through the admin workflow, so that approved assets can be maintained safely.
-
-**Acceptance criteria**
-- Upload type, size and file name are validated.
-- Files cannot escape the intended storage location.
-- Failed updates do not leave partially updated profile state.
-- Public pages display the new approved image and a safe fallback on failure.
-
-## PORT-E05 — CI Quality and Automated Testing
-
-### PORT-US-010 — Repeatable quality checks
-**As a maintainer,** I want build, lint and test checks to run consistently, so that regressions are detected before release.
+### PORT-US-013 — Publish and roll back resume content
+**As the owner,** I want to publish approved resume-derived sections and roll them back, so that public profile updates remain controlled.
 
 **Acceptance criteria**
-- Clean install, production build, lint and all configured tests pass on the exact commit.
-- Failures identify the command and actionable cause.
-- Critical route, admin, AI and integrity flows have automated coverage.
-- A passing workflow is linked to the exact commit SHA.
+- Profile assignment and required fields are validated before publishing.
+- Only approved metadata/structured content appears on the matching profile.
+- Existing verified portfolio facts are not silently overwritten.
+- Unpublish/rollback removes public visibility while preserving private source data where appropriate.
+- Partial storage/index failures are reported and reconciled safely.
 
-### PORT-US-011 — Browser acceptance
-**As a maintainer,** I want the portfolio checked in a real browser, so that route and interaction issues missed by unit tests are detected.
-
-**Acceptance criteria**
-- All four profiles and key section routes load.
-- Navigation, chat, contact and admin protection behave as expected.
-- Direct route refresh and invalid-route behavior are verified.
-- Responsive and keyboard-accessibility checks are recorded.
-
-## PORT-E06 — Build Provenance and Artifact Integrity
-
-### PORT-US-012 — Traceable release manifest
-**As a release owner,** I want each package to include a manifest and SHA-256 inventory, so that its contents and origin can be verified.
+### PORT-US-014 — Manage profile images
+**As the owner,** I want to upload, review, publish and unpublish profile images, so that galleries stay accurate and current.
 
 **Acceptance criteria**
-- Manifest records artifact identity, build number, source commit and packaged file inventory.
-- Each file has a deterministic relative path, size and SHA-256 digest.
-- Archive checksum sidecar is generated and verified.
-- Manifest provenance is compared with the expected build identity.
+- Upload type, size and filename are validated.
+- Files remain private/pending until the configured approval action.
+- Published images are associated with the intended profile only.
+- Unpublish removes public visibility without unintended data loss.
+- Failed operations do not leave broken public references.
 
-### PORT-US-013 — Reject modified artifacts
-**As a release owner,** I want modified or mismatched packages to fail verification, so that untrusted builds are not delivered.
+## PORT-E05 — Quality Engineering and Automated Testing
 
-**Acceptance criteria**
-- Incorrect archive name, size or digest is rejected.
-- Missing, extra, modified and unsafe-path entries are rejected.
-- Manifest-ignore policy authenticity is checked before trusting its rules.
-- Signature verification uses a public key obtained independently from the package.
-
-## PORT-E07 — Jenkins and Nexus Delivery
-
-### PORT-US-014 — Publish through Jenkins
-**As a release engineer,** I want Jenkins to build and publish the package, so that releases are repeatable and traceable.
+### PORT-US-015 — Repeatable engineering checks
+**As a maintainer,** I want clean install, build, lint and test commands to pass, so that regressions are detected before release.
 
 **Acceptance criteria**
-- Pipeline records build number and full source commit.
-- Nexus credentials are retrieved from Jenkins Credentials, never hardcoded.
-- Existing artifacts are not silently overwritten.
-- Upload is followed by download and SHA-256 comparison.
-- A real Jenkins run and Nexus artifact URL are recorded as evidence.
+- Clean dependency installation succeeds on the documented runtime.
+- Production build, lint and all configured tests pass on the exact commit.
+- CI results identify the commit SHA and actionable failure details.
+- No check is marked passed without an executed result.
 
-### PORT-US-015 — Retrieve a verified Nexus release
-**As a release engineer,** I want to retrieve a specific customer/version artifact from Nexus, so that the intended release can be verified and delivered.
-
-**Acceptance criteria**
-- Artifact coordinates identify the intended project, version/build and customer where applicable.
-- Retrieval does not rely on ambiguous latest-version selection.
-- Manifest, checksum and archive are downloaded and validated.
-- Missing or inaccessible artifacts produce actionable errors without leaking credentials.
-
-## PORT-E08 — Customer Verification and On-Site Change Detection
-
-### PORT-US-016 — Verify customer package before use
-**As a customer operator,** I want to verify the package before extraction and use, so that tampering is detected early.
+### PORT-US-016 — Browser-level acceptance
+**As a maintainer,** I want critical journeys tested in a real browser, so that issues missed by unit tests are detected.
 
 **Acceptance criteria**
-- The trusted manifest-ignore policy is authenticated first.
-- The manifest is verified against the authenticated policy.
-- Archive name, size and SHA-256 are verified before extraction.
-- Extracted files are compared against the manifest inventory.
-- Verification fails closed on missing, modified, extra or unsafe files.
+- All four profiles and their key section/project routes load.
+- Navigation, profile switching, chat, contact and admin protection behave as expected.
+- Direct route refresh and invalid-route behavior are checked.
+- Desktop/tablet/mobile and keyboard interactions are recorded.
 
-### PORT-US-017 — Detect on-site changes
-**As a support engineer,** I want to compare the installed environment with its approved baseline, so that local modifications can be investigated.
-
-**Acceptance criteria**
-- The tool reports changed, missing, additional and ignored paths distinctly.
-- Hashing is deterministic and does not modify customer files.
-- Reports include timestamp, baseline identity and actionable mismatch details.
-- Permission and unreadable-file errors are reported rather than silently skipped.
-
-## PORT-E09 — Production Readiness and Operations
-
-### PORT-US-018 — Safe deployment and rollback
-**As the owner,** I want a documented release and rollback process, so that production changes can be recovered safely.
+### PORT-US-017 — Regression and failure-path coverage
+**As a maintainer,** I want important error paths covered by tests, so that failures do not expose data or leave inconsistent state.
 
 **Acceptance criteria**
-- Production secrets are configured through the hosting provider's secret store.
-- Release artifact, manifest, checksum and commit are traceable.
-- Rollback steps and recovery owner are documented and tested where possible.
-- Production release requires explicit owner approval.
+- Tests cover invalid uploads, parser failures, unauthorized access and partial persistence failures.
+- AI tests cover missing configuration, provider errors, rate limits and malformed responses.
+- Profile isolation and public/private boundaries have regression tests.
+- Test results are traceable to the commit under review.
+
+## PORT-E06 — Accessibility and Responsive Experience
+
+### PORT-US-018 — Keyboard and assistive-technology support
+**As a visitor using a keyboard or assistive technology,** I want all essential controls to be accessible, so that I can use the portfolio independently.
+
+**Acceptance criteria**
+- All interactive controls are keyboard reachable and have visible focus.
+- Dialogs manage focus correctly and support Escape where appropriate.
+- Headings, labels, landmarks and accessible names are meaningful.
+- Images have suitable alt text; decorative images are ignored by assistive technology.
+- Color contrast meets the project's chosen accessibility target.
+
+### PORT-US-019 — Responsive and reduced-motion behavior
+**As a mobile or motion-sensitive visitor,** I want the site to adapt to my device and preferences, so that it remains comfortable to use.
+
+**Acceptance criteria**
+- Layouts work at agreed desktop, tablet and mobile breakpoints.
+- No unintended horizontal overflow or clipped controls appear.
+- Touch targets and text remain usable on mobile.
+- Reduced-motion preference suppresses non-essential motion and autoplay.
+- User-controlled audio/video remains optional.
+
+## PORT-E07 — Performance, SEO and Production Readiness
+
+### PORT-US-020 — Fast and reliable pages
+**As a visitor,** I want pages and images to load reliably, so that I can explore the portfolio without unnecessary delay.
+
+**Acceptance criteria**
+- Large images are appropriately sized and optimized.
+- Route loading and client bundles are reviewed for avoidable overhead.
+- Loading, empty and error states are deliberate.
+- Performance findings and material regressions are recorded.
+
+### PORT-US-021 — Search and social presentation
+**As a visitor or recruiter,** I want portfolio pages to have accurate metadata and share previews, so that links are understandable when discovered or shared.
+
+**Acceptance criteria**
+- Important routes have accurate titles and descriptions.
+- Canonical URLs and social preview metadata are correct.
+- Sitemap/robots behavior matches the intended public routes.
+- Private/admin routes are not exposed as public search content.
+
+### PORT-US-022 — Controlled production release
+**As the owner,** I want a documented release and recovery process, so that production changes are safe and reversible.
+
+**Acceptance criteria**
+- Production secrets are configured only through the hosting provider's secret store.
+- Candidate commit and successful CI/browser evidence are recorded.
+- Known limitations and rollback steps are documented.
+- Production deployment occurs only after explicit owner approval.
