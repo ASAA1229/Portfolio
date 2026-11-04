@@ -84,6 +84,7 @@ export function PortfolioChat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [speakReplies, setSpeakReplies] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -185,10 +186,32 @@ export function PortfolioChat() {
       ) : (
         <motion.section
           key="chat-panel"
+          ref={dialogRef}
           role="dialog"
+          aria-modal="true"
           aria-label="Portfolio assistant"
           onKeyDown={(e) => {
-            if (e.key === "Escape") close();
+            if (e.key === "Escape") {
+              e.preventDefault();
+              close();
+              return;
+            }
+            if (e.key !== "Tab") return;
+
+            const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+              'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            );
+            if (!focusable?.length) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -27,14 +27,23 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-// Protect every admin path before it reaches TanStack or a route handler.
+// Canonicalize repeatedly so encoded and double-encoded admin separators or
+// path segments cannot take a different route through the auth boundary.
 function normalizedPath(request: Request): string {
   let pathname = new URL(request.url).pathname;
-  try {
-    pathname = decodeURIComponent(pathname);
-  } catch {
-    // A malformed path remains private and is rejected below.
+  for (let pass = 0; pass < 4; pass++) {
+    try {
+      const decoded = decodeURIComponent(pathname);
+      if (decoded === pathname) break;
+      pathname = decoded;
+    } catch {
+      // Fail closed: malformed paths must never reach an unprotected handler.
+      return "/__invalid_encoded_path__";
+    }
   }
+  // Do not pass a still-encoded path to a downstream router with different
+  // decoding behavior after the bounded canonicalization passes.
+  if (/%[0-9a-f]{2}/i.test(pathname)) return "/__invalid_encoded_path__";
   return pathname.toLowerCase().replace(/\/+$/, "") || "/";
 }
 
@@ -45,6 +54,7 @@ function isAdminPath(pathname: string): boolean {
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_TRACKED_LOGIN_CLIENTS = 4096;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 function privateNotFound(): Response {
@@ -66,9 +76,57 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
+async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
+  const rawLength = request.headers.get("content-length");
+  if (rawLength !== null) {
+    if (!/^\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
+    const declaredLength = Number(rawLength);
+    if (!Number.isSafeInteger(declaredLength) || declaredLength > maxBytes) {
+      return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+    }
+  }
+  if (!request.body) return request;
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return jsonResponse({ error: "Could not read request body." }, 400);
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const headers = new Headers(request.headers);
+  headers.delete("content-length");
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body,
+    redirect: request.redirect,
+  });
+}
+
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path === "/api/admin/login" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, 4 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
     if (!adminAuthConfigured(env)) {
       console.error("Admin authentication is disabled: required server secrets are missing.");
       return jsonResponse({ error: "Admin authentication is not configured." }, 503);
@@ -76,9 +134,15 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
 
-    const clientKey = request.headers.get("cf-connecting-ip") ??
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    // Only trust the platform-provided client address. X-Forwarded-For is
+    // caller-controlled unless a trusted proxy explicitly sanitizes it, so
+    // accepting it here would let clients rotate spoofed identities to bypass
+    // the per-client login throttle.
+    const clientKey = (request.headers.get("cf-connecting-ip") ?? "unknown").slice(0, 128);
     const now = Date.now();
+    for (const [key, attempt] of loginAttempts) {
+      if (attempt.resetAt <= now) loginAttempts.delete(key);
+    }
     const current = loginAttempts.get(clientKey);
     if (current && current.resetAt > now && current.count >= MAX_LOGIN_ATTEMPTS) {
       return jsonResponse({ error: "Too many attempts. Try again in 15 minutes." }, 429, {
@@ -90,6 +154,11 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const password = typeof payload?.password === "string" ? payload.password : "";
     const valid = password.length > 0 && password.length <= 1024 && await verifyAdminPassword(password, env);
     if (!valid) {
+      if (!current && loginAttempts.size >= MAX_TRACKED_LOGIN_CLIENTS) {
+        return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
+          "retry-after": "60",
+        });
+      }
       loginAttempts.set(clientKey, current && current.resetAt > now
         ? { count: current.count + 1, resetAt: current.resetAt }
         : { count: 1, resetAt: now + LOGIN_WINDOW_MS });
@@ -155,17 +224,76 @@ const ALLOWED_RESUME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+function isResumeRecord(value: unknown): value is ResumeRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<ResumeRecord>;
+  const validProfiles = ["abhishek", "ammu", "bava", "sai", "unassigned"];
+  const validSections = ["experience", "education", "projects", "certifications"] as const;
+  const sections = record.structuredSections;
+  return typeof record.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
+    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    ALLOWED_RESUME_TYPES.has(String(record.contentType)) &&
+    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_RESUME_BYTES &&
+    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    (record.status === "pending" || record.status === "approved") &&
+    (record.profileId === undefined || validProfiles.includes(record.profileId)) &&
+    typeof record.displayName === "string" && typeof record.headline === "string" &&
+    typeof record.summary === "string" && Array.isArray(record.skills) &&
+    record.skills.every((skill) => typeof skill === "string") &&
+    (record.privateReviewNotes === undefined || typeof record.privateReviewNotes === "string") &&
+    (sections === undefined || (!!sections && typeof sections === "object" &&
+      validSections.every((section) => Array.isArray(sections[section]) &&
+        sections[section].every((entry) => typeof entry === "string"))));
+}
+
 async function readResumeIndex(bucket: PrivateBucket): Promise<ResumeRecord[]> {
   const object = await bucket.get(RESUME_INDEX_KEY);
   if (!object) return [];
-  const records = await object.json<unknown>();
-  return Array.isArray(records) ? records as ResumeRecord[] : [];
+  const value = await object.json<unknown>();
+  if (!Array.isArray(value) || !value.every(isResumeRecord)) {
+    throw new Error("Stored resume index failed integrity validation.");
+  }
+  const ids = new Set(value.map((record) => record.id));
+  if (ids.size !== value.length) {
+    throw new Error("Stored resume index contains duplicate record IDs.");
+  }
+  return value;
 }
 
 async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
   await bucket.put(RESUME_INDEX_KEY, JSON.stringify(records), {
     httpMetadata: { contentType: "application/json; charset=utf-8" },
   });
+}
+
+async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
+  const publicResumes = records
+    .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
+    .map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({
+      id,
+      profileId,
+      displayName,
+      headline,
+      summary,
+      skills,
+      structuredSections: structuredSections ?? {
+        experience: [],
+        education: [],
+        projects: [],
+        certifications: [],
+      },
+    }));
+
+  await bucket.put("public/approved-resumes.json", JSON.stringify({
+    updatedAt: new Date().toISOString(),
+    resumes: publicResumes,
+  }), {
+    httpMetadata: {
+      contentType: "application/json; charset=utf-8",
+      cacheControl: "no-store",
+    },
+  } as { httpMetadata?: { contentType?: string; cacheControl?: string } });
 }
 
 function bucketNotConfigured(): Response {
@@ -193,6 +321,11 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (contentLength > MAX_RESUME_BYTES + 1024 * 1024) {
       return jsonResponse({ error: "Upload exceeds the 10 MB limit." }, 413);
     }
+  }
+  if (path === "/api/admin/resumes" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, MAX_RESUME_BYTES + 1024 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
   }
   const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (!bucket) return bucketNotConfigured();
@@ -233,20 +366,31 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || "resume";
     const id = crypto.randomUUID();
     const key = `private-admin/resumes/files/${id}`;
-    await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: type } });
-    const records = await readResumeIndex(bucket);
-    records.push({
-      id, filename: safeName, contentType: type, size: file.size,
-      uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
-      displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
-      headline: "", summary: "", skills: [],
-      structuredSections: { experience: [], education: [], projects: [], certifications: [] },
-    });
-    await writeResumeIndex(bucket, records);
-    return jsonResponse({ resume: records[records.length - 1] }, 201);
+    let storedFile = false;
+    try {
+      await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: type } });
+      storedFile = true;
+      const records = await readResumeIndex(bucket);
+      const record: ResumeRecord = {
+        id, filename: safeName, contentType: type, size: file.size,
+        uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
+        displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
+        headline: "", summary: "", skills: [],
+        structuredSections: { experience: [], education: [], projects: [], certifications: [] },
+      };
+      records.push(record);
+      await writeResumeIndex(bucket, records);
+      return jsonResponse({ resume: record }, 201);
+    } catch (error) {
+      if (storedFile) {
+        try { await bucket.delete(key); }
+        catch (cleanupError) { console.error("Failed to clean up an incomplete resume upload.", cleanupError); }
+      }
+      throw error;
+    }
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([a-f0-9-]+)(?:\/(download|extract|publish|draft|unpublish))?$/);
+  const match = path.match(/^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i);
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
@@ -285,6 +429,9 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (action === "draft" && request.method === "POST") {
+      const boundedRequest = await limitRequestBody(request, 32 * 1024);
+      if (boundedRequest instanceof Response) return boundedRequest;
+      request = boundedRequest;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -310,25 +457,22 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
         status: "pending",
       };
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
       if (record.status !== "approved") return jsonResponse({ error: "This resume is not currently published." }, 409);
       records[index] = { ...record, status: "pending" };
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
 
     if (action === "publish" && request.method === "POST") {
+      const boundedRequest = await limitRequestBody(request, 32 * 1024);
+      if (boundedRequest instanceof Response) return boundedRequest;
+      request = boundedRequest;
       const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
@@ -358,21 +502,15 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         status: "approved",
       };
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
+      await writePublishedResumeFeed(bucket, records);
       return jsonResponse({ resume: records[index] }, 200);
     }
 
     if (request.method === "DELETE" && !action) {
-      await bucket.delete(fileKey);
       records.splice(index, 1);
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+      await bucket.delete(fileKey);
       return jsonResponse({ ok: true }, 200);
     }
   }
@@ -385,11 +523,32 @@ const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/avif", ".avif"]]);
 
+function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<PortfolioImageRecord>;
+  return typeof record.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
+    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    IMAGE_TYPES.has(String(record.contentType)) &&
+    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_IMAGE_BYTES &&
+    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    (record.status === "pending" || record.status === "approved") &&
+    ["abhishek", "ammu", "bava", "sai"].includes(String(record.profileId)) &&
+    typeof record.alt === "string" && record.alt.trim().length > 0 && record.alt.length <= 300;
+}
+
 async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
   const object = await bucket.get(IMAGE_INDEX_KEY);
   if (!object) return [];
   const records = await object.json<unknown>();
-  return Array.isArray(records) ? records as PortfolioImageRecord[] : [];
+  if (!Array.isArray(records) || !records.every(isPortfolioImageRecord)) {
+    throw new Error("Stored image index failed integrity validation.");
+  }
+  const ids = new Set(records.map((record) => record.id));
+  if (ids.size !== records.length) {
+    throw new Error("Stored image index contains duplicate record IDs.");
+  }
+  return records;
 }
 async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRecord[]): Promise<void> {
   await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
@@ -422,6 +581,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   }
   if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket) }, 200);
   if (path === "/api/admin/images" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, MAX_IMAGE_BYTES + 1024 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    request = boundedRequest;
     const form = await request.formData().catch(() => null);
     const file = form?.get("file");
     const profileId = form?.get("profileId");
@@ -436,14 +598,39 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (!validSignature) return jsonResponse({ error: "The file signature does not match its declared image type." }, 415);
     const id = crypto.randomUUID();
     const filename = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
-    await bucket.put(`private-admin/images/files/${id}`, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    const records = await readImageIndex(bucket);
-    const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
-    if (publishOnUpload) {
-      await bucket.put(`public/profile-images/${id}`, await bucket.get(`private-admin/images/files/${id}`).then((object) => object?.arrayBuffer() ?? Promise.reject(new Error("Stored upload is missing."))), { httpMetadata: { contentType: file.type } });
+    const privateKey = `private-admin/images/files/${id}`;
+    const publicKey = `public/profile-images/${id}`;
+    let storedPrivate = false;
+    let storedPublic = false;
+    let indexed = false;
+    try {
+      await bucket.put(privateKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      storedPrivate = true;
+      const records = await readImageIndex(bucket);
+      const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+      if (publishOnUpload) {
+        const privateObject = await bucket.get(privateKey);
+        if (!privateObject) throw new Error("Stored image upload is missing.");
+        await bucket.put(publicKey, await privateObject.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+        storedPublic = true;
+      }
+      records.push(record);
+      await writeImageIndex(bucket, records);
+      indexed = true;
+      return jsonResponse({ image: record }, 201);
+    } catch (error) {
+      if (!indexed) {
+        if (storedPublic) {
+          try { await bucket.delete(publicKey); }
+          catch (cleanupError) { console.error("Failed to clean up an incomplete public image upload.", cleanupError); }
+        }
+        if (storedPrivate) {
+          try { await bucket.delete(privateKey); }
+          catch (cleanupError) { console.error("Failed to clean up an incomplete private image upload.", cleanupError); }
+        }
+      }
+      throw error;
     }
-    records.push(record); await writeImageIndex(bucket, records);
-    return jsonResponse({ image: record }, 201);
   }
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
@@ -462,7 +649,14 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       return jsonResponse({ image: records[index] }, 200);
     }
     if (!action && request.method === "DELETE") {
-      await bucket.delete(`private-admin/images/files/${id}`); await bucket.delete(`public/profile-images/${id}`); records.splice(index, 1); await writeImageIndex(bucket, records); return jsonResponse({ ok: true }, 200);
+      // Remove public bytes before changing the index; a failed index write can
+      // leave an approved record temporarily unavailable, but never publicly served.
+      await bucket.delete(`public/profile-images/${id}`);
+      records.splice(index, 1);
+      await writeImageIndex(bucket, records);
+      // Private cleanup happens only after the public index no longer references the image.
+      await bucket.delete(`private-admin/images/files/${id}`);
+      return jsonResponse({ ok: true }, 200);
     }
   }  return privateNotFound();
 }

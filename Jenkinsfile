@@ -155,11 +155,29 @@ pipeline {
                 Write-Output "Published and verified $file at immutable build path $env:BUILD_NUMBER-$commit"
               }
               node scripts/artifact-integrity.mjs verify-hash (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back checksum verification failed." }
               node scripts/artifact-integrity.mjs verify-release (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:CHECKSUM_FILE)
+              if ($LASTEXITCODE -ne 0) { throw "Nexus read-back release verification failed." }
+              # Inspect archive paths before extraction to block path traversal.
+              $archivePath = Join-Path $verificationDir $env:ARTIFACT_FILE
+              $archiveEntries = & tar -tzf $archivePath
+              if ($LASTEXITCODE -ne 0) { throw "Could not list the downloaded Nexus package archive." }
+              foreach ($entry in $archiveEntries) {
+                $normalizedEntry = ([string]$entry).Replace('\\', '/')
+                if ([string]::IsNullOrWhiteSpace($normalizedEntry) -or
+                    $normalizedEntry.StartsWith('/') -or
+                    $normalizedEntry -match '^[A-Za-z]:' -or
+                    ($normalizedEntry -split '/') -contains '..') {
+                  throw "Unsafe archive member path rejected: $entry"
+                }
+              }
+              $downloadedPackageDir = Join-Path $verificationDir 'downloaded-package'
+              New-Item -ItemType Directory -Force -Path $downloadedPackageDir | Out-Null
+              & tar -xzf $archivePath -C $downloadedPackageDir
+              if ($LASTEXITCODE -ne 0) { throw "Failed to extract the downloaded Nexus package." }
               $trustedPolicyHash = (Get-Content (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256')).Split(' ')[0]
               $remotePolicy = Join-Path $verificationDir 'portfolio-manifest-ignore.json'
-              $artifactDir = @('.output', 'dist') | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
-              if (!$artifactDir) { throw 'Build output directory missing during Nexus read-back verification.' }
+              $artifactDir = $downloadedPackageDir
               if (Test-Path (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') -PathType Leaf) {
                 node scripts/policy-signature.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
                 if ($LASTEXITCODE -ne 0) { throw "Nexus read-back policy signature verification failed." }

@@ -64,7 +64,12 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Add explicit profile assignment (Abhishek, Amulya, Anjini Kumar or Sai); publishing rejects missing/invalid assignment and excludes unassigned or legacy records from the public feed.
    - [x] Render approved resume metadata only on its matching public profile homepage, with no source-file links and no changes to the existing hardcoded portfolio facts (commit `5373a93`).
    - [ ] Authentication/session, storage, upload/download/delete and file-boundary validation are deferred while testing is paused.
+   - [x] Add strict validation for persisted private resume-index records, including UUIDs, allowed content types, size bounds, profile IDs, structured-section shapes and duplicate IDs; corrupted indexes fail closed rather than being silently treated as empty (source change only, commit `b5b3006`).
+   - [x] Make resume upload storage/index updates clean up the newly stored private file if index persistence fails, preventing orphaned uploads where cleanup succeeds (source change only, commit `b5b3006`).
+   - [x] Restrict resume record API paths to canonical UUIDs before resolving private storage keys (source change only, commit `b5b3006`).
+   - [ ] Verify these storage and boundary behaviors with failure-injection tests and hosted storage checks when validation resumes.
 4. **EPIC-08 — Dynamic profile updates and publishing**
+   - [x] Centralize approved-resume feed serialization and order unpublish/draft/delete operations to remove public visibility before persisting private status/removal; publishing persists private approval before exposing the public feed. Object storage remains non-transactional, so partial failures require reconciliation and runtime failure-injection verification (commits `c0127e6`, `fb3f084`).
    - [x] Add a public metadata-only resume highlights section filtered by profile ID; private resume files remain inaccessible from public profile pages (commit `5373a93`).
    - [x] Add an in-manager public-field preview, explicit unpublish/rollback to private pending status, and require profile assignment before publishing (commits `34c10a1`, `9298ca8`, `77b4f54`).
    - [x] Add a final publish confirmation and client-side checks for profile assignment, display name, headline, summary and empty skill entries (commit `4fad5ea`).
@@ -87,6 +92,12 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [ ] Validate shared navigation/footer, active states, keyboard operation, responsive layouts and all route links.
 9. **EPIC-09 — Security, accessibility and performance**
    - [ ] Audit access control, upload validation, public/private data boundaries, keyboard/screen-reader behavior and performance.
+   - [x] Stop using caller-supplied `X-Forwarded-For` as the login rate-limit identity; use only the platform-provided `CF-Connecting-IP` value and fall back to a shared `unknown` bucket when unavailable (commit `45e3134`). Source-only security hardening; proxy behavior and distributed rate-limit coverage remain unverified.
+   - [x] Respect the operating system reduced-motion preference by disabling the autoplaying intro video and decorative particle animation when reduced motion is requested (commits `eb6c337`, `17a47b5`). Source-only accessibility improvement; browser and assistive-technology behavior remains unverified.
+   - [x] Make the floating portfolio chat an explicitly modal dialog for assistive technology and keep keyboard Tab/Shift+Tab navigation inside it; Escape closes it and returns focus to the launcher (commit `cbb84e9`). Source-only improvement; screen-reader and browser behavior remain unverified.
+   - [x] Improve responsive navigation keyboard behavior: opening the mobile menu moves focus to its first item, and Escape closes it and restores focus to the menu toggle (commit `f4e7414`). Source-only improvement; browser and assistive-technology behavior remains unverified.
+   - [x] Enforce the chat API's 70 KB request limit while reading the body, not only from the optional `Content-Length` header, so chunked requests cannot bypass the transport bound (commit `84adc97`). Source-only security hardening; runtime behavior remains unverified.
+   - [x] Strictly validate admin session cookies before HMAC verification: enforce the timestamp/signature format, exact 32-byte SHA-256 signature length and canonical base64url encoding (commits `42b63cd`, `973726e`). Source-only security hardening; runtime behavior remains unverified.
 10. **EPIC-10 — End-to-end acceptance and release**
     - [ ] Run the full acceptance matrix on the candidate branch and record results.
     - [ ] Review the complete branch diff and outstanding issues.
@@ -107,7 +118,8 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [ ] Add reliable PDF/DOCX text extraction to prefill editable resume fields and profile content from the uploaded document. Current runtime dependencies do not include a document parser; choose and integrate an appropriate parser before claiming extraction is automated.
 - [x] Add conservative heading-based mapping for experience, education, skills, projects and certifications into private review notes; suggest skills in the editable review form. This does not yet populate the structured public profile sections, and explicit approval remains required (commits `f281381`, `230ff68`, `2bc68a8`).
 - [x] Add editable structured experience, education, project and certification fields to the private review record; heading mapping can prefill them, drafts persist privately, and only explicitly approved structured fields enter the metadata-only public resume feed (commits `af32b89`, `64a3693`). Existing hardcoded profile facts are not overwritten; public profile rendering of these new fields remains a separate follow-up.
-- [x] Render explicitly published experience, education, project and certification additions on their matching public profile sections, filtered by profile ID; existing static portfolio content remains intact (commit `2ad8870`).\n- [x] Split recognized resume sections into separate editable review entries at blank-line and explicit bullet boundaries; wrapped lines remain together and mapping remains conservative (commits `afbd013`, `eaf833e`).
+- [x] Render explicitly published experience, education, project and certification additions on their matching public profile sections, filtered by profile ID; existing static portfolio content remains intact (commit `2ad8870`).
+- [x] Split recognized resume sections into separate editable review entries at blank-line and explicit bullet boundaries; wrapped lines remain together and mapping remains conservative (commits `afbd013`, `eaf833e`).
 - [x] Add per-entry editing controls for structured resume sections, including add/remove actions, visible entry counts, and bounded per-entry character and count limits; changes remain private until explicit publication (commit `fefb6ec`).
 - [ ] Define whether image uploads should support an explicit publish-on-upload option; current behavior intentionally keeps uploads private/pending until publication.
 - [ ] Validate upload-to-profile mapping, extraction quality, draft editing, publication and rollback when testing resumes.
@@ -123,6 +135,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 - [x] Fix a source-inspection issue in JPEG filename validation: the escaped dot now matches `.jpg` and `.jpeg` filenames as intended (commit `7d7f87c`). This is a code change only; upload behavior remains untested while validation is paused.
 - [x] Add image unpublish/rollback so an approved image can be removed from public galleries without deleting the private original (commits `d7ea286`, `23ae216`). Source changes only; behavior is not runtime-verified while testing is paused.
+- [x] Validate persisted image-index records and duplicate IDs before use; roll back incomplete private/public upload objects when the index write fails; remove public image bytes and index visibility before deleting the private original (commit `5b547ac`). Source-only change; failure-injection and hosted object-storage behavior remain unverified while testing is paused.
 
 
 ## Shared profile design and image refresh
@@ -136,5 +149,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [x] Fixed resume draft saving so edited private review notes are sent to and persisted by the existing draft API.
 - [x] Fixed streamed AI-provider error messages to use actual line breaks rather than displaying literal escaped newline characters.
 - [x] Updated the image-manager submit label to distinguish private uploads from immediate publication.
+- [x] Hardened admin path canonicalization by decoding bounded nested URL-encoding layers and rejecting malformed or still-encoded paths before routing (commits `8e5f724`, `54b85f9`, `999b02b`). Source-only change; route behavior remains unverified while testing is paused.
 - [ ] Continue source-only review of imports/exports, route wiring, request/response contracts, state handling, accessibility, and security. Do not run tests, builds, lint, browser checks, or audits until testing is explicitly resumed.
+- [x] Corrected resume section entry parsing to use actual newline normalization, splitting, list-marker matching and entry joining (commit `7fd49d6`). Source-only correction; behavior remains unverified while testing is paused.
 - [x] Fix resume section parsing so CR/LF normalization, line splitting, list-marker detection and editable-entry joining use actual newline/whitespace characters rather than literal backslash sequences (commit `b4b3cd5`). Source inspection only; behavior remains unverified while testing is paused.

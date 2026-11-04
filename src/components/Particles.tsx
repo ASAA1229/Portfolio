@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 
 export function Particles({ count = 30 }: { count?: number }) {
+  const shouldReduceMotion = useReducedMotion();
   const [dots, setDots] = useState<{ l: number; d: number; s: number; delay: number }[]>([]);
   useEffect(() => {
+    if (shouldReduceMotion) {
+      setDots([]);
+      return;
+    }
     setDots(
       Array.from({ length: count }, () => ({
         l: Math.random() * 100,
@@ -11,7 +17,8 @@ export function Particles({ count = 30 }: { count?: number }) {
         delay: -Math.random() * 30,
       })),
     );
-  }, [count]);
+  }, [count, shouldReduceMotion]);
+  if (shouldReduceMotion) return null;
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {dots.map((p, i) => (

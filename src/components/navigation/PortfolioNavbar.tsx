@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bot, Clapperboard, Menu, X, ArrowUpRight, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
@@ -19,6 +19,8 @@ interface NavItem {
 export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const [menu, setMenu] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileNavRef = useRef<HTMLElement>(null);
   const [abhishekAiOpen, setAbhishekAiOpen] = useState(false);
 
   useEffect(() => {
@@ -26,12 +28,19 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   }, [path]);
 
   useEffect(() => {
+    if (!menu) return;
+    mobileNavRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+  }, [menu]);
+
+  useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(false);
+      if (event.key !== "Escape" || !menu) return;
+      setMenu(false);
+      menuButtonRef.current?.focus();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, []);
+  }, [menu]);
 
   const isPerson = Boolean(person);
   const personId = person?.id;
@@ -170,6 +179,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
           {/* 5. Hamburger menu button */}
           <Button
+            ref={menuButtonRef}
             variant="outline"
             size="icon"
             className="site-nav-menu min-h-11 min-w-11 lg:hidden"
@@ -186,6 +196,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
       {/* Responsive mobile & tablet navigation overlay */}
       {menu && (
         <nav
+          ref={mobileNavRef}
           id="portfolio-navigation"
           aria-label="Mobile portfolio navigation"
           className="site-container site-mobile-nav grid grid-cols-2 gap-2 py-4 lg:hidden"
