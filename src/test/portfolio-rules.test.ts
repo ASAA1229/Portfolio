@@ -165,6 +165,21 @@ describe("Portfolio factual and contact rules", () => {
     });
   });
 
+  it("accepts only same-origin published portrait paths for the matching profile", async () => {
+    const { normalizePublishedPortrait } = await import("@/lib/published-resume");
+    expect(normalizePublishedPortrait({ images: [
+      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000" },
+      { profileId: "sai", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001" },
+    ] }, "ammu")).toBe("/api/published-images/123e4567-e89b-12d3-a456-426614174000");
+    expect(normalizePublishedPortrait({ images: [
+      { profileId: "ammu", slot: "portrait", src: "https://attacker.example/image.png" },
+    ] }, "ammu")).toBeNull();
+    expect(normalizePublishedPortrait({ images: [
+      { profileId: "ammu", slot: "gallery", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000" },
+    ] }, "ammu")).toBeNull();
+    expect(normalizePublishedPortrait(null, "ammu")).toBeNull();
+  });
+
   it("selects the newest valid published resume and rejects non-object payloads", async () => {
     const { normalizePublishedProfileResume } = await import("@/lib/published-resume");
     const payload = {
