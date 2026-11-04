@@ -452,11 +452,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (action === "unpublish" && request.method === "POST") {
       if (record.status !== "approved") return jsonResponse({ error: "This resume is not currently published." }, 409);
       records[index] = { ...record, status: "pending" };
+      await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
       return jsonResponse({ resume: records[index] }, 200);
     }
 
@@ -493,10 +490,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         status: "approved",
       };
       await writeResumeIndex(bucket, records);
-      await bucket.put("public/approved-resumes.json", JSON.stringify({
-        updatedAt: new Date().toISOString(),
-        resumes: records.filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned").map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({ id, profileId, displayName, headline, summary, skills, structuredSections: structuredSections ?? { experience: [], education: [], projects: [], certifications: [] } })),
-      }), { httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" } } as { httpMetadata?: { contentType?: string } });
+      await writePublishedResumeFeed(bucket, records);
       return jsonResponse({ resume: records[index] }, 200);
     }
 
