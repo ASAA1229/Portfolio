@@ -97,6 +97,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Make the floating portfolio chat an explicitly modal dialog for assistive technology and keep keyboard Tab/Shift+Tab navigation inside it; Escape closes it and returns focus to the launcher (commit `cbb84e9`). Source-only improvement; screen-reader and browser behavior remain unverified.
    - [x] Improve responsive navigation keyboard behavior: opening the mobile menu moves focus to its first item, and Escape closes it and restores focus to the menu toggle (commit `f4e7414`). Source-only improvement; browser and assistive-technology behavior remains unverified.
    - [x] Enforce the chat API's 70 KB request limit while reading the body, not only from the optional `Content-Length` header, so chunked requests cannot bypass the transport bound (commit `84adc97`). Source-only security hardening; runtime behavior remains unverified.
+   - [x] Strictly validate admin session cookies before HMAC verification: enforce the timestamp/signature format, exact 32-byte SHA-256 signature length and canonical base64url encoding (commits `42b63cd`, `973726e`). Source-only security hardening; runtime behavior remains unverified.
 10. **EPIC-10 — End-to-end acceptance and release**
     - [ ] Run the full acceptance matrix on the candidate branch and record results.
     - [ ] Review the complete branch diff and outstanding issues.
