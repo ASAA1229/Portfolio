@@ -69,6 +69,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [x] Restrict resume record API paths to canonical UUIDs before resolving private storage keys (source change only, commit `b5b3006`).
    - [ ] Verify these storage and boundary behaviors with failure-injection tests and hosted storage checks when validation resumes.
 4. **EPIC-08 — Dynamic profile updates and publishing**
+   - [x] Centralize approved-resume feed serialization and order unpublish/draft/delete operations to remove public visibility before persisting private status/removal; publishing persists private approval before exposing the public feed. Object storage remains non-transactional, so partial failures require reconciliation and runtime failure-injection verification (commits `c0127e6`, `fb3f084`).
    - [x] Add a public metadata-only resume highlights section filtered by profile ID; private resume files remain inaccessible from public profile pages (commit `5373a93`).
    - [x] Add an in-manager public-field preview, explicit unpublish/rollback to private pending status, and require profile assignment before publishing (commits `34c10a1`, `9298ca8`, `77b4f54`).
    - [x] Add a final publish confirmation and client-side checks for profile assignment, display name, headline, summary and empty skill entries (commit `4fad5ea`).
