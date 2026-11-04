@@ -11,13 +11,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { DeveloperMark } from "@/components/DeveloperMark";
+import { AI_INTRO_SEGMENTS } from "@/lib/ai-intro";
 import my1 from "@/assets/my_1.jpeg";
 import videoSet from "@/assets/video_set.mp4";
 
-export function DynamicIntroPlayer() {
+/** Verified offline introduction used when the live AI service is unreachable. */
+const OFFLINE_INTRO = AI_INTRO_SEGMENTS.map((segment) => segment.text).join(" ");
+
+function DynamicIntroPlayer() {
   const [intro, setIntro] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const video = useRef<HTMLVideoElement>(null);
@@ -25,6 +30,9 @@ export function DynamicIntroPlayer() {
   useEffect(() => {
     const controller = new AbortController();
     async function generate() {
+      setIntro("");
+      setOffline(false);
+      setLoading(true);
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
@@ -49,7 +57,10 @@ export function DynamicIntroPlayer() {
         }
         if (!text.trim()) throw new Error("Empty AI intro");
       } catch {
-        if (!controller.signal.aborted) setError(true);
+        if (!controller.signal.aborted) {
+          setOffline(true);
+          setIntro(OFFLINE_INTRO);
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -59,7 +70,7 @@ export function DynamicIntroPlayer() {
       controller.abort();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     const element = video.current;
@@ -68,7 +79,8 @@ export function DynamicIntroPlayer() {
       element.pause();
       return;
     }
-    void element.play().catch(() => undefined);
+    const played = element.play?.();
+    if (played && typeof played.catch === "function") played.catch(() => undefined);
     return () => element.pause();
   }, [shouldReduceMotion]);
 
@@ -134,7 +146,24 @@ export function DynamicIntroPlayer() {
             <p className="whitespace-pre-wrap text-sm leading-7" aria-live="polite">
               {loading && !intro ? "Building an introduction from the latest published portfolio information…" : intro || "The live introduction is unavailable right now."}
             </p>
-            {error && <p role="status" className="mt-3 text-xs leading-5 text-muted-foreground">The AI service could not be reached. Try again later; the portfolio itself remains available.</p>}
+            {offline && (
+              <div role="status" className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
+                <p>
+                  The live AI service could not be reached, so this is the offline introduction built
+                  from the same verified portfolio facts — not a live AI response. The portfolio
+                  itself remains available.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-9"
+                  onClick={() => setAttempt((current) => current + 1)}
+                  disabled={loading}
+                >
+                  <RotateCcw /> Retry live AI
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={speaking ? pauseVoice : playVoice} disabled={!intro.trim() || loading}>

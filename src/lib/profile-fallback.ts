@@ -28,7 +28,10 @@ export function fallbackProfileAnswer(
     return `Hello! I'm the AI assistant presenting ${profile.name}'s portfolio.\n\n${profile.name} is a ${profile.headline}. ${profile.summary}\n\nEducation: ${education}\n\nExperience:\n${experience}\n\nSelected projects:\n${profile.projects.slice(0, 2).map((p) => `- ${p.title}: ${p.overview}`).join("\n")}\n\nThis introduction uses the published profile facts; it is not the person speaking.`;
   }
   if (/\b(contact|email|phone|reach|hire|linkedin|github)\b/.test(q)) {
-    const socials = profile.socialLabels.map((item) => `${item.platform}: ${item.handle ?? "not provided"}`).join(" · ");
+    const socials = profile.socialLabels
+      .filter((item) => item.handle)
+      .map((item) => `${item.platform}: ${item.handle}`)
+      .join(" · ");
     return `You can contact ${profile.name} at ${profile.email ?? "an email address is not listed"} or ${profile.phone ?? "a phone number is not listed"}. ${socials || "No social profile handles are listed in this profile."}`;
   }
   if (/\b(skill|skills|technology|technologies|tech stack|stack|programming|language|framework|database|tools)\b/.test(q)) return `Here are the skills listed for ${profile.name}:\n\n${skills}`;
