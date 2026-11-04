@@ -30,6 +30,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
+import { normalizePublishedProfileResume, type PublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -193,64 +194,6 @@ function ProjectTile({
     </article>
   );
 }
-type PublishedResume = { id: string; profileId: string; displayName: string; headline: string; summary: string; skills: string[] };
-type PublishedProfileResume = PublishedResume & {
-  uploadedAt?: string;
-  structuredSections?: { experience?: string[]; education?: string[]; projects?: string[]; certifications?: string[] };
-};
-
-function normalizePublishedProfileResume(payload: unknown, profileId: string): PublishedProfileResume | null {
-  if (!payload || typeof payload !== "object" || !("resumes" in payload) || !Array.isArray(payload.resumes)) {
-    return null;
-  }
-
-  const candidates: PublishedProfileResume[] = [];
-  for (const value of payload.resumes) {
-    if (!value || typeof value !== "object") continue;
-    const item = value as Record<string, unknown>;
-    if (item.profileId !== profileId) continue;
-    if (typeof item.id !== "string" || !item.id.trim() || item.id.length > 160) continue;
-    if (typeof item.displayName !== "string" || !item.displayName.trim() || item.displayName.length > 120) continue;
-    if (typeof item.headline !== "string" || item.headline.length > 240) continue;
-    if (typeof item.summary !== "string" || item.summary.length > 6000) continue;
-
-    const skills = Array.isArray(item.skills)
-      ? item.skills.filter((skill): skill is string => typeof skill === "string" && skill.trim().length > 0).slice(0, 20).map((skill) => skill.slice(0, 80))
-      : [];
-    const rawSections = item.structuredSections && typeof item.structuredSections === "object"
-      ? item.structuredSections as Record<string, unknown>
-      : {};
-    const sectionNames = ["experience", "education", "projects", "certifications"] as const;
-    const structuredSections: NonNullable<PublishedProfileResume["structuredSections"]> = {};
-    for (const name of sectionNames) {
-      const entries = rawSections[name];
-      if (Array.isArray(entries)) {
-        structuredSections[name] = entries
-          .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-          .slice(0, 20)
-          .map((entry) => entry.slice(0, 2000));
-      }
-    }
-
-    const uploadedAt = typeof item.uploadedAt === "string" && Number.isFinite(Date.parse(item.uploadedAt))
-      ? item.uploadedAt
-      : undefined;
-    candidates.push({
-      id: item.id,
-      profileId,
-      displayName: item.displayName,
-      headline: item.headline,
-      summary: item.summary,
-      skills,
-      ...(uploadedAt ? { uploadedAt } : {}),
-      ...(Object.keys(structuredSections).length ? { structuredSections } : {}),
-    });
-  }
-
-  candidates.sort((a, b) => Date.parse(b.uploadedAt ?? "") - Date.parse(a.uploadedAt ?? ""));
-  return candidates[0] ?? null;
-}
-
 function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
   const [resume, setResume] = useState<PublishedProfileResume | null>(null);
   useEffect(() => {
