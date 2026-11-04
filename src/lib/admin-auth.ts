@@ -76,7 +76,7 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
   // A SHA-256 HMAC has a fixed 32-byte signature (43 unpadded base64url
   // characters). Reject non-canonical or oversized cookie values before
   // decoding or performing cryptographic work.
-  const match = cookie.match(/^([1-9]\\d{9,15})\\.([A-Za-z0-9_-]{43})$/);
+  const match = cookie.match(/^([1-9]\d{9,15})\.([A-Za-z0-9_-]{43})$/);
   if (!match) return false;
   const [, payload, encodedSignature] = match;
   const signature = base64UrlToBytes(encodedSignature);
