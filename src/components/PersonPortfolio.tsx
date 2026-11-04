@@ -244,39 +244,6 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
   );
 }
 
-type PublishedStructuredResume = {
-  id: string;
-  profileId: string;
-  structuredSections?: { experience?: string[]; education?: string[]; projects?: string[]; certifications?: string[] };
-};
-
-function PublishedStructuredSections({ profileId, section }: { profileId: string; section: "experience" | "education" | "projects" | "certifications" }) {
-  const [entries, setEntries] = useState<{ id: string; text: string }[]>([]);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { headers: { accept: "application/json" }, cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: { resumes?: PublishedStructuredResume[] } | null) => {
-        if (!active || !Array.isArray(payload?.resumes)) return;
-        setEntries(payload.resumes.filter((resume) => resume.profileId === profileId && typeof resume.id === "string")
-          .flatMap((resume) => (Array.isArray(resume.structuredSections?.[section]) ? resume.structuredSections[section] : [])
-            .filter((entry): entry is string => typeof entry === "string" && !!entry.trim())
-            .map((text, index) => ({ id: resume.id + "-" + index, text: text.trim() }))));
-      })
-      .catch(() => { if (active) setEntries([]); });
-    return () => { active = false; };
-  }, [profileId, section]);
-  if (entries.length === 0) return null;
-  return (
-    <section className="mt-12 border-t border-border pt-8" aria-label={"Published " + section}>
-      <p className="font-mono text-xs text-primary">VERIFIED RESUME ADDITIONS</p>
-      <h2 className="mt-3 text-3xl">Additional {section}.</h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {entries.map((entry) => <article key={entry.id} className="rounded-lg border border-border bg-card p-5"><p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry.text}</p></article>)}
-      </div>
-    </section>
-  );
-}
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
