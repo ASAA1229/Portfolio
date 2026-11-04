@@ -27,14 +27,23 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-// Protect every admin path before it reaches TanStack or a route handler.
+// Canonicalize repeatedly so encoded and double-encoded admin separators or
+// path segments cannot take a different route through the auth boundary.
 function normalizedPath(request: Request): string {
   let pathname = new URL(request.url).pathname;
-  try {
-    pathname = decodeURIComponent(pathname);
-  } catch {
-    // A malformed path remains private and is rejected below.
+  for (let pass = 0; pass < 4; pass++) {
+    try {
+      const decoded = decodeURIComponent(pathname);
+      if (decoded === pathname) break;
+      pathname = decoded;
+    } catch {
+      // Fail closed: malformed paths must never reach an unprotected handler.
+      return "/__invalid_encoded_path__";
+    }
   }
+  // Do not pass a still-encoded path to a downstream router with different
+  // decoding behavior after the bounded canonicalization passes.
+  if (/%[0-9a-f]{2}/i.test(pathname)) return "/__invalid_encoded_path__";
   return pathname.toLowerCase().replace(/\/+$/, "") || "/";
 }
 

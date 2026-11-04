@@ -28,7 +28,42 @@ export const Route = createFileRoute("/api/chat")({
             return Response.json({ error: "Request body too large" }, { status: 413 });
           }
         }
-        const parsed = body.safeParse(await request.json().catch(() => null));
+        // Content-Length is optional and can be omitted for streamed/chunked requests.
+        // Enforce the same limit while reading so the JSON parser never receives an
+        // unbounded body, even when the caller omits or falsifies that header.
+        if (!request.body) {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+        const reader = request.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let totalBytes = 0;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            totalBytes += value.byteLength;
+            if (totalBytes > 70 * 1024) {
+              await reader.cancel().catch(() => undefined);
+              return Response.json({ error: "Request body too large" }, { status: 413 });
+            }
+            chunks.push(value);
+          }
+        } catch {
+          return Response.json({ error: "Could not read request body" }, { status: 400 });
+        }
+        const requestBytes = new Uint8Array(totalBytes);
+        let offset = 0;
+        for (const chunk of chunks) {
+          requestBytes.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        let requestPayload: unknown = null;
+        try {
+          requestPayload = JSON.parse(new TextDecoder().decode(requestBytes));
+        } catch {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+        const parsed = body.safeParse(requestPayload);
         if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
         const profile = parsed.data.person && parsed.data.person !== "abhishek"
