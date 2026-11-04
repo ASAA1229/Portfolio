@@ -149,3 +149,11 @@ See [EPICS.md](EPICS.md) for delivery workstreams and [USER_STORIES.md](USER_STO
 - Added regression checks for the four unique profile identifiers, matching Amulya selector/portfolio portrait paths, and unique project slugs within each profile.
 - Confirmed the referenced image filename exists in the inspected `new` branch asset tree.
 - Exact-head CI and browser visual acceptance have not yet been verified.
+
+## CI failure triage — build fix present, rerun pending
+
+The latest surfaced portfolio CI runs (`41890590523` and `41890590434`) are for an earlier commit, not the current `new` head. The build failed with an adjacent-JSX-elements parse error in `src/components/PersonPortfolio.tsx`; the existing branch history includes a fragment-wrapping correction (`7ca96540009994a65215917bd7353ddd5aa5e63e`).
+
+The current development increment also aligns Amulya's selector avatar and hero portrait to `amulya_main.webp`, and adds profile identity/project-slug regression coverage.
+
+**Not yet verified:** no successful Actions run has been observed for the current `new` head. Run build, lint, Vitest, Node integrity tests and artifact verification on the exact current commit before calling this epic accepted.
