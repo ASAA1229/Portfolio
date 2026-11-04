@@ -1,31 +1,36 @@
 # Portfolio profile image assets
 
-All listed assets are committed to this branch under `public/images/profiles/`.
+All active profile image paths below are committed under `public/images/profiles/`. The paths in this document are aligned with the current profile data and profile selector on branch `new`.
 
 ## Abhishek
-- `abhishek/abhishek_main.jpeg` — profile selector avatar and main personal photo
-- `abhishek/abhishek_1.jpeg` — classroom photo
-- `abhishek/abhishek_2.jpg` — campus photo
+- `abhishek/abhishek_main.jpeg` — profile selector avatar and main portrait
+- `abhishek/abhishek_1.jpeg` — gallery photo
+- `abhishek/abhishek_2.jpeg` — gallery photo
 
-## Amulya
+## Amulya (Ammu)
 - `amulya/amulya_main.webp` — profile selector avatar and main portrait
-- `amulya/amulya_1.webp` — gallery photo
-- `amulya/amulya_2.webp` — gallery photo
+- `amulya/ammu3.jpeg` — gallery photo
+- `amulya/ammu4.jpeg` — gallery photo
+- `amulya/ammu5.jpeg` — additional committed image; not currently referenced by the profile gallery
 
-## Anjini
-- `anjini/anjini_main.jpg` — profile selector avatar
-- `anjini/anjini_1.jpg`
-- `anjini/anjini_2.jpg`
+The older `amulya_1.webp` and `amulya_2.webp` files remain in the repository but are not the active gallery images.
 
-Anjini's portfolio remains Coming Soon while her resume is pending. Her photos are used only for the profile card, not to invent portfolio details.
+## Anjini (Bava)
+- `anjini/anjini_main.jpg` — profile selector avatar and main portrait
+- `anjini/anjini_1.jpg` — gallery photo
+- `anjini/anjini_2.jpg` — gallery photo
 
-## Sai
-- `sai/sai_main.png` — profile artwork/avatar
-- `sai/sai_1.jpeg`
-- `sai/sai_2.jpeg`
+Anjini's profile data is present in the current portfolio source. Keep published details grounded in her approved resume/profile information.
 
-The profile selector eagerly loads the avatar images because they appear above the fold. If an image fails to load, the initials layer remains visible as a graceful fallback. The About galleries use the two additional photos for Abhishek, Amulya, and Sai.
+## Sai (Darling)
+- `sai/sai_main.png` — profile selector avatar and main portrait
+- `sai/sai_1.jpeg` — gallery photo
+- `sai/sai_2.jpeg` — gallery photo
 
-## Dynamic image updates
-
-New images can be uploaded through the authenticated `/admin/images` manager. Uploads are private and pending until manually published. Published images are served by the approved-image API and added to the matching profile gallery without exposing private bucket keys. Static images remain the fallback and should be audited with `npm run audit:images`.
+## Image loading and dynamic updates
+- The profile selector eagerly loads the avatar images because they appear above the fold.
+- If an avatar fails to load, the initials layer remains visible as a graceful fallback.
+- Static gallery images are defined in `src/lib/person-portfolios.ts`.
+- New images can be uploaded through the authenticated `/admin/images` manager. Uploads remain private and pending until manually published.
+- Published images are served through the approved-image API and associated with the selected profile.
+- Run `npm run audit:images` when validating static image references.
