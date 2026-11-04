@@ -121,6 +121,15 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
   });
 }
 
+function adminAuthBypassed(): boolean {
+  // Temporary local/testing switch. Never bypass admin authentication in production.
+  return process.env["PORTFOLIO_ADMIN_AUTH_BYPASS"] === "true" && process.env["NODE_ENV"] !== "production";
+}
+
+async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
+  return adminAuthBypassed() || await isAdminRequest(request, env);
+}
+
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path === "/api/admin/login" && request.method === "POST") {
@@ -176,7 +185,7 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
   if (path === "/api/admin/logout" && request.method === "POST") {
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
-    if (!(await isAdminRequest(request, env))) return privateNotFound();
+    if (!(await isAdminAuthorized(request, env))) return privateNotFound();
     return jsonResponse({ ok: true }, 200, {
       "set-cookie": clearAdminCookieHeader(new URL(request.url).protocol === "https:"),
     });
@@ -697,9 +706,9 @@ export default {
     const imageResponse = await handlePortfolioImageApi(request, env);
     if (imageResponse) return imageResponse;
 
-    // The login page is intentionally the only public admin page. Every other
-    // admin URL returns the same generic 404 until a valid signed session exists.
-    if (isAdmin && path !== "/admin/login" && !(await isAdminRequest(request, env))) {
+    // Admin routes remain protected by default. For local testing only, set
+    // PORTFOLIO_ADMIN_AUTH_BYPASS=true with NODE_ENV other than production.
+    if (isAdmin && path !== "/admin/login" && !(await isAdminAuthorized(request, env))) {
       return privateNotFound();
     }
     if (isAdmin && path === "/admin/login" && request.method !== "GET") {
