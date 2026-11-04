@@ -125,8 +125,11 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
 
-    const clientKey = (request.headers.get("cf-connecting-ip") ??
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown").slice(0, 128);
+    // Only trust the platform-provided client address. X-Forwarded-For is
+    // caller-controlled unless a trusted proxy explicitly sanitizes it, so
+    // accepting it here would let clients rotate spoofed identities to bypass
+    // the per-client login throttle.
+    const clientKey = (request.headers.get("cf-connecting-ip") ?? "unknown").slice(0, 128);
     const now = Date.now();
     for (const [key, attempt] of loginAttempts) {
       if (attempt.resetAt <= now) loginAttempts.delete(key);
