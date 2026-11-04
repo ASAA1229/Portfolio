@@ -174,6 +174,13 @@ describe("Portfolio factual and contact rules", () => {
       ],
     };
     expect(normalizePublishedProfileResume(payload, "bava")?.id).toBe("new");
+    const undatedFirst = {
+      resumes: [
+        { id: "undated", profileId: "bava", displayName: "Anjini", headline: "Undated", summary: "No valid timestamp", skills: [], uploadedAt: "not-a-date" },
+        { id: "dated", profileId: "bava", displayName: "Anjini", headline: "Dated", summary: "Valid timestamp", skills: [], uploadedAt: "2026-01-01" },
+      ],
+    };
+    expect(normalizePublishedProfileResume(undatedFirst, "bava")?.id).toBe("dated");
     expect(normalizePublishedProfileResume([], "bava")).toBeNull();
     expect(normalizePublishedProfileResume({ resumes: "invalid" }, "bava")).toBeNull();
   });
