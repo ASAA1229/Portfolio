@@ -306,7 +306,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
       .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
         if (!active) return;
         const portraits = (payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot === "portrait");
-        setPublishedPortrait(portraits.at(-1)?.src ?? null);
+        setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
       })
       .catch(() => { if (active) setPublishedPortrait(null); });
     return () => { active = false; };
@@ -454,8 +454,8 @@ export function PersonContent({
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : { images: [] })
-      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string }[] }) => {
-        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id));
+      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[] }) => {
+        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot !== "portrait"));
       })
       .catch(() => { if (active) setPublishedImages([]); });
     return () => { active = false; };
