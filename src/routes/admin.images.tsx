@@ -30,9 +30,8 @@ function ImageManager() {
   }
   useEffect(() => {
     let active = true;
-    fetch("/api/admin/session", { credentials: "same-origin", cache: "no-store" })
-      .then((response) => { if (!response.ok) throw new Error("Not authenticated"); return loadImages(); })
-      .catch((reason: unknown) => { if (reason instanceof Error && reason.message === "Not authenticated") window.location.replace("/admin/login"); else setError(reason instanceof Error ? reason.message : "Could not load image manager."); })
+    loadImages()
+      .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load image manager."); })
       .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
   }, []);
@@ -56,7 +55,7 @@ function ImageManager() {
   }
   if (checking) return <main className="site-container py-16">Checking private image manager…</main>;
   return <main className="site-container max-w-5xl py-10 sm:py-14">
-    <header className="mb-8 flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-xs text-primary">PRIVATE CONTENT WORKFLOW</p><h1 className="mt-3 text-4xl font-semibold">Portfolio Image Manager</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">Upload image updates without changing source code. Choose review-first or publish immediately; published images can be rolled back to private pending status. Public pages receive approved image metadata only.</p></div><button className="inline-flex min-h-11 items-center gap-2 rounded border border-border px-4" disabled={busy} onClick={() => void loadImages()}><RefreshCw className="size-4"/> Refresh</button></header>
+    <header className="mb-8 flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-xs text-primary">CONTENT WORKFLOW · TEST MODE</p><h1 className="mt-3 text-4xl font-semibold">Portfolio Image Manager</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">Upload image updates without changing source code. This manager is directly accessible in the current testing configuration. Choose review-first or publish immediately; published images can be rolled back to private pending status.</p></div><button className="inline-flex min-h-11 items-center gap-2 rounded border border-border px-4" disabled={busy} onClick={() => void loadImages()}><RefreshCw className="size-4"/> Refresh</button></header>
     <section className="mb-10 rounded-lg border border-border bg-card p-5 sm:p-7"><h2 className="flex items-center gap-2 text-2xl"><ImagePlus className="size-5"/> Upload image</h2><div className="mt-6 grid gap-5 md:grid-cols-2">
       <label className="grid gap-2 text-sm">Profile<select className="min-h-11 rounded border border-border bg-background px-3" value={profileId} onChange={(event) => setProfileId(event.target.value as ImageRecord["profileId"])}>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label>
       <label className="grid gap-2 text-sm">Image file (JPEG, PNG, WebP or AVIF; max 10 MB)<input className="min-h-11 rounded border border-border p-2" type="file" accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" onChange={selectFile}/>{file && <span className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024).toFixed(1)} KB</span>}</label>
