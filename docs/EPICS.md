@@ -130,3 +130,13 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 4. PORT-E03 AI introduction/chat and voice behavior.
 5. PORT-E06 responsive/accessibility acceptance.
 6. PORT-E07 performance, SEO and production release readiness.
+
+## Development increment — Amulya primary image consistency
+
+**Implementation commit:** `a5193395e9ed971e8b52c4028dcf021035f3b886`  
+**Status:** IMPLEMENTED / TEST-AUTHORED / CI PENDING
+
+- Updated Amulya's profile-selector avatar and portfolio hero portrait to use the approved `amulya_main.webp` asset consistently.
+- Added regression checks for the four unique profile identifiers, matching Amulya selector/portfolio portrait paths, and unique project slugs within each profile.
+- Confirmed the referenced image filename exists in the inspected `new` branch asset tree.
+- Exact-head CI and browser visual acceptance have not yet been verified.
