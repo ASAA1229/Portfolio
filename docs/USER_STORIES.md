@@ -225,3 +225,12 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Candidate commit and successful CI/browser evidence are recorded.
 - Known limitations and rollback steps are documented.
 - Production deployment occurs only after explicit owner approval.
+
+### PORT-US-023 — Profile image asset integrity
+**As a maintainer,** I want every profile avatar, portrait and gallery reference to resolve to a committed public asset, so that broken images are caught before release.
+
+**Acceptance criteria**
+- Every profile-directory avatar reference resolves to a file under the public assets directory.
+- Every portfolio portrait and gallery image reference resolves to a committed file.
+- Missing image paths fail the automated test suite with the missing path listed.
+- The check covers all supported profile entries and does not rely on remote network access.
