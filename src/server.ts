@@ -121,13 +121,20 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
   });
 }
 
-function adminAuthBypassed(): boolean {
-  // Temporary local/testing switch. Never bypass admin authentication in production.
-  return process.env["PORTFOLIO_ADMIN_AUTH_BYPASS"] === "true" && process.env["NODE_ENV"] !== "production";
+function adminAuthBypassed(env: unknown): boolean {
+  // Temporary testing switch. Require an explicit flag and always fail closed in production.
+  const bindings = env as { PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown; NODE_ENV?: unknown; ENVIRONMENT?: unknown } | undefined;
+  const processEnv = typeof process !== "undefined" ? process.env : undefined;
+  const enabled = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" ||
+    processEnv?.["PORTFOLIO_ADMIN_AUTH_BYPASS"] === "true";
+  const production = bindings?.NODE_ENV === "production" ||
+    bindings?.ENVIRONMENT === "production" ||
+    processEnv?.["NODE_ENV"] === "production";
+  return enabled && !production;
 }
 
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
-  return adminAuthBypassed() || await isAdminRequest(request, env);
+  return adminAuthBypassed(env) || await isAdminRequest(request, env);
 }
 
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
