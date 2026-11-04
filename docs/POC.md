@@ -157,3 +157,13 @@ The latest surfaced portfolio CI runs (`41890590523` and `41890590434`) are for 
 The current development increment also aligns Amulya's selector avatar and hero portrait to `amulya_main.webp`, and adds profile identity/project-slug regression coverage.
 
 **Not yet verified:** no successful Actions run has been observed for the current `new` head. Run build, lint, Vitest, Node integrity tests and artifact verification on the exact current commit before calling this epic accepted.
+
+## Development increment — profile asset integrity
+
+**Implementation:** `src/test/portfolio-rules.test.ts`  
+**Status:** TEST-AUTHORED / EXECUTION PENDING
+
+- Added a local filesystem regression test that enumerates avatar, portrait and gallery references across the profile directory and portfolio records.
+- Missing files fail with their public asset paths, without requiring network access.
+- Added route-data alignment coverage for supported profile IDs and unknown profile handling.
+- Test execution and exact-head CI remain pending.
