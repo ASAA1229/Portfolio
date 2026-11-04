@@ -224,41 +224,22 @@ function usePublishedProfileResume(profileId: string): PublishedProfileResume | 
 }
 
 function PublishedResumeHighlights({ profileId }: { profileId: string }) {
-  const [resumes, setResumes] = useState<PublishedResume[]>([]);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { headers: { accept: "application/json" } })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: { resumes?: PublishedResume[] } | null) => {
-        if (!active || !Array.isArray(payload?.resumes)) return;
-        setResumes(payload.resumes.filter((item) => item.profileId === profileId &&
-          typeof item.id === "string" && typeof item.displayName === "string" &&
-          typeof item.headline === "string" && typeof item.summary === "string" &&
-          Array.isArray(item.skills)));
-      })
-      .catch(() => { if (active) setResumes([]); });
-    return () => { active = false; };
-  }, [profileId]);
-
-  if (resumes.length === 0) return null;
+  const resume = usePublishedProfileResume(profileId);
+  if (!resume) return null;
   return (
     <section className="site-container py-10" aria-label="Published resume highlights">
       <div className="mb-6 border-t border-border pt-6">
-        <p className="font-mono text-xs text-primary">VERIFIED PROFILE UPDATES</p>
+        <p className="font-mono text-xs text-primary">VERIFIED PROFILE UPDATE</p>
         <h2 className="mt-3 text-3xl">Recently published.</h2>
       </div>
-      <div className="grid gap-5 md:grid-cols-2">
-        {resumes.map((resume) => (
-          <article key={resume.id} className="rounded-lg border border-border bg-card p-6">
-            <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
-            {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
-            {resume.summary && <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>}
-            {resume.skills.length > 0 && <div className="mt-5 flex flex-wrap gap-2">
-              {resume.skills.slice(0, 20).map((skill, index) => <span key={skill + index} className="rounded-full border border-border px-3 py-1 text-xs">{skill}</span>)}
-            </div>}
-          </article>
-        ))}
-      </div>
+      <article className="rounded-lg border border-border bg-card p-6">
+        <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
+        {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
+        {resume.summary && <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>}
+        {resume.skills.length > 0 && <div className="mt-5 flex flex-wrap gap-2">
+          {resume.skills.slice(0, 20).map((skill, index) => <span key={skill + index} className="rounded-full border border-border px-3 py-1 text-xs">{skill}</span>)}
+        </div>}
+      </article>
     </section>
   );
 }
@@ -524,7 +505,16 @@ export function PersonContent({
             </div>
           </div>
           <div className="mt-12">
-            <Education profile={profile} />
+            {publishedResume?.structuredSections?.education?.length ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                {publishedResume.structuredSections.education.map((entry, index) => (
+                  <article key={index} className="rounded-lg border border-border bg-card p-6">
+                    <GraduationCap className="size-7 text-primary" />
+                    <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
+                  </article>
+                ))}
+              </div>
+            ) : <Education profile={profile} />}
           </div>
           {profile.leadership.length > 0 && (
             <section className="mt-12">
