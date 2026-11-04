@@ -108,3 +108,13 @@ export function normalizePublishedResumeHighlights(payload: unknown, profileId: 
       skills,
     }));
 }
+
+/** Accept only the same-origin published-image endpoint emitted by the server. */
+export function normalizePublishedPortrait(payload: unknown, profileId: string): string | null {
+  if (!isRecord(payload) || !Array.isArray(payload.images)) return null;
+  const candidates = payload.images.filter((image): image is Record<string, unknown> =>
+    isRecord(image) && image.profileId === profileId && image.slot === "portrait" &&
+    typeof image.src === "string" && /^\\/api\\/published-images\\/[0-9a-f-]{36}$/i.test(image.src),
+  );
+  return typeof candidates.at(-1)?.src === "string" ? candidates.at(-1)!.src as string : null;
+}
