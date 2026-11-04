@@ -122,7 +122,12 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
 }
 
 function adminAuthBypassed(env: unknown): boolean {
-  // Temporary testing switch. Require an explicit flag and always fail closed in production.
+  // Local Vite development is the temporary testing environment: keep admin
+  // managers accessible without requiring a platform-specific env binding.
+  // Non-local deployments still require an explicit flag and always fail closed
+  // when the production environment is detected.
+  if (import.meta.env.DEV) return true;
+
   const bindings = env as { PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown; NODE_ENV?: unknown; ENVIRONMENT?: unknown } | undefined;
   const enabled = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true";
   const production = bindings?.NODE_ENV === "production" ||
