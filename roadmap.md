@@ -94,6 +94,7 @@ Testing and validation work is paused by user request. Continue feature implemen
    - [ ] Audit access control, upload validation, public/private data boundaries, keyboard/screen-reader behavior and performance.
    - [x] Stop using caller-supplied `X-Forwarded-For` as the login rate-limit identity; use only the platform-provided `CF-Connecting-IP` value and fall back to a shared `unknown` bucket when unavailable (commit `45e3134`). Source-only security hardening; proxy behavior and distributed rate-limit coverage remain unverified.
    - [x] Respect the operating system reduced-motion preference by disabling the autoplaying intro video and decorative particle animation when reduced motion is requested (commits `eb6c337`, `17a47b5`). Source-only accessibility improvement; browser and assistive-technology behavior remains unverified.
+   - [x] Make the floating portfolio chat an explicitly modal dialog for assistive technology and keep keyboard Tab/Shift+Tab navigation inside it; Escape closes it and returns focus to the launcher (commit `cbb84e9`). Source-only improvement; screen-reader and browser behavior remain unverified.
 10. **EPIC-10 — End-to-end acceptance and release**
     - [ ] Run the full acceptance matrix on the candidate branch and record results.
     - [ ] Review the complete branch diff and outstanding issues.
