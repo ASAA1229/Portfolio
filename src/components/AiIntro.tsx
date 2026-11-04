@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { Bot, Pause, Play, RotateCcw, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ export function DynamicIntroPlayer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -62,9 +64,13 @@ export function DynamicIntroPlayer() {
   useEffect(() => {
     const element = video.current;
     if (!element) return;
+    if (shouldReduceMotion) {
+      element.pause();
+      return;
+    }
     void element.play().catch(() => undefined);
     return () => element.pause();
-  }, []);
+  }, [shouldReduceMotion]);
 
   function playVoice() {
     if (!intro.trim() || !("speechSynthesis" in window)) return;
@@ -106,7 +112,7 @@ export function DynamicIntroPlayer() {
               muted
               playsInline
               loop
-              autoPlay
+              autoPlay={!shouldReduceMotion}
               preload="metadata"
               aria-label="AI portfolio host video"
               className="h-full w-full object-contain"
