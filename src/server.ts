@@ -192,7 +192,7 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
   }
 
   if (path === "/api/admin/session" && request.method === "GET") {
-    if (!(await isAdminRequest(request, env))) return privateNotFound();
+    if (!(await isAdminAuthorized(request, env))) return privateNotFound();
     return jsonResponse({ authenticated: true }, 200);
   }
 
