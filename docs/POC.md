@@ -139,3 +139,13 @@ Do not mark a task complete merely because code or a test file exists. Record co
 The portfolio is ready for owner acceptance when P0 security and baseline checks pass, all four profiles and their routes work consistently, AI/admin workflows respect profile and privacy boundaries, responsive/accessibility checks pass, and the exact release candidate has successful CI and browser evidence. Production release still requires explicit owner approval.
 
 See [EPICS.md](EPICS.md) for delivery workstreams and [USER_STORIES.md](USER_STORIES.md) for testable acceptance criteria.
+
+## Development increment — Amulya primary image consistency
+
+**Implementation commit:** `a5193395e9ed971e8b52c4028dcf021035f3b886`  
+**Status:** IMPLEMENTED / TEST-AUTHORED / CI PENDING
+
+- Updated Amulya's profile-selector avatar and portfolio hero portrait to use the approved `amulya_main.webp` asset consistently.
+- Added regression checks for the four unique profile identifiers, matching Amulya selector/portfolio portrait paths, and unique project slugs within each profile.
+- Confirmed the referenced image filename exists in the inspected `new` branch asset tree.
+- Exact-head CI and browser visual acceptance have not yet been verified.
