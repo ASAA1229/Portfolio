@@ -279,8 +279,9 @@ async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]):
 async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
   const publicResumes = records
     .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
-    .map(({ id, profileId, displayName, headline, summary, skills, structuredSections }) => ({
+     .map(({ id, profileId, displayName, headline, summary, skills, structuredSections, uploadedAt }) => ({
       id,
+      uploadedAt,
       profileId,
       displayName,
       headline,
