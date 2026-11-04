@@ -66,11 +66,9 @@ function ResumeManager() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/admin/session", { credentials: "same-origin", cache: "no-store" })
-      .then((response) => { if (!response.ok) throw new Error("Not authenticated"); return loadResumes(); })
+    loadResumes()
       .catch((reason: unknown) => {
-        if (reason instanceof Error && reason.message === "Not authenticated") window.location.replace("/admin/login");
-        else setError(reason instanceof Error ? reason.message : "Could not load the manager.");
+        if (active) setError(reason instanceof Error ? reason.message : "Could not load the manager.");
       })
       .finally(() => { if (active) setChecking(false); });
     return () => { active = false; };
