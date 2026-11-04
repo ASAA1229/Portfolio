@@ -298,6 +298,19 @@ function PublishedStructuredSections({ profileId, section }: { profileId: string
 }
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
+  const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
+        if (!active) return;
+        const portraits = (payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot === "portrait");
+        setPublishedPortrait(portraits.at(-1)?.src ?? null);
+      })
+      .catch(() => { if (active) setPublishedPortrait(null); });
+    return () => { active = false; };
+  }, [profile.id]);
   const headline = publishedResume?.headline || profile.headline;
   const story = publishedResume?.summary || profile.story;
   return (
@@ -436,7 +449,7 @@ export function PersonContent({
   section: PortfolioSection;
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
-  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string }[]>([]);
+  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string; slot?: string }[]>([]);
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
