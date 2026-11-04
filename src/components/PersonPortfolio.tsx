@@ -30,7 +30,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { normalizePublishedProfileResume, type PublishedProfileResume } from "@/lib/published-resume";
+import { normalizePublishedPortrait, normalizePublishedProfileResume, type PublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -237,10 +237,9 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : { images: [] })
-      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
+      .then((payload: unknown) => {
         if (!active) return;
-        const portraits = (payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot === "portrait");
-        setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
+        setPublishedPortrait(normalizePublishedPortrait(payload, profile.id));
       })
       .catch(() => { if (active) setPublishedPortrait(null); });
     return () => { active = false; };
@@ -252,7 +251,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
       <section className="person-hero">
         <img src={backdrop} alt="" className="person-hero-backdrop" aria-hidden="true" />
         <img
-          src={profile.portrait}
+          src={publishedPortrait ?? profile.portrait}
           alt={`${profile.name} portrait`}
           className="person-hero-portrait"
           fetchPriority="high"
