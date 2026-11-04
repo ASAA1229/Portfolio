@@ -194,6 +194,34 @@ function ProjectTile({
   );
 }
 type PublishedResume = { id: string; profileId: string; displayName: string; headline: string; summary: string; skills: string[] };
+type PublishedProfileResume = PublishedResume & {
+  uploadedAt?: string;
+  structuredSections?: { experience?: string[]; education?: string[]; projects?: string[]; certifications?: string[] };
+};
+
+function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
+  const [resume, setResume] = useState<PublishedProfileResume | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-resumes", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: { resumes?: PublishedProfileResume[] } | null) => {
+        if (!active || !Array.isArray(payload?.resumes)) return;
+        const candidates = payload.resumes.filter((item) =>
+          item.profileId === profileId &&
+          typeof item.id === "string" &&
+          typeof item.headline === "string" &&
+          typeof item.summary === "string" &&
+          Array.isArray(item.skills),
+        );
+        candidates.sort((a, b) => Date.parse(b.uploadedAt ?? "") - Date.parse(a.uploadedAt ?? ""));
+        setResume(candidates[0] ?? null);
+      })
+      .catch(() => { if (active) setResume(null); });
+    return () => { active = false; };
+  }, [profileId]);
+  return resume;
+}
 
 function PublishedResumeHighlights({ profileId }: { profileId: string }) {
   const [resumes, setResumes] = useState<PublishedResume[]>([]);
@@ -269,6 +297,9 @@ function PublishedStructuredSections({ profileId, section }: { profileId: string
   );
 }
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
+  const publishedResume = usePublishedProfileResume(profile.id);
+  const headline = publishedResume?.headline || profile.headline;
+  const story = publishedResume?.summary || profile.story;
   return (
     <>
       <section className="person-hero">
@@ -290,8 +321,8 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
             </p>
             <h1 className="person-name mt-6">{profile.name}</h1>
-            <p className="mt-6 max-w-xl text-lg font-semibold leading-7">{profile.headline}</p>
-            <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{profile.story}</p>
+            <p className="mt-6 max-w-xl text-lg font-semibold leading-7">{headline}</p>
+            <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{story}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild className="min-h-11">
                 <PersonLink person={profile.id} section="projects">
@@ -348,7 +379,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         <div className="site-container grid gap-6 py-12 md:grid-cols-[1fr_2fr]">
           <h2 className="text-4xl">Beyond the work.</h2>
           <div>
-            <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
+            <p className="text-sm leading-8 text-muted-foreground">{publishedResume?.summary || profile.summary}</p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <PersonLink person={profile.id} section="experience">
                 Explore my experience <ArrowRight />
@@ -404,6 +435,7 @@ export function PersonContent({
   profile: PersonPortfolio;
   section: PortfolioSection;
 }) {
+  const publishedResume = usePublishedProfileResume(profile.id);
   const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -421,7 +453,7 @@ export function PersonContent({
   ];
   const title = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
   const descriptions: Record<PortfolioSection, string> = {
-    about: profile.story,
+    about: publishedResume?.summary || profile.story,
     skills: "Tools, disciplines, and the foundations behind the work.",
     projects: "A closer look at the applications and technical projects.",
     experience: "Hands-on work, responsibilities, and professional learning.",
@@ -445,7 +477,7 @@ export function PersonContent({
         <>
           <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
             <div>
-              <h2 className="text-4xl">{profile.headline}</h2>
+              <h2 className="text-4xl">{publishedResume?.headline || profile.headline}</h2>
               <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
                 <img
                   src={profile.portrait}
@@ -502,7 +534,13 @@ export function PersonContent({
       )}
       {section === "skills" && (
         <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
-          {profile.skills.map((group, index) => (
+          {publishedResume?.skills.length ? (
+            <section className="border-t border-border pt-6">
+              <p className="font-mono text-xs text-primary">01 / UPLOADED RESUME</p>
+              <h2 className="mt-3 text-3xl">Skills & capabilities</h2>
+              <TechnologyList items={publishedResume.skills} />
+            </section>
+          ) : profile.skills.map((group, index) => (
             <section key={group.category} className="border-t border-border pt-6">
               <p className="font-mono text-xs text-primary">0{index + 1}</p>
               <h2 className="mt-3 text-3xl">{group.category}</h2>
@@ -514,15 +552,31 @@ export function PersonContent({
       {section === "projects" && (
         <>
           <div className="grid gap-6 md:grid-cols-2">
-            {profile.projects.map((project, index) => (
+            {publishedResume?.structuredSections?.projects?.length ? (
+              publishedResume.structuredSections.projects.map((entry, index) => (
+                <article key={index} className="rounded-lg border border-border bg-card p-6">
+                  <p className="font-mono text-xs text-primary">UPLOADED RESUME / PROJECT 0{index + 1}</p>
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
+                </article>
+              ))
+            ) : profile.projects.map((project, index) => (
               <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
             ))}
           </div>
-          <PublishedStructuredSections profileId={profile.id} section="projects" />
         </>
       )}
       {section === "experience" && (
         <>
+          {publishedResume?.structuredSections?.experience?.length ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              {publishedResume.structuredSections.experience.map((entry, index) => (
+                <article key={index} className="rounded-lg border border-border bg-card p-6">
+                  <p className="font-mono text-xs text-primary">UPLOADED RESUME / EXPERIENCE 0{index + 1}</p>
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
+                </article>
+              ))}
+            </div>
+          ) : (
           <div className="person-timeline">
             {profile.experience.map((job, index) => (
               <section
@@ -557,13 +611,21 @@ export function PersonContent({
               </section>
             ))}
           </div>
-          <PublishedStructuredSections profileId={profile.id} section="experience" />
+          )}
         </>
       )}
       {section === "certifications" && (
         <>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {profile.certifications.map((cert) => (
+            {publishedResume?.structuredSections?.certifications?.length ? (
+              publishedResume.structuredSections.certifications.map((entry, index) => (
+                <article key={index} className="cert-card">
+                  <Award className="size-7 text-gold" />
+                  <p className="mt-5 font-mono text-xs text-gold">UPLOADED RESUME</p>
+                  <h2 className="mt-3 whitespace-pre-wrap text-lg leading-tight">{entry}</h2>
+                </article>
+              ))
+            ) : profile.certifications.map((cert) => (
               <article key={cert.title} className="cert-card">
                 <Award className="size-7 text-gold" />
                 <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
@@ -572,14 +634,21 @@ export function PersonContent({
             ))}
           </div>
           <Training profile={profile} />
-          <PublishedStructuredSections profileId={profile.id} section="certifications" />
         </>
       )}
       {section === "education" && (
         <>
-          <Education profile={profile} />
+          {publishedResume?.structuredSections?.education?.length ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              {publishedResume.structuredSections.education.map((entry, index) => (
+                <article key={index} className="rounded-lg border border-border bg-card p-6">
+                  <GraduationCap className="size-7 text-primary" />
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
+                </article>
+              ))}
+            </div>
+          ) : <Education profile={profile} />}
           <Training profile={profile} />
-          <PublishedStructuredSections profileId={profile.id} section="education" />
         </>
       )}
       {section === "contact" && (
