@@ -527,7 +527,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   return privateNotFound();
 }
 
-type PortfolioImageRecord = { id: string; filename: string; contentType: string; size: number; uploadedAt: string; status: "pending" | "approved"; profileId: "abhishek" | "ammu" | "bava" | "sai"; alt: string; };
+type PortfolioImageRecord = { id: string; filename: string; contentType: string; size: number; uploadedAt: string; status: "pending" | "approved"; profileId: "abhishek" | "ammu" | "bava" | "sai"; alt: string; slot?: "gallery" | "portrait"; };
 const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/avif", ".avif"]]);
@@ -543,7 +543,8 @@ function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
     typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
     (record.status === "pending" || record.status === "approved") &&
     ["abhishek", "ammu", "bava", "sai"].includes(String(record.profileId)) &&
-    typeof record.alt === "string" && record.alt.trim().length > 0 && record.alt.length <= 300;
+    typeof record.alt === "string" && record.alt.trim().length > 0 && record.alt.length <= 300 &&
+    (record.slot === undefined || record.slot === "gallery" || record.slot === "portrait");
 }
 
 async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
@@ -572,7 +573,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     return bucketNotConfigured();
   }
   if (path === "/api/published-images" && request.method === "GET") {
-    const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType }) => ({ id, profileId, alt, filename, contentType, src: `/api/published-images/${id}` }));
+    const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType, slot }) => ({ id, profileId, alt, filename, contentType, slot: slot ?? "gallery", src: `/api/published-images/${id}` }));
     return jsonResponse({ images }, 200, { "cache-control": "no-store" });
   }
   const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
@@ -597,8 +598,10 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const file = form?.get("file");
     const profileId = form?.get("profileId");
     const alt = form?.get("alt");
+    const requestedSlot = form?.get("slot");
+    const slot = requestedSlot === "portrait" ? "portrait" : requestedSlot === "gallery" ? "gallery" : null;
     const publishOnUpload = form?.get("publishOnUpload") === "true";
-    if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim()) return jsonResponse({ error: "Choose an image, profile and descriptive alt text." }, 400);
+    if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim() || !slot) return jsonResponse({ error: "Choose an image, profile, image placement and descriptive alt text." }, 400);
     if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
     const expectedExtension = IMAGE_TYPES.get(file.type);
     if (!expectedExtension || !(file.type === "image/jpeg" ? /\.jpe?g$/i.test(file.name) : file.name.toLowerCase().endsWith(expectedExtension))) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
@@ -616,7 +619,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       await bucket.put(privateKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
       storedPrivate = true;
       const records = await readImageIndex(bucket);
-      const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+      const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300), slot };
       if (publishOnUpload) {
         const privateObject = await bucket.get(privateKey);
         if (!privateObject) throw new Error("Stored image upload is missing.");
