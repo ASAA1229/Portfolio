@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { CONTACT, MISSIONS, MILESTONES, PROJECTS } from "@/lib/portfolio-data";
 import { getPersonPortfolio, PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
+import { normalizePublishedResumeHighlights } from "@/lib/published-resume";
 
 describe("Portfolio factual and contact rules", () => {
   it("keeps the four profile identifiers unique", () => {
@@ -88,4 +89,35 @@ describe("Portfolio factual and contact rules", () => {
     expect(contactSchema.safeParse({ ...valid, message: " " }).success).toBe(false);
     expect(contactSchema.safeParse({ ...valid, message: "x".repeat(2001) }).success).toBe(false);
   });
+  it("normalizes published resume highlights and rejects malformed or cross-profile records", () => {
+    const normalized = normalizePublishedResumeHighlights({
+      resumes: [
+        { id: "resume-1", profileId: "ammu", displayName: "Amulya", headline: "Analyst", summary: "Profile summary", skills: ["SQL", 42, "Python", "", "x".repeat(81)] },
+        { id: "resume-2", profileId: "sai", displayName: "Sai", headline: "Developer", summary: "Other profile", skills: ["Java"] },
+        { id: "resume-3", profileId: "ammu", displayName: {}, headline: "Invalid", summary: "Invalid display name", skills: ["Java"] },
+        null,
+      ],
+    }, "ammu");
+
+    expect(normalized).toEqual([{
+      id: "resume-1",
+      profileId: "ammu",
+      displayName: "Amulya",
+      headline: "Analyst",
+      summary: "Profile summary",
+      skills: ["SQL", "Python"],
+    }]);
+  });
+
+  it("bounds published resume skills and safely handles unexpected API payloads", () => {
+    const skills = Array.from({ length: 25 }, (_, index) => `Skill ${index}`);
+    const normalized = normalizePublishedResumeHighlights({
+      resumes: [{ id: "resume-1", profileId: "bava", displayName: "Anjini", headline: "", summary: "", skills }],
+    }, "bava");
+
+    expect(normalized[0]?.skills).toHaveLength(20);
+    expect(normalizePublishedResumeHighlights(null, "bava")).toEqual([]);
+    expect(normalizePublishedResumeHighlights({ resumes: "not-an-array" }, "bava")).toEqual([]);
+  });
+
 });
