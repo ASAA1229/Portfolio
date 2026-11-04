@@ -511,11 +511,32 @@ const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/avif", ".avif"]]);
 
+function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Partial<PortfolioImageRecord>;
+  return typeof record.id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
+    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    IMAGE_TYPES.has(String(record.contentType)) &&
+    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_IMAGE_BYTES &&
+    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    (record.status === "pending" || record.status === "approved") &&
+    ["abhishek", "ammu", "bava", "sai"].includes(String(record.profileId)) &&
+    typeof record.alt === "string" && record.alt.trim().length > 0 && record.alt.length <= 300;
+}
+
 async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
   const object = await bucket.get(IMAGE_INDEX_KEY);
   if (!object) return [];
   const records = await object.json<unknown>();
-  return Array.isArray(records) ? records as PortfolioImageRecord[] : [];
+  if (!Array.isArray(records) || !records.every(isPortfolioImageRecord)) {
+    throw new Error("Stored image index failed integrity validation.");
+  }
+  const ids = new Set(records.map((record) => record.id));
+  if (ids.size !== records.length) {
+    throw new Error("Stored image index contains duplicate record IDs.");
+  }
+  return records;
 }
 async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRecord[]): Promise<void> {
   await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
@@ -565,14 +586,39 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (!validSignature) return jsonResponse({ error: "The file signature does not match its declared image type." }, 415);
     const id = crypto.randomUUID();
     const filename = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
-    await bucket.put(`private-admin/images/files/${id}`, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    const records = await readImageIndex(bucket);
-    const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
-    if (publishOnUpload) {
-      await bucket.put(`public/profile-images/${id}`, await bucket.get(`private-admin/images/files/${id}`).then((object) => object?.arrayBuffer() ?? Promise.reject(new Error("Stored upload is missing."))), { httpMetadata: { contentType: file.type } });
+    const privateKey = `private-admin/images/files/${id}`;
+    const publicKey = `public/profile-images/${id}`;
+    let storedPrivate = false;
+    let storedPublic = false;
+    let indexed = false;
+    try {
+      await bucket.put(privateKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      storedPrivate = true;
+      const records = await readImageIndex(bucket);
+      const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300) };
+      if (publishOnUpload) {
+        const privateObject = await bucket.get(privateKey);
+        if (!privateObject) throw new Error("Stored image upload is missing.");
+        await bucket.put(publicKey, await privateObject.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+        storedPublic = true;
+      }
+      records.push(record);
+      await writeImageIndex(bucket, records);
+      indexed = true;
+      return jsonResponse({ image: record }, 201);
+    } catch (error) {
+      if (!indexed) {
+        if (storedPublic) {
+          try { await bucket.delete(publicKey); }
+          catch (cleanupError) { console.error("Failed to clean up an incomplete public image upload.", cleanupError); }
+        }
+        if (storedPrivate) {
+          try { await bucket.delete(privateKey); }
+          catch (cleanupError) { console.error("Failed to clean up an incomplete private image upload.", cleanupError); }
+        }
+      }
+      throw error;
     }
-    records.push(record); await writeImageIndex(bucket, records);
-    return jsonResponse({ image: record }, 201);
   }
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
@@ -591,7 +637,14 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       return jsonResponse({ image: records[index] }, 200);
     }
     if (!action && request.method === "DELETE") {
-      await bucket.delete(`private-admin/images/files/${id}`); await bucket.delete(`public/profile-images/${id}`); records.splice(index, 1); await writeImageIndex(bucket, records); return jsonResponse({ ok: true }, 200);
+      // Remove public bytes before changing the index; a failed index write can
+      // leave an approved record temporarily unavailable, but never publicly served.
+      await bucket.delete(`public/profile-images/${id}`);
+      records.splice(index, 1);
+      await writeImageIndex(bucket, records);
+      // Private cleanup happens only after the public index no longer references the image.
+      await bucket.delete(`private-admin/images/files/${id}`);
+      return jsonResponse({ ok: true }, 200);
     }
   }  return privateNotFound();
 }
