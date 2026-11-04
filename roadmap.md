@@ -129,6 +129,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 - [x] Fix a source-inspection issue in JPEG filename validation: the escaped dot now matches `.jpg` and `.jpeg` filenames as intended (commit `7d7f87c`). This is a code change only; upload behavior remains untested while validation is paused.
 - [x] Add image unpublish/rollback so an approved image can be removed from public galleries without deleting the private original (commits `d7ea286`, `23ae216`). Source changes only; behavior is not runtime-verified while testing is paused.
+- [x] Validate persisted image-index records and duplicate IDs before use; roll back incomplete private/public upload objects when the index write fails; remove public image bytes and index visibility before deleting the private original (commit `5b547ac`). Source-only change; failure-injection and hosted object-storage behavior remain unverified while testing is paused.
 
 
 ## Shared profile design and image refresh
