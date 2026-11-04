@@ -137,3 +137,4 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [x] Fixed streamed AI-provider error messages to use actual line breaks rather than displaying literal escaped newline characters.
 - [x] Updated the image-manager submit label to distinguish private uploads from immediate publication.
 - [ ] Continue source-only review of imports/exports, route wiring, request/response contracts, state handling, accessibility, and security. Do not run tests, builds, lint, browser checks, or audits until testing is explicitly resumed.
+- [x] Fix resume section parsing so CR/LF normalization, line splitting, list-marker detection and editable-entry joining use actual newline/whitespace characters rather than literal backslash sequences (commit `b4b3cd5`). Source inspection only; behavior remains unverified while testing is paused.
