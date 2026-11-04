@@ -43,7 +43,7 @@ function normalizedPath(request: Request): string {
   }
   // Do not pass a still-encoded path to a downstream router with different
   // decoding behavior after the bounded canonicalization passes.
-  if (pathname.includes("%")) return "/__invalid_encoded_path__";
+  if (/%[0-9a-f]{2}/i.test(pathname)) return "/__invalid_encoded_path__";
   return pathname.toLowerCase().replace(/\/+$/, "") || "/";
 }
 
