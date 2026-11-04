@@ -167,3 +167,13 @@ The current development increment also aligns Amulya's selector avatar and hero 
 - Missing files fail with their public asset paths, without requiring network access.
 - Added route-data alignment coverage for supported profile IDs and unknown profile handling.
 - Test execution and exact-head CI remain pending.
+
+## Development increment — published resume payload normalization utility
+
+**Implementation:** `src/lib/published-resume.ts`, `src/test/portfolio-rules.test.ts`  
+**Status:** UTILITY IMPLEMENTED / TEST-AUTHORED / UI INTEGRATION PENDING
+
+- Added a pure normalizer for the published-resume API payload. It accepts only records for the requested profile and validates bounded IDs, display names, headlines, summaries and skill strings.
+- Limits skills to 20 entries and 80 characters each; malformed records and unexpected payload shapes are ignored.
+- Added regression coverage for cross-profile leakage, malformed fields, non-string skills, oversized skills and unexpected API responses.
+- The existing profile UI consumer has not yet been switched to this helper; do not treat this increment as fully integrated until that wiring and exact-head test execution are complete.
