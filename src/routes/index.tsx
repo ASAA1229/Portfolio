@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Code2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
@@ -17,11 +18,24 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 function Home() {
+  const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
+        if (!active) return;
+        const portraits = (payload.images ?? []).filter((image) => image.profileId === "abhishek" && image.slot === "portrait");
+        setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
+      })
+      .catch(() => { if (active) setPublishedPortrait(null); });
+    return () => { active = false; };
+  }, []);
   return (
     <>
       <section className="home-hero">
         <img
-          src={portrait}
+          src={publishedPortrait ?? portrait}
           alt="Existing AI-stylized portrait of Guda Abhishek"
           width={768}
           height={768}
