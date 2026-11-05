@@ -14,7 +14,12 @@ const hash = async (file) => {
   for await (const chunk of createReadStream(file)) h.update(chunk);
   return h.digest('hex');
 };
-const fail = (message) => { throw new Error(message); };
+let activeStage = 'INPUT_VALIDATION';
+const fail = (message) => {
+  const error = new Error(message);
+  error.stage = activeStage;
+  throw error;
+};
 
 function validateReleaseManifest(manifest) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
@@ -136,6 +141,7 @@ async function extractVerifiedArchive(archivePath) {
 }
 
 async function createPolicy(manifestPath, artifactPath, policyPath) {
+  activeStage = 'POLICY_CREATION';
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   validateReleaseManifest(manifest);
   const st = await lstat(artifactPath);
@@ -157,7 +163,8 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
 }
 
 async function verify(policyPath, policySumPath, manifestPath, artifactPath, trustedHash, signaturePath, publicKeyPath) {
-  // 1. Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
+  // 1.
+  activeStage = 'POLICY_AUTHENTICATION'; Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
   const trusted = String(trustedHash || '').trim().toLowerCase();
   const signedMode = Boolean(signaturePath || publicKeyPath);
   if (Boolean(signaturePath) !== Boolean(publicKeyPath)) fail('Both policy signature and trusted public-key paths are required.');
@@ -195,6 +202,7 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, tru
   console.log('Stage 1 PASSED: manifest-ignore verified.');
 
   // 2. Check manifest bytes against the verified policy before trusting its inventory.
+  activeStage = 'MANIFEST_VALIDATION';
   if (path.basename(manifestPath) !== policy.manifest.name || await hash(manifestPath) !== policy.manifest.sha256) {
     fail('Manifest checksum/name mismatch.');
   }
@@ -213,7 +221,8 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, tru
   }
   console.log('Stage 2 PASSED: manifest and release identity verified.');
 
-  // 3. Verify package bytes, then every file in the extracted package directory.
+  // 3. Verify package bytes, then every file in the authenticated archive.
+  activeStage = 'PACKAGE_ARCHIVE_VERIFICATION';
   const ast = await lstat(artifactPath);
   if (!ast.isFile() || ast.isSymbolicLink() || path.basename(artifactPath) !== policy.artifact.name ||
       ast.size !== policy.artifact.size || await hash(artifactPath) !== policy.artifact.sha256 ||
@@ -248,4 +257,15 @@ async function main() {
     '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact.tar.gz> <trusted-policy-sha256|-> [<manifest-ignore.sig> <trusted-public-key.pem>]');
   process.exitCode = 2;
 }
-main().catch(e => { console.error('Customer release verification FAILED: ' + e.message); process.exitCode = 1; });
+main().catch((error) => {
+  const stage = error.stage || activeStage;
+  const report = {
+    type: 'customer-release-verification',
+    status: 'FAILED',
+    stage,
+    code: `${stage}_FAILED`,
+    message: error.message || 'Unexpected verification failure.',
+  };
+  console.error('CUSTOMER_RELEASE_REPORT ' + JSON.stringify(report));
+  process.exitCode = 1;
+});
