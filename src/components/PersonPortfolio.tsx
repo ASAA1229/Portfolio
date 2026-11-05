@@ -407,7 +407,7 @@ export function PersonContent({
               </div>
             </div>
             <div>
-              <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
+              <p className="text-sm leading-8 text-muted-foreground">{publishedResume?.summary || profile.summary}</p>
               {galleryPhotos.length > 0 && (
                 <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
                   {galleryPhotos.map((photo) => (
