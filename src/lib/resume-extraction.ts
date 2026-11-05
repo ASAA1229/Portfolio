@@ -253,12 +253,13 @@ function extractPdfTextFromContent(content: string): string[] {
     .filter(Boolean);
 }
 
-async function extractPdf(bytes: Uint8Array): Promise<string> {
+async function extractPdf(bytes: Uint8Array): Promise<{ text: string; skippedStreams: number }> {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   if (!binary.startsWith("%PDF-")) throw new Error("The PDF header is invalid.");
 
   const chunks: string[] = [];
   let totalCharacters = 0;
+  let skippedStreams = 0;
   const streamPattern = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   for (const match of binary.matchAll(streamPattern)) {
     const dictionary = match[1];
@@ -302,14 +303,20 @@ export async function extractResumeText(
   }
 
   if (contentType === "application/pdf") {
-    const text = await extractPdf(bytes);
+    const extraction = await extractPdf(bytes);
+    const text = extraction.text;
     if (!text) {
       throw new Error("No extractable text was found. This PDF may be scanned, image-only, or use unsupported font encoding; OCR is not available in this local extractor.");
     }
     return {
       text,
       method: "pdf-text",
-      warning: "PDF extraction is a best-effort first pass. Scanned pages need OCR, and complex font encodings or multi-column layouts may be incomplete or appear in the wrong reading order. Verify every extracted field and its order against the original.",
+      warning: [
+        "PDF extraction is a best-effort first pass. Scanned pages need OCR, and complex font encodings or multi-column layouts may be incomplete or appear in the wrong reading order. Verify every extracted field and its order against the original.",
+        extraction.skippedStreams > 0
+          ? `${extraction.skippedStreams} PDF stream(s) used unsupported filters or could not be decompressed; content from those streams may be missing.`
+          : "",
+      ].filter(Boolean).join(" "),
     };
   }
 
