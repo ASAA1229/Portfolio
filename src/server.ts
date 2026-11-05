@@ -208,6 +208,8 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
 }
 
 
+type StructuredResumeEntry = { title?: string; organization?: string; role?: string; location?: string; startDate?: string; endDate?: string; description?: string; technologies?: string[]; url?: string; credentialId?: string; grade?: string };
+
 type ResumeRecord = {
   id: string;
   filename: string;
@@ -221,7 +223,7 @@ type ResumeRecord = {
   summary: string;
   skills: string[];
   contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
-  structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
+  structuredSections?: { experience: (string | StructuredResumeEntry)[]; education: (string | StructuredResumeEntry)[]; projects: (string | StructuredResumeEntry)[]; certifications: (string | StructuredResumeEntry)[] };
   privateReviewNotes?: string;
 };
 
@@ -258,6 +260,43 @@ function isValidPublicContact(value: unknown): value is NonNullable<ResumeRecord
   return true;
 }
 
+function isValidStructuredEntry(value: unknown): boolean {
+  if (typeof value === "string") return value.length <= 2000;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  const allowed = ["title", "organization", "role", "location", "startDate", "endDate", "description", "technologies", "url", "credentialId", "grade"];
+  if (Object.keys(entry).some((key) => !allowed.includes(key))) return false;
+  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"]) {
+    if (entry[key] !== undefined && (typeof entry[key] !== "string" || String(entry[key]).length > (key === "description" ? 2000 : 320))) return false;
+  }
+  if (entry.technologies !== undefined && (!Array.isArray(entry.technologies) || entry.technologies.length > 30 || entry.technologies.some((item) => typeof item !== "string" || item.length > 80))) return false;
+  if (typeof entry.url === "string" && entry.url && !/^https:\/\//i.test(entry.url)) return false;
+  return true;
+}
+
+function isValidStructuredSections(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const sections = value as Record<string, unknown>;
+  const names = ["experience", "education", "projects", "certifications"];
+  return Object.keys(sections).every((key) => names.includes(key)) &&
+    names.every((name) => sections[name] === undefined ||
+      (Array.isArray(sections[name]) && (sections[name] as unknown[]).length <= 40 &&
+        (sections[name] as unknown[]).every(isValidStructuredEntry)));
+}
+
+function sanitizeStructuredEntry(value: string | StructuredResumeEntry, maxLength: number): string | StructuredResumeEntry {
+  if (typeof value === "string") return value.trim().slice(0, maxLength);
+  const result: StructuredResumeEntry = {};
+  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"] as const) {
+    const item = value[key];
+    if (typeof item === "string") result[key] = item.trim().slice(0, key === "description" ? 2000 : 320);
+  }
+  if (Array.isArray(value.technologies)) result.technologies = value.technologies.slice(0, 30).filter((item) => typeof item === "string").map((item) => item.trim().slice(0, 80));
+  if (result.url && !/^https:\/\//i.test(result.url)) delete result.url;
+  return result;
+}
+
 function isResumeRecord(value: unknown): value is ResumeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Partial<ResumeRecord>;
@@ -276,9 +315,7 @@ function isResumeRecord(value: unknown): value is ResumeRecord {
     typeof record.summary === "string" && Array.isArray(record.skills) && isValidPublicContact(record.contact) &&
     record.skills.every((skill) => typeof skill === "string") &&
     (record.privateReviewNotes === undefined || typeof record.privateReviewNotes === "string") &&
-    (sections === undefined || (!!sections && typeof sections === "object" &&
-      validSections.every((section) => Array.isArray(sections[section]) &&
-        sections[section].every((entry) => typeof entry === "string"))));
+    isValidStructuredSections(sections);
 }
 
 async function readResumeIndex(bucket: PrivateBucket): Promise<ResumeRecord[]> {
