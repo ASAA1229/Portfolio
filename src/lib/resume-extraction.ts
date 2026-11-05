@@ -204,24 +204,50 @@ function decodePdfString(token: string): string {
 }
 
 function extractPdfTextFromContent(content: string): string[] {
-  const results: string[] = [];
-  const textBlocks = content.match(/BT[\s\S]*?ET/g) ?? [];
-  const tokenPattern = /\((?:\\.|[^\\)])*\)|<[\da-f\s]*>/gi;
-
-  for (const block of textBlocks) {
-    const singleTextPattern = /(\((?:\\.|[^\\)])*\)|<[\da-f\s]*>)\s*Tj\b/gi;
-    for (const match of block.matchAll(singleTextPattern)) {
-      results.push(decodePdfString(match[1]));
-    }
-
-    const arrayPattern = /\[([\s\S]*?)\]\s*TJ\b/gi;
-    for (const match of block.matchAll(arrayPattern)) {
-      for (const token of match[1].matchAll(tokenPattern)) {
-        results.push(decodePdfString(token[0]));
+  type PositionedText = { text: string; x: number; y: number; order: number };
+  const positioned: PositionedText[] = [];
+  const blocks = content.match(/BT[\\s\\S]*?ET/g) ?? [];
+  const n = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)";
+  const tokenPattern = new RegExp(
+    "(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+Tm|(" + n + ")\\s+(" + n + ")\\s+Td|(" + n + ")\\s+(" + n + ")\\s+TD|(" + n + ")\\s+TL|(" + n + ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ",
+    "gi",
+  );
+  let order = 0;
+  for (const block of blocks) {
+    let x = 0, y = 0, leading = 0, fontSize = 10;
+    for (const match of block.matchAll(tokenPattern)) {
+      if (match[1] !== undefined) { x = Number(match[5]); y = Number(match[6]); }
+      else if (match[7] !== undefined) { x += Number(match[7]); y += Number(match[8]); }
+      else if (match[9] !== undefined) { x += Number(match[9]); y += Number(match[10]); }
+      else if (match[11] !== undefined) leading = Number(match[11]);
+      else if (match[12] !== undefined) fontSize = Math.abs(Number(match[12])) || fontSize;
+      else if (match[14] !== undefined) {
+        const text = decodePdfString(match[14]);
+        if (text.trim()) positioned.push({ text, x, y, order: order++ });
+        x += text.length * fontSize * 0.48;
+      } else if (match[15] !== undefined) {
+        const tokens = match[15].match(/\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>|[-+]?(?:\\d+\\.?\\d*|\\.\\d+)/gi) ?? [];
+        let combined = "";
+        for (const token of tokens) {
+          if (/^(?:\\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
+          else x -= Number(token) / 1000 * fontSize;
+        }
+        if (combined.trim()) positioned.push({ text: combined, x, y, order: order++ });
       }
     }
+    // T* advances the text line; handle it separately to retain a baseline estimate.
+    if (/\\bT\\*/.test(block) && leading) y -= leading;
   }
-  return results;
+  if (!positioned.length) return [];
+  const lines: { y: number; fragments: PositionedText[] }[] = [];
+  for (const fragment of positioned.sort((a, b) => b.y - a.y || a.x - b.x || a.order - b.order)) {
+    let line = lines.find((candidate) => Math.abs(candidate.y - fragment.y) <= 2.5);
+    if (!line) { line = { y: fragment.y, fragments: [] }; lines.push(line); }
+    line.fragments.push(fragment);
+  }
+  return lines.sort((a, b) => b.y - a.y).map((line) => line.fragments
+    .sort((a, b) => a.x - b.x || a.order - b.order).map((fragment) => fragment.text).join(" ").trim())
+    .filter(Boolean);
 }
 
 async function extractPdf(bytes: Uint8Array): Promise<string> {
