@@ -225,8 +225,8 @@ function extractPdfTextFromContent(content: string): string[] {
         const text = decodePdfString(match[13]);
         if (text.trim()) positioned.push({ text, x, y, order: order++ });
         x += text.length * fontSize * 0.48;
-      } else if (match[15] !== undefined) {
-        const tokens = match[15].match(/\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>|[-+]?(?:\\d+\\.?\\d*|\\.\\d+)/gi) ?? [];
+      } else if (match[14] !== undefined) {
+        const tokens = match[14].match(/\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>|[-+]?(?:\\d+\\.?\\d*|\\.\\d+)/gi) ?? [];
         let combined = "";
         for (const token of tokens) {
           if (/^(?:\\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
