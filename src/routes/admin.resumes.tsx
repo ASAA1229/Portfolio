@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
-import { mapResumeSections, splitResumeSectionEntries, suggestStructuredResumeEntries } from "@/lib/resume-mapping";
+import { mapResumeSections, suggestStructuredResumeEntries } from "@/lib/resume-mapping";
 import { createEmptyResumeEntry, type ResumeSectionEntry, type StructuredResumeEntry, type StructuredResumeSections, type ResumeSectionName } from "@/lib/resume-types";
 
 type ResumeRecord = {
@@ -226,7 +226,7 @@ function ResumeManager() {
     });
     setMessage(
       sectionNames.length
-        ? `Mapped ${sectionNames.length} recognizable sections. Skills were suggested where a Skills heading was found. Review all suggestions and save as a private draft.`
+        ? `Mapped ${sectionNames.length} recognizable sections. Clearly labelled fields were suggested automatically; ambiguous text was kept in descriptions. Review every suggestion before saving or publishing.`
         : "No recognized section headings were found. No public fields were changed; review the extracted text manually.",
     );
     setError("");
