@@ -122,9 +122,8 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
 }
 
 function adminAuthBypassed(env: unknown): boolean {
-  // The local Vite dev server has no Wrangler bindings, so it uses the
-  // development-only constants injected by vite.config.ts. Worker/preview
-  // requests must use explicit runtime bindings instead.
+  // Local Vite development is detected using Vite's compile-time DEV/MODE
+  // flags below. Worker/preview requests use explicit runtime bindings.
   const bindings = env as {
     PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown;
     ENVIRONMENT?: unknown;
