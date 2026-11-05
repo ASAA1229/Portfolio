@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ResumeSectionEntry, StructuredResumeEntry, StructuredResumeSections, ResumeSectionName } from "@/lib/resume-types";
+import type { ResumeSectionEntry, StructuredResumeEntry, StructuredResumeSections } from "@/lib/resume-types";
 
 export type PublishedProfileResume = {
   id: string;
