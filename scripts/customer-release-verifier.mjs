@@ -261,7 +261,7 @@ async function main() {
     '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact.tar.gz> <trusted-policy-sha256|-> [<manifest-ignore.sig> <trusted-public-key.pem>]');
   process.exitCode = 2;
 }
-main().catch((error) => {
+main().catch(async (error) => {
   const stage = error.stage || activeStage;
   const report = {
     type: 'customer-release-verification',
@@ -270,6 +270,13 @@ main().catch((error) => {
     code: error.code || `${stage}_FAILED`,
     message: error.message || 'Unexpected verification failure.',
   };
+  const reportPath = process.env.CUSTOMER_RELEASE_REPORT_PATH || path.resolve('customer-release-report.json');
+  try {
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + '\\n', { mode: 0o600 });
+    console.error(`Customer release failure report written to: ${reportPath}`);
+  } catch (writeError) {
+    console.error('Customer release report file could not be written: ' + writeError.message);
+  }
   console.error('CUSTOMER_RELEASE_REPORT ' + JSON.stringify(report));
   process.exitCode = 1;
 });
