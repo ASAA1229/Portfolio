@@ -30,7 +30,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { normalizePublishedPortrait, normalizePublishedProfileResume, type PublishedProfileResume } from "@/lib/published-resume";
+import { normalizePublishedPortrait, usePublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -194,21 +194,6 @@ function ProjectTile({
     </article>
   );
 }
-function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
-  const [resume, setResume] = useState<PublishedProfileResume | null>(null);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { headers: { accept: "application/json" }, cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: unknown) => {
-        if (active) setResume(normalizePublishedProfileResume(payload, profileId));
-      })
-      .catch(() => { if (active) setResume(null); });
-    return () => { active = false; };
-  }, [profileId]);
-  return resume;
-}
-
 function PublishedResumeHighlights({ profileId }: { profileId: string }) {
   const resume = usePublishedProfileResume(profileId);
   if (!resume) return null;
