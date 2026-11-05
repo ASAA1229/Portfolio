@@ -40,6 +40,7 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
   const policy = {
     schemaVersion: 1, algorithm: 'SHA256', purpose: 'manifest-ignore',
     project: manifest.project, source: manifest.source,
+    releaseIdentity: manifest.releaseIdentity,
     manifest: { name: path.basename(manifestPath), sha256: await hash(manifestPath) },
     artifact: { name: path.basename(artifactPath), size: st.size, sha256: await hash(artifactPath) },
   };
@@ -81,7 +82,13 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' || manifest.project !== policy.project ||
       !Array.isArray(manifest.files) || !manifest.artifact || !manifest.source) fail('Invalid release manifest.');
-  console.log('Stage 2 PASSED: manifest verified.');
+  if (policy.releaseIdentity !== undefined || manifest.releaseIdentity !== undefined) {
+    if (typeof policy.releaseIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(policy.releaseIdentity) ||
+        policy.releaseIdentity !== manifest.releaseIdentity) {
+      fail('Release identity does not match the authenticated manifest-ignore policy.');
+    }
+  }
+  console.log('Stage 2 PASSED: manifest and release identity verified.');
 
   // 3. Verify package bytes, then every file in the extracted package directory.
   const ast = await lstat(artifactPath);
