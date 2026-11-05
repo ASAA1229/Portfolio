@@ -208,3 +208,18 @@ Relevant implementation commits include `1a082657`, `4c8e7823`, `27a3dc2f`, `4ac
 Relevant latest commits: `b8d760f7`, `6503eebb`, `0d35110f`, `f18b1cb2` and `7f573f53`.
 
 **Verification note:** automated tests, lint and production build remain unexecuted because verification was paused. Do not mark these increments TEST-PASSED or ACCEPTED until they are run against the exact branch head.
+
+## Shared DevOps pipeline and artifact integrity — 2026-11-05
+
+**Status: IMPLEMENTED IN SOURCE / PIPELINE AND RELEASE ACCEPTANCE PENDING**
+
+The `new` branch includes the portfolio side of the shared DevOps baseline:
+- Build provenance manifest and deterministic release identity, including project, repository, branch, commit, build number and CI provider/run metadata.
+- SHA-256 manifest/checksum verification and customer-package verification policy.
+- CycloneDX dependency SBOM generation and artifact packaging in GitHub Actions/Jenkins pipeline foundations.
+- Scoped signing credentials, temporary signing-key cleanup, and fail-fast pipeline command handling.
+- Strict validation of project identity, recognized CI provider and source/build metadata against current environment values.
+
+**Remaining:** harden manifest inventory schema, validate declared inventory against actual archive members, finish customer verification reports, document CI configuration and rollback/rejection handling, and execute exact-head pipeline/package acceptance when validation resumes. Nexus publishing remains explicitly paused and disabled. No tests, builds, CI runs, audits, or Nexus publishing were performed for this snapshot.
+
+See [docs/EPICS.md](EPICS.md) and [docs/USER_STORIES.md](USER_STORIES.md) for the DevOps delivery backlog.
