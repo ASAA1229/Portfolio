@@ -22,6 +22,11 @@ pipeline {
         checkout scm
       }
     }
+    stage('Agent prerequisites') {
+      steps {
+        powershell -ExecutionPolicy Bypass -File scripts/devops-preflight.ps1
+      }
+    }
     stage('Install locked dependencies') {
       steps {
         bat 'node --version'
