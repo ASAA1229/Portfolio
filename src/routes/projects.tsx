@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { PageBody } from "@/components/SitePrimitives";
+import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { Reveal } from "@/components/Reveal";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
@@ -52,6 +53,7 @@ function Projects() {
         <span className="chapter-hero-index">SELECTED WORK · 2023—PRESENT</span>
       </section>
       <PageBody>
+        <PublishedResumePanel profileId="abhishek" section="projects" />
         <section className="featured-project">
           <div className="featured-project-art">
             <ProjectVisual index={0} />
