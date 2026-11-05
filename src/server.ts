@@ -423,7 +423,9 @@ async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRe
 }
 
 function bucketNotConfigured(): Response {
-  return jsonResponse({ error: "Private resume storage is not configured." }, 503);
+  return jsonResponse({
+    error: "Private content storage is unavailable. Configure the RESUME_BUCKET binding for persistent storage.",
+  }, 503);
 }
 
 async function handleResumeApi(request: Request, env: unknown): Promise<Response | null> {
