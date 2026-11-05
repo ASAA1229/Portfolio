@@ -272,7 +272,7 @@ main().catch(async (error) => {
   };
   const reportPath = process.env.CUSTOMER_RELEASE_REPORT_PATH || path.resolve('customer-release-report.json');
   try {
-    await writeFile(reportPath, JSON.stringify(report, null, 2) + '\\n', { mode: 0o600 });
+    await writeFile(reportPath, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
     console.error(`Customer release failure report written to: ${reportPath}`);
   } catch (writeError) {
     console.error('Customer release report file could not be written: ' + writeError.message);
