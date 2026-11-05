@@ -27,7 +27,7 @@ async function readIgnore(ignorePath) {
   const parsed = JSON.parse(await readFile(ignorePath, 'utf8'));
   if (parsed.schemaVersion !== SCHEMA_VERSION || !Array.isArray(parsed.paths) ||
       parsed.paths.some((entry) => typeof entry !== 'string')) fail('Ignore file must contain schemaVersion: 1 and a paths array.');
-  return parsed.paths.map(normalizeRelative);
+  return [...new Set(parsed.paths.map(normalizeRelative))].sort((left, right) => left.localeCompare(right, 'en'));
 }
 
 function isIgnored(relative, patterns) {
@@ -129,6 +129,7 @@ function validatedInventory(value, label) {
   }
   const ignored = value.ignoredPaths.map(normalizeRelative);
   if (new Set(ignored).size !== ignored.length) fail('Duplicate ignored path in ' + label + '.');
+  ignored.sort((left, right) => left.localeCompare(right, 'en'));
   return { entries, ignored };
 }
 
