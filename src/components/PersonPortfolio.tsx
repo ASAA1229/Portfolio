@@ -30,7 +30,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { normalizePublishedPortrait, usePublishedProfileResume } from "@/lib/published-resume";
+import { usePublishedProfilePortrait, usePublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -208,18 +208,7 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
 
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
-  const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : { images: [] })
-      .then((payload: unknown) => {
-        if (!active) return;
-        setPublishedPortrait(normalizePublishedPortrait(payload, profile.id));
-      })
-      .catch(() => { if (active) setPublishedPortrait(null); });
-    return () => { active = false; };
-  }, [profile.id]);
+  const publishedPortrait = usePublishedProfilePortrait(profile.id);
   const headline = publishedResume?.headline || profile.headline;
   const story = publishedResume?.summary || profile.story;
   return (
@@ -358,6 +347,7 @@ export function PersonContent({
   section: PortfolioSection;
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedPortrait = usePublishedProfilePortrait(profile.id);
   const publishedEmail = publishedResume?.contact?.email || profile.email;
   const publishedPhone = publishedResume?.contact?.phone || profile.phone;
   const publishedLinkedIn = publishedResume?.contact?.linkedin;
@@ -406,7 +396,7 @@ export function PersonContent({
               <h2 className="text-4xl">{publishedResume?.headline || profile.headline}</h2>
               <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
                 <img
-                  src={profile.portrait}
+                  src={publishedPortrait ?? profile.portrait}
                   alt={`${profile.name} — portfolio portrait`}
                   loading="lazy"
                   className="max-h-[34rem] w-full object-cover object-center"
