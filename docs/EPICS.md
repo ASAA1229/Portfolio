@@ -149,3 +149,20 @@ Automated checks now cover committed avatar, portrait and gallery asset referenc
 ## PORT-E04 implementation note — published resume payload validation
 
 A pure normalizer and regression tests were added for profile-scoped published-resume highlight data. The UI component has not yet been wired to the normalizer; this is an incomplete hardening increment, not a completed acceptance item. See `src/lib/published-resume.ts` and `src/test/portfolio-rules.test.ts`.
+
+
+## Additional implementation notes — current development increments
+
+### PORT-E03 — AI profile context and streaming reliability
+
+The Worker now enriches portfolio chat requests from the approved published-resume feed for the requested profile only. The API validates the profile match and treats resume data as untrusted context; private drafts and review notes are not part of the public assistant context. Request-size limits remain enforced. Streaming fixes flush final UTF-8 decoder bytes and process a final buffered SSE event. Request cancellation and overlap handling prevent stale assistant responses from overwriting newer state. Offline fallback answers are now rendered in the conversation.
+
+**Status:** IMPLEMENTED / RUNTIME VERIFICATION PENDING. Related commits: `1a082657`, `4c8e7823`, `27a3dc2f`, `4ac17edf`, `119d514b`, `c05a13b`, `390c757e`, `d714c7c3`, `b87b1143`.
+
+### PORT-E05 — Release integrity and snapshot comparison safeguards
+
+CI provenance helpers now align GitHub Actions and Jenkins source-commit/build-number inputs. Release verification rejects unsafe Windows drive-relative manifest paths. Snapshot inventory comparison validates entries and file counts, enforces matching ignore policies, and canonicalizes ignore paths to avoid order-based mismatches.
+
+**Status:** IMPLEMENTED / TEST EXECUTION PAUSED. Related commits: `b8d760f7`, `6503eebb`, `0d35110f`, `f18b1cb2`, `7f573f53`.
+
+Do not mark either increment TEST-PASSED or ACCEPTED until checks run against the exact branch head. CMM-specific pipeline and Nexus configuration remain outside this portfolio epic register.
