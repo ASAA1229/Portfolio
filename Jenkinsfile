@@ -45,6 +45,11 @@ pipeline {
       steps {
         powershell '''
           $ErrorActionPreference = "Stop"
+          $env:BUILD_REPOSITORY = $env:GIT_URL
+          $env:BUILD_BRANCH = $env:GIT_BRANCH
+          $env:BUILD_WORKFLOW = $env:JOB_NAME
+          $env:BUILD_RUN_ID = $env:BUILD_TAG
+          $env:BUILD_RUN_URL = $env:BUILD_URL
           $artifactDir = @(".output", "dist") | Where-Object { Test-Path $_ -PathType Container } | Select-Object -First 1
           if (!$artifactDir) {
             throw "Build succeeded but no supported output directory (.output or dist) was found."
