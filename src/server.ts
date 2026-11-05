@@ -694,6 +694,18 @@ async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRec
   await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
 }
 
+function isUploadedImageFile(value: FormDataEntryValue | null): value is File {
+  // Avoid relying on a runtime-global File constructor: some Vite/SSR runtimes
+  // expose multipart uploads as File objects without installing globalThis.File.
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<File>;
+  return typeof candidate.name === "string" &&
+    typeof candidate.type === "string" &&
+    typeof candidate.size === "number" &&
+    typeof candidate.arrayBuffer === "function" &&
+    typeof candidate.slice === "function";
+}
+
 async function handlePortfolioImageApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (!path.startsWith("/api/admin/images") && path !== "/api/published-images" && !path.startsWith("/api/published-images/")) return null;
@@ -731,7 +743,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const requestedSlot = form?.get("slot");
     const slot = requestedSlot === "portrait" ? "portrait" : requestedSlot === "gallery" ? "gallery" : null;
     const publishOnUpload = form?.get("publishOnUpload") === "true";
-    if (!(file instanceof File) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim() || !slot) return jsonResponse({ error: "Choose an image, profile, image placement and descriptive alt text." }, 400);
+    if (!isUploadedImageFile(file) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim() || !slot) return jsonResponse({ error: "Choose an image, profile, image placement and descriptive alt text." }, 400);
     if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
     const expectedExtension = IMAGE_TYPES.get(file.type);
     if (!expectedExtension || !(file.type === "image/jpeg" ? /\.jpe?g$/i.test(file.name) : file.name.toLowerCase().endsWith(expectedExtension))) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
