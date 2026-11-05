@@ -24,6 +24,11 @@ jobs:
       PROJECT_NAME: portfolio
       GIT_COMMIT: ${{ github.sha }}
       BUILD_NUMBER: ${{ github.run_number }}
+      BUILD_REPOSITORY: ${{ github.repository }}
+      BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
+      BUILD_WORKFLOW: ${{ github.workflow }}
+      BUILD_RUN_ID: ${{ github.run_id }}
+      BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       REQUIRE_BUILD_PROVENANCE: 'true'
       MANIFEST_IGNORE_PRIVATE_KEY: ${{ secrets.MANIFEST_IGNORE_PRIVATE_KEY }}
       MANIFEST_IGNORE_PUBLIC_KEY: ${{ secrets.MANIFEST_IGNORE_PUBLIC_KEY }}
