@@ -290,11 +290,11 @@ function ResumeManager() {
     record: ResumeRecord,
     section: keyof NonNullable<ResumeRecord["structuredSections"]>,
     index: number,
-    value: string,
+    value: ResumeSectionEntry,
   ) {
     const current = record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] };
     const entries = [...current[section]];
-    entries[index] = value.slice(0, section === "certifications" ? 500 : 1200);
+    entries[index] = typeof value === "string" ? value.slice(0, section === "certifications" ? 500 : 2000) : value;
     update(record.id, { structuredSections: { ...current, [section]: entries } });
   }
 
@@ -309,7 +309,7 @@ function ResumeManager() {
       setMessage("");
       return;
     }
-    update(record.id, { structuredSections: { ...current, [section]: [...current[section], ""] } });
+    update(record.id, { structuredSections: { ...current, [section]: [...current[section], createEmptyResumeEntry(section)] } });
     setError("");
     setMessage("");
   }
@@ -440,10 +440,10 @@ function ResumeManager() {
                           {entries.map((entry, index) => (
                             <div key={section + "-" + index} className="border border-white/10 bg-black/20 p-3">
                               <div className="mb-2 flex items-center justify-between gap-2">
-                                <label htmlFor={`resume-${record.id}-${section}-${index}`} className="text-[11px] text-white/45">Entry {index + 1}</label>
+                                <span className="text-[11px] text-white/45">Entry {index + 1} · {typeof entry === "string" ? "Legacy text" : "Structured fields"}</span>
                                 <button type="button" disabled={busy} onClick={() => removeStructuredEntry(record, section, index)} className="min-h-8 px-2 text-xs text-red-200/80 underline underline-offset-4 disabled:opacity-40">Remove</button>
                               </div>
-                              <textarea id={`resume-${record.id}-${section}-${index}`} value={entry} onChange={(event) => updateStructuredEntry(record, section, index, event.target.value)} maxLength={section === "certifications" ? 500 : 1200} rows={3} className="w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />
+                              <StructuredEntryEditor entry={entry} section={section} index={index} onChange={(next) => updateStructuredEntry(record, section, index, next)} />
                             </div>
                           ))}
                         </div>
