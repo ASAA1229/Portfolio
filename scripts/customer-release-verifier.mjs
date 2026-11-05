@@ -35,7 +35,7 @@ function validateReleaseManifest(manifest) {
 
   const entries = new Map();
   for (const entry of manifest.files) {
-    const normalizedPath = typeof entry?.path === 'string' ? entry.path.replaceAll('\\\\', '/') : '';
+    const normalizedPath = typeof entry?.path === 'string' ? entry.path.replaceAll('\\', '/') : '';
     const segments = normalizedPath.split('/');
     if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !normalizedPath ||
         path.isAbsolute(normalizedPath) || path.win32.isAbsolute(normalizedPath) ||
