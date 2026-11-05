@@ -45,6 +45,12 @@ pipeline {
       steps {
         powershell '''
           $ErrorActionPreference = "Stop"
+          function Invoke-Node {
+            & node @args
+            if ($LASTEXITCODE -ne 0) {
+              throw "Node command failed: node $($args -join ' ') (exit code $LASTEXITCODE)."
+            }
+          }
           $env:BUILD_REPOSITORY = $env:GIT_URL
           $env:BUILD_BRANCH = $env:GIT_BRANCH
           $env:BUILD_WORKFLOW = $env:JOB_NAME
@@ -55,18 +61,18 @@ pipeline {
             throw "Build succeeded but no supported output directory (.output or dist) was found."
           }
           tar -czf "$env:ARTIFACT_FILE" -C "$artifactDir" .
+          if ($LASTEXITCODE -ne 0) { throw "Release package creation failed." }
           $env:PROJECT_NAME = "portfolio"
-          node scripts/artifact-integrity.mjs create "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
-          node scripts/artifact-integrity.mjs verify "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
-          node scripts/artifact-integrity.mjs hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
-          node scripts/artifact-integrity.mjs verify-hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
-          node scripts/artifact-integrity.mjs verify-release "$env:ARTIFACT_FILE" "$env:MANIFEST_FILE" "$env:CHECKSUM_FILE"
-          node scripts/customer-release-verifier.mjs create "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "portfolio-manifest-ignore.json"
-          node scripts/artifact-integrity.mjs hash "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256"
+          Invoke-Node scripts/artifact-integrity.mjs create "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
+          Invoke-Node scripts/artifact-integrity.mjs verify "$artifactDir" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE"
+          Invoke-Node scripts/artifact-integrity.mjs hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
+          Invoke-Node scripts/artifact-integrity.mjs verify-hash "$env:ARTIFACT_FILE" "$env:CHECKSUM_FILE"
+          Invoke-Node scripts/artifact-integrity.mjs verify-release "$env:ARTIFACT_FILE" "$env:MANIFEST_FILE" "$env:CHECKSUM_FILE"
+          Invoke-Node scripts/customer-release-verifier.mjs create "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "portfolio-manifest-ignore.json"
+          Invoke-Node scripts/artifact-integrity.mjs hash "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256"
           $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
-          node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
-          if ($LASTEXITCODE -ne 0) { throw "Release index creation failed." }
-        '''
+          Invoke-Node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
+'''
       }
     }
     stage('Sign manifest-ignore policy (optional)') {
