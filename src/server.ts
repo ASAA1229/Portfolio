@@ -521,7 +521,12 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
-        ...(payload.contact ? { contact: payload.contact } : {}),
+        // Replace the public contact block on every draft save. Omitting a
+        // previously supplied field must remove it rather than silently retaining
+        // stale contact details from an older publication.
+        contact: payload.contact && Object.values(payload.contact).some((value) => typeof value === "string" && value.trim())
+          ? payload.contact
+          : undefined,
         structuredSections: {
           experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => sanitizeStructuredEntry(entry, 1200)),
           education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => sanitizeStructuredEntry(entry, 1200)),
