@@ -233,10 +233,11 @@ function extractPdfTextFromContent(content: string): string[] {
           else x -= Number(token) / 1000 * fontSize;
         }
         if (combined.trim()) positioned.push({ text: combined, x, y, order: order++ });
+      } else if (match[15] !== undefined) {
+        x = 0;
+        y -= leading || fontSize * 1.2;
       }
     }
-    // T* advances the text line; handle it separately to retain a baseline estimate.
-    if (/\\bT\\*/.test(block) && leading) y -= leading;
   }
   if (!positioned.length) return [];
   const lines: { y: number; fragments: PositionedText[] }[] = [];
