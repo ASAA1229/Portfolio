@@ -246,6 +246,7 @@ function isValidPublicContact(value: unknown): value is NonNullable<ResumeRecord
   if (value === undefined) return true;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const contact = value as Record<string, unknown>;
+  if (Object.keys(contact).some((key) => !["email", "phone", "linkedin", "github"].includes(key))) return false;
   for (const key of ["email", "phone", "linkedin", "github"] as const) {
     const item = contact[key];
     if (item !== undefined && (typeof item !== "string" || item.length > 320)) return false;
