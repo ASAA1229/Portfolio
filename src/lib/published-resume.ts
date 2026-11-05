@@ -7,6 +7,7 @@ export type PublishedProfileResume = {
   headline: string;
   summary: string;
   skills: string[];
+  contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
   uploadedAt?: string;
   structuredSections?: {
     experience?: string[];
@@ -61,6 +62,12 @@ function normalizeRecord(value: unknown, profileId: string): PublishedProfileRes
   if (typeof value.headline !== "string" || value.headline.length > 240) return null;
   if (typeof value.summary !== "string" || value.summary.length > 6000) return null;
 
+  const rawContact = isRecord(value.contact) ? value.contact : undefined;
+  const contact = rawContact ? Object.fromEntries(
+    (["email", "phone", "linkedin", "github"] as const)
+      .filter((key) => typeof rawContact[key] === "string")
+      .map((key) => [key, String(rawContact[key]).trim().slice(0, 320)]),
+  ) as NonNullable<PublishedProfileResume["contact"]> : undefined;
   const uploadedAt = typeof value.uploadedAt === "string" && Number.isFinite(Date.parse(value.uploadedAt))
     ? value.uploadedAt
     : undefined;
@@ -72,6 +79,7 @@ function normalizeRecord(value: unknown, profileId: string): PublishedProfileRes
     headline: value.headline.trim(),
     summary: value.summary.trim(),
     skills: normalizeSkills(value.skills),
+    ...(contact && Object.values(contact).some(Boolean) ? { contact } : {}),
     ...(uploadedAt ? { uploadedAt } : {}),
     ...(structuredSections ? { structuredSections } : {}),
   };
