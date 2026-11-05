@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Braces, BrainCircuit, Cloud, Code2, Database, Server, Workflow } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
+import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { Reveal } from "@/components/Reveal";
 import { TechLogo } from "@/components/TechLogo";
 import { SKILLS } from "@/lib/portfolio-data";
@@ -71,6 +72,7 @@ function Skills() {
         <span className="chapter-hero-index">TOOLS IN PRACTICE · NO SCORES, JUST WORK</span>
       </section>
       <PageBody>
+        <PublishedResumePanel profileId="abhishek" section="skills" />
         <div className="skills-intro">
           <p className="chapter-kicker">DEVELOPER CONSTELLATION</p>
           <h2>
