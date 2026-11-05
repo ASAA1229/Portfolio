@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { lstat, readFile, readdir, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+
+const execFileAsync = promisify(execFile);
 
 const hash = async (file) => {
   const h = createHash('sha256');
@@ -73,6 +78,63 @@ async function inventory(root) {
   return out.sort((a, b) => a.path.localeCompare(b.path, 'en'));
 }
 
+async function extractVerifiedArchive(archivePath) {
+  const stat = await lstat(archivePath);
+  if (!stat.isFile() || stat.isSymbolicLink()) fail('Package archive must be a regular file.');
+
+  let names, details;
+  try {
+    [{ stdout: names }, { stdout: details }] = await Promise.all([
+      execFileAsync('tar', ['-tzf', archivePath], { maxBuffer: 16 * 1024 * 1024, windowsHide: true }),
+      execFileAsync('tar', ['-tvzf', archivePath], { maxBuffer: 16 * 1024 * 1024, windowsHide: true }),
+    ]);
+  } catch {
+    fail('Package archive could not be listed safely by the system tar utility.');
+  }
+
+  const nameLines = names.split(/\\r?\\n/).filter(Boolean);
+  const detailLines = details.split(/\\r?\\n/).filter(Boolean);
+  if (!nameLines.length || nameLines.length !== detailLines.length) {
+    fail('Package archive has an empty or ambiguous member listing.');
+  }
+
+  const seen = new Set();
+  for (let index = 0; index < nameLines.length; index += 1) {
+    const rawName = nameLines[index];
+    const detail = detailLines[index];
+    if (/[\\x00-\\x1f\\x7f]/.test(rawName) || !detail || !['-', 'd'].includes(detail[0])) {
+      fail('Package archive contains an unsupported entry type or control character.');
+    }
+    let normalized = rawName.replaceAll('\\\\', '/');
+    while (normalized.startsWith('./')) normalized = normalized.slice(2);
+    if (normalized === '' || normalized === '/') continue;
+    const isDirectory = normalized.endsWith('/');
+    if (isDirectory) normalized = normalized.slice(0, -1);
+    const segments = normalized.split('/');
+    if (!normalized || normalized.startsWith('/') || path.posix.isAbsolute(normalized) ||
+        path.win32.isAbsolute(normalized) ||
+        segments.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part))) {
+      fail('Package archive contains an unsafe member path.');
+    }
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) fail('Package archive contains duplicate or case-colliding member paths.');
+    seen.add(key);
+    if (!isDirectory && detail[0] !== '-') fail('Package archive contains a non-regular file.');
+  }
+
+  const destination = await mkdtemp(path.join(os.tmpdir(), 'portfolio-release-'));
+  try {
+    await execFileAsync('tar', [
+      '-xzf', archivePath, '-C', destination,
+      '--no-same-owner', '--no-same-permissions',
+    ], { maxBuffer: 16 * 1024 * 1024, windowsHide: true });
+    return { destination, cleanup: () => rm(destination, { recursive: true, force: true }) };
+  } catch {
+    await rm(destination, { recursive: true, force: true });
+    fail('Package archive extraction failed after member validation.');
+  }
+}
+
 async function createPolicy(manifestPath, artifactPath, policyPath) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   validateReleaseManifest(manifest);
@@ -94,7 +156,7 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
   console.log('Manifest-ignore created. Hash it with artifact-integrity.mjs and distribute that trusted digest separately.');
 }
 
-async function verify(policyPath, policySumPath, manifestPath, artifactPath, extractedDir, trustedHash, signaturePath, publicKeyPath) {
+async function verify(policyPath, policySumPath, manifestPath, artifactPath, trustedHash, signaturePath, publicKeyPath) {
   // 1. Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
   const trusted = String(trustedHash || '').trim().toLowerCase();
   const signedMode = Boolean(signaturePath || publicKeyPath);
@@ -158,23 +220,32 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
       manifest.artifact.name !== policy.artifact.name || manifest.artifact.size !== policy.artifact.size ||
       manifest.artifact.sha256 !== policy.artifact.sha256) fail('Package SHA-256 does not match policy and manifest.');
 
-  const actualEntries = await inventory(extractedDir), actual = new Map(actualEntries.map(e => [e.path, e])), errors = [];
-  for (const [name, e] of expected) {
-    const got = actual.get(name);
-    if (!got) errors.push('MISSING: ' + name);
-    else if (got.size !== e.size || got.sha256 !== e.sha256) errors.push('MISMATCH: ' + name);
+  const extracted = await extractVerifiedArchive(artifactPath);
+  try {
+    const actualEntries = await inventory(extracted.destination);
+    const actual = new Map(actualEntries.map((entry) => [entry.path, entry]));
+    const errors = [];
+    for (const [name, entry] of expected) {
+      const got = actual.get(name);
+      if (!got) errors.push('MISSING: ' + name);
+      else if (got.size !== entry.size || got.sha256 !== entry.sha256) errors.push('MISMATCH: ' + name);
+    }
+    for (const name of actual.keys()) if (!expected.has(name)) errors.push('UNEXPECTED: ' + name);
+    if (errors.length || manifest.fileCount !== expected.size) {
+      fail('Package archive inventory failed: ' + errors.join('; '));
+    }
+    console.log(`Stage 3 PASSED: archive SHA-256 and ${actualEntries.length} archive files verified.`);
+  } finally {
+    await extracted.cleanup();
   }
-  for (const name of actual.keys()) if (!expected.has(name)) errors.push('UNEXPECTED: ' + name);
-  if (errors.length || manifest.fileCount !== expected.size) fail('Package inventory failed: ' + errors.join('; '));
-  console.log(`Stage 3 PASSED: package SHA-256 and ${actualEntries.length} files verified.`);
 }
 
 async function main() {
   const [cmd, ...a] = process.argv.slice(2);
   if (cmd === 'create' && a.length === 3) return createPolicy(...a);
-  if (cmd === 'verify' && (a.length === 6 || a.length === 8)) return verify(...a);
+  if (cmd === 'verify' && (a.length === 5 || a.length === 7)) return verify(...a);
   console.error('Usage: customer-release-verifier.mjs create <manifest> <artifact> <manifest-ignore.json>\n' +
-    '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact> <extracted-dir> <trusted-policy-sha256|-> [<manifest-ignore.sig> <trusted-public-key.pem>]');
+    '       customer-release-verifier.mjs verify <manifest-ignore.json> <manifest-ignore.sha256> <manifest> <artifact.tar.gz> <trusted-policy-sha256|-> [<manifest-ignore.sig> <trusted-public-key.pem>]');
   process.exitCode = 2;
 }
 main().catch(e => { console.error('Customer release verification FAILED: ' + e.message); process.exitCode = 1; });
