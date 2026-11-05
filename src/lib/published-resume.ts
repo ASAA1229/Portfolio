@@ -147,40 +147,44 @@ export function normalizePublishedPortrait(payload: unknown, profileId: string):
 
 /** Shared client hook: every profile consumes the same validated, latest-published resume feed. */
 export function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
-  const [resume, setResume] = useState<PublishedProfileResume | null>(null);
+  const [state, setState] = useState<{ profileId: string; resume: PublishedProfileResume | null }>(() => ({
+    profileId,
+    resume: null,
+  }));
   useEffect(() => {
     let active = true;
-    setResume(null);
     fetch("/api/published-resumes", {
       headers: { accept: "application/json" },
       cache: "no-store",
     })
       .then((response) => response.ok ? response.json() : null)
       .then((payload: unknown) => {
-        if (active) setResume(normalizePublishedProfileResume(payload, profileId));
+        if (active) setState({ profileId, resume: normalizePublishedProfileResume(payload, profileId) });
       })
-      .catch(() => { if (active) setResume(null); });
+      .catch(() => { if (active) setState({ profileId, resume: null }); });
     return () => { active = false; };
   }, [profileId]);
-  return resume;
+  return state.profileId === profileId ? state.resume : null;
 }
 
 /** Shared client hook for the validated portrait selected by the admin publisher. */
 export function usePublishedProfilePortrait(profileId: string): string | null {
-  const [portrait, setPortrait] = useState<string | null>(null);
+  const [state, setState] = useState<{ profileId: string; portrait: string | null }>(() => ({
+    profileId,
+    portrait: null,
+  }));
   useEffect(() => {
     let active = true;
-    setPortrait(null);
     fetch("/api/published-images", {
       headers: { accept: "application/json" },
       cache: "no-store",
     })
       .then((response) => response.ok ? response.json() : null)
       .then((payload: unknown) => {
-        if (active) setPortrait(normalizePublishedPortrait(payload, profileId));
+        if (active) setState({ profileId, portrait: normalizePublishedPortrait(payload, profileId) });
       })
-      .catch(() => { if (active) setPortrait(null); });
+      .catch(() => { if (active) setState({ profileId, portrait: null }); });
     return () => { active = false; };
   }, [profileId]);
-  return portrait;
+  return state.profileId === profileId ? state.portrait : null;
 }
