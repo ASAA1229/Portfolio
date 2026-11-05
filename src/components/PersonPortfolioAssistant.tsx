@@ -109,7 +109,9 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
         answer += decoder.decode(value, { stream: true });
         setMessages([...history, { role: "assistant", content: answer }]);
       }
+      answer += decoder.decode();
       if (!answer.trim()) throw new Error("Empty AI response");
+      setMessages([...history, { role: "assistant", content: answer }]);
     } catch (error) {
       if (abort.signal.aborted) return;
       const fallback = fallbackProfileAnswer(profile, question, mode);
