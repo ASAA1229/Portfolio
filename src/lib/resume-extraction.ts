@@ -206,7 +206,7 @@ function decodePdfString(token: string): string {
 function extractPdfTextFromContent(content: string): string[] {
   type PositionedText = { text: string; x: number; y: number; order: number };
   const positioned: PositionedText[] = [];
-  const blocks = content.match(/BT[\\s\\S]*?ET/g) ?? [];
+  const blocks = content.match(/BT[\s\S]*?ET/g) ?? [];
   const n = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)";
   const tokenPattern = new RegExp(
     "(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+Tm|(" + n + ")\\s+(" + n + ")\\s+Td|(" + n + ")\\s+(" + n + ")\\s+TD|(" + n + ")\\s+TL|(" + n + ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|(\\*)",
