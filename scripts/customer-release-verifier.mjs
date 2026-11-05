@@ -11,6 +11,49 @@ const hash = async (file) => {
 };
 const fail = (message) => { throw new Error(message); };
 
+function validateReleaseManifest(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
+      manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' ||
+      typeof manifest.project !== 'string' || !manifest.project.trim() ||
+      !manifest.source || typeof manifest.source !== 'object' || Array.isArray(manifest.source) ||
+      typeof manifest.source.gitCommit !== 'string' || !manifest.source.gitCommit.trim() ||
+      typeof manifest.source.buildNumber !== 'string' || !manifest.source.buildNumber.trim() ||
+      typeof manifest.createdAt !== 'string' || !Number.isFinite(Date.parse(manifest.createdAt)) ||
+      !Array.isArray(manifest.files) || !Number.isSafeInteger(manifest.fileCount) ||
+      manifest.fileCount < 0 || manifest.fileCount !== manifest.files.length ||
+      !manifest.artifact || typeof manifest.artifact !== 'object' || Array.isArray(manifest.artifact)) {
+    fail('Invalid release manifest metadata or inventory count.');
+  }
+
+  const artifact = manifest.artifact;
+  if (typeof artifact.name !== 'string' || !artifact.name.trim() ||
+      path.basename(artifact.name) !== artifact.name || path.win32.basename(artifact.name) !== artifact.name ||
+      !Number.isSafeInteger(artifact.size) || artifact.size < 0 ||
+      typeof artifact.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+    fail('Invalid packaged-artifact metadata in release manifest.');
+  }
+
+  const entries = new Map();
+  for (const entry of manifest.files) {
+    const normalizedPath = typeof entry?.path === 'string' ? entry.path.replaceAll('\\\\', '/') : '';
+    const segments = normalizedPath.split('/');
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !normalizedPath ||
+        path.isAbsolute(normalizedPath) || path.win32.isAbsolute(normalizedPath) ||
+        normalizedPath.includes(String.fromCharCode(0)) ||
+        segments.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part)) ||
+        entries.has(normalizedPath) || !Number.isSafeInteger(entry.size) || entry.size < 0 ||
+        typeof entry.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      fail('Invalid, unsafe or duplicate manifest inventory entry.');
+    }
+    entries.set(normalizedPath, { size: entry.size, sha256: entry.sha256 });
+  }
+  if (manifest.releaseIdentity !== undefined &&
+      (typeof manifest.releaseIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(manifest.releaseIdentity))) {
+    fail('Invalid release identity in manifest.');
+  }
+  return entries;
+}
+
 async function inventory(root) {
   const out = [];
   async function walk(dir, prefix = '') {
@@ -32,6 +75,7 @@ async function inventory(root) {
 
 async function createPolicy(manifestPath, artifactPath, policyPath) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  validateReleaseManifest(manifest);
   const st = await lstat(artifactPath);
   if (!st.isFile() || st.isSymbolicLink() || manifest?.schemaVersion !== 1 ||
       manifest?.algorithm !== 'SHA256' || !Array.isArray(manifest.files) || !manifest.artifact) {
@@ -72,7 +116,18 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
   }
   const policy = JSON.parse(await readFile(policyPath, 'utf8'));
   if (policy.schemaVersion !== 1 || policy.algorithm !== 'SHA256' || policy.purpose !== 'manifest-ignore' ||
-      !policy.manifest || !policy.artifact || typeof policy.project !== 'string') fail('Invalid manifest-ignore metadata.');
+      typeof policy.project !== 'string' || !policy.project.trim() ||
+      !policy.source || typeof policy.source !== 'object' || Array.isArray(policy.source) ||
+      typeof policy.source.gitCommit !== 'string' || typeof policy.source.buildNumber !== 'string' ||
+      !policy.manifest || typeof policy.manifest.name !== 'string' ||
+      path.basename(policy.manifest.name) !== policy.manifest.name ||
+      typeof policy.manifest.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(policy.manifest.sha256) ||
+      !policy.artifact || typeof policy.artifact.name !== 'string' ||
+      path.basename(policy.artifact.name) !== policy.artifact.name ||
+      !Number.isSafeInteger(policy.artifact.size) || policy.artifact.size < 0 ||
+      typeof policy.artifact.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(policy.artifact.sha256)) {
+    fail('Invalid manifest-ignore metadata.');
+  }
   console.log('Stage 1 PASSED: manifest-ignore verified.');
 
   // 2. Check manifest bytes against the verified policy before trusting its inventory.
@@ -80,8 +135,12 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
     fail('Manifest checksum/name mismatch.');
   }
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' || manifest.project !== policy.project ||
-      !Array.isArray(manifest.files) || !manifest.artifact || !manifest.source) fail('Invalid release manifest.');
+  const expected = validateReleaseManifest(manifest);
+  if (manifest.project !== policy.project ||
+      manifest.source.gitCommit !== policy.source.gitCommit ||
+      manifest.source.buildNumber !== policy.source.buildNumber) {
+    fail('Release manifest project or source provenance does not match the authenticated policy.');
+  }
   if (policy.releaseIdentity !== undefined || manifest.releaseIdentity !== undefined) {
     if (typeof policy.releaseIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(policy.releaseIdentity) ||
         policy.releaseIdentity !== manifest.releaseIdentity) {
@@ -96,8 +155,7 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
       ast.size !== policy.artifact.size || await hash(artifactPath) !== policy.artifact.sha256 ||
       manifest.artifact.name !== policy.artifact.name || manifest.artifact.size !== policy.artifact.size ||
       manifest.artifact.sha256 !== policy.artifact.sha256) fail('Package SHA-256 does not match policy and manifest.');
-  const expected = new Map();
-  for (const e of manifest.files) {
+
     const normalizedPath = typeof e?.path === 'string' ? e.path.replaceAll('\\', '/') : '';
     const pathParts = normalizedPath.split('/');
     if (!e || typeof e.path !== 'string' || !normalizedPath || path.isAbsolute(normalizedPath) ||
@@ -105,8 +163,6 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
         pathParts.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part)) ||
         expected.has(normalizedPath) || !Number.isSafeInteger(e.size) || e.size < 0 ||
         typeof e.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(e.sha256)) fail('Invalid or unsafe manifest inventory entry.');
-    expected.set(normalizedPath, { size: e.size, sha256: e.sha256 });
-  }
   const actualEntries = await inventory(extractedDir), actual = new Map(actualEntries.map(e => [e.path, e])), errors = [];
   for (const [name, e] of expected) {
     const got = actual.get(name);
