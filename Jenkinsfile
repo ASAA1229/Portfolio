@@ -208,9 +208,9 @@ pipeline {
               if (Test-Path (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') -PathType Leaf) {
                 node scripts/policy-signature.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
                 if ($LASTEXITCODE -ne 0) { throw "Nexus read-back policy signature verification failed." }
-                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $env:ARTIFACT_FILE '-' (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
+                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) '-' (Join-Path $verificationDir 'portfolio-manifest-ignore.sig') (Join-Path $env:WORKSPACE '.manifest-ignore-public.pem')
               } else {
-                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $env:ARTIFACT_FILE $trustedPolicyHash
+                node scripts/customer-release-verifier.mjs verify $remotePolicy (Join-Path $verificationDir 'portfolio-manifest-ignore.json.sha256') (Join-Path $verificationDir $env:MANIFEST_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) (Join-Path $verificationDir $env:ARTIFACT_FILE) $trustedPolicyHash
               }
               if ($LASTEXITCODE -ne 0) { throw "Nexus read-back customer release verification failed." }
             } finally {
