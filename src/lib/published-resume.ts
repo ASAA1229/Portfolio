@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 export type PublishedProfileResume = {
   id: string;
   profileId: string;
@@ -117,4 +119,24 @@ export function normalizePublishedPortrait(payload: unknown, profileId: string):
     typeof image.src === "string" && /^\\/api\\/published-images\\/[0-9a-f-]{36}$/i.test(image.src),
   );
   return typeof candidates.at(-1)?.src === "string" ? candidates.at(-1)!.src as string : null;
+}
+
+
+/** Shared client hook: every profile consumes the same validated, latest-published resume feed. */
+export function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
+  const [resume, setResume] = useState<PublishedProfileResume | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-resumes", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: unknown) => {
+        if (active) setResume(normalizePublishedProfileResume(payload, profileId));
+      })
+      .catch(() => { if (active) setResume(null); });
+    return () => { active = false; };
+  }, [profileId]);
+  return resume;
 }
