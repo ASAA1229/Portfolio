@@ -67,7 +67,7 @@ jobs:
           node scripts/customer-release-verifier.mjs create portfolio-manifest.json portfolio-build.tar.gz portfolio-manifest-ignore.json
           node scripts/artifact-integrity.mjs hash portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256
           TRUSTED_POLICY_HASH="$(cut -d' ' -f1 portfolio-manifest-ignore.json.sha256)"
-          node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" "$TRUSTED_POLICY_HASH"
+          node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$TRUSTED_POLICY_HASH"
           if [[ -n "${MANIFEST_IGNORE_PRIVATE_KEY:-}" && -n "${MANIFEST_IGNORE_PUBLIC_KEY:-}" ]]; then
             umask 077
             private_key_file="$(mktemp "$RUNNER_TEMP/manifest-ignore-private.XXXXXX.pem")"
@@ -82,7 +82,7 @@ jobs:
             chmod 600 "$private_key_file"
             node scripts/policy-signature.mjs sign portfolio-manifest-ignore.json portfolio-manifest-ignore.sig "$private_key_file"
             node scripts/policy-signature.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.sig "$public_key_file"
-            node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" - portfolio-manifest-ignore.sig "$public_key_file"
+            node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz - portfolio-manifest-ignore.sig "$public_key_file"
           else
             echo "Signing secrets are not configured; SHA-256 trusted-digest verification ran. Configure MANIFEST_IGNORE_PRIVATE_KEY and MANIFEST_IGNORE_PUBLIC_KEY to enable release signatures."
           fi
