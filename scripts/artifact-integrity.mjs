@@ -50,7 +50,7 @@ function validateBuildProvenance(manifest, compareContext = false) {
   const ci = manifest.ci;
   const commit = source?.gitCommit;
   if (typeof project !== 'string' || !project.trim() || project === 'unnamed-project' ||
-      project !== project.trim() || /[\\x00-\\x1f\\x7f]/.test(project)) {
+      project !== project.trim() || /[\x00-\x1f\x7f]/.test(project)) {
     throw new Error('Release provenance requires a valid, explicit project identifier.');
   }
   if (!ci || !['github-actions', 'jenkins'].includes(ci.provider)) {
