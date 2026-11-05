@@ -28,7 +28,10 @@ function decodeXml(value: string): string {
 function normalizeExtractedText(value: string): string {
   return value
     .replace(/\u0000/g, "")
+    .replace(/\r\n?/g, "\n")
     .replace(/[\t ]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/([a-z])-[ \t]*\n([a-z])/g, "$1$2")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim()
@@ -128,13 +131,25 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     else throw new Error("This DOCX compression method is not supported.");
 
     const xml = decoder.decode(xmlBytes);
-    const text = xml
-      .replace(/<w:tab\b[^>]*\/>/g, "\t")
-      .replace(/<w:br\b[^>]*\/>/g, "\n")
-      .replace(/<\/w:p>/g, "\n")
-      .replace(/<\/w:tr>/g, "\n")
-      .replace(/<[^>]+>/g, "");
-    return normalizeExtractedText(decodeXml(text));
+    const paragraphs: string[] = [];
+    for (const paragraph of xml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g)) {
+      const body = paragraph[1];
+      const style = body.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] ?? "";
+      const isHeading = /^(?:title|subtitle|heading[1-6])$/i.test(style);
+      const isList = /<w:numPr\b|<w:ilvl\b|<w:numId\b/.test(body);
+      const content = body
+        .replace(/<w:tab\b[^>]*\/>/g, "    ")
+        .replace(/<w:br\b[^>]*\/>/g, "\n")
+        .replace(/<w:cr\b[^>]*\/>/g, "\n")
+        .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, "")
+        .replace(/<[^>]+>/g, "");
+      const decoded = decodeXml(content).replace(/[ \t]+/g, " ").trim();
+      if (!decoded) continue;
+      paragraphs.push(isList ? "• " + decoded : decoded);
+      if (isHeading) paragraphs.push("");
+    }
+    // Paragraph extraction retains document order, including paragraphs in table cells.
+    return normalizeExtractedText(paragraphs.join("\n"));
   }
 
   throw new Error("The DOCX file does not contain word/document.xml.");
