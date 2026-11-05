@@ -177,6 +177,56 @@ function safeManifestPath(value) {
   return normalized;
 }
 
+function validateManifestStructure(manifest, requireArtifact = false) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
+      manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' ||
+      !Array.isArray(manifest.files) || !Number.isSafeInteger(manifest.fileCount) ||
+      manifest.fileCount < 0 || manifest.fileCount !== manifest.files.length ||
+      typeof manifest.project !== 'string' || !manifest.project.trim() ||
+      manifest.project !== manifest.project.trim() || /[\\x00-\\x1f\\x7f]/.test(manifest.project) ||
+      !manifest.source || typeof manifest.source !== 'object' || Array.isArray(manifest.source) ||
+      typeof manifest.source.gitCommit !== 'string' ||
+      typeof manifest.source.buildNumber !== 'string' ||
+      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt))) {
+    throw new Error('Unsupported or invalid artifact manifest metadata or file count.');
+  }
+
+  if (manifest.ci !== undefined && (!manifest.ci || typeof manifest.ci !== 'object' ||
+      Array.isArray(manifest.ci) ||
+      ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
+        typeof manifest.ci[key] !== 'string'))) {
+    throw new Error('Artifact manifest contains invalid CI provenance metadata.');
+  }
+
+  if (requireArtifact || manifest.artifact !== undefined) {
+    const artifact = manifest.artifact;
+    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact) ||
+        typeof artifact.name !== 'string' || !artifact.name ||
+        path.basename(artifact.name) !== artifact.name ||
+        !Number.isSafeInteger(artifact.size) || artifact.size < 0 ||
+        typeof artifact.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
+      throw new Error('Manifest contains invalid packaged-artifact metadata.');
+    }
+  }
+}
+
+function validateFileInventory(files) {
+  const expected = new Map();
+  for (const entry of files) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      throw new Error('Manifest contains an invalid file entry.');
+    }
+    const rel = safeManifestPath(entry.path);
+    if (rel !== entry.path || expected.has(rel) ||
+        !Number.isSafeInteger(entry.size) || entry.size < 0 ||
+        typeof entry.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      throw new Error(`Invalid, non-canonical, or duplicate manifest entry: ${rel}`);
+    }
+    expected.set(rel, entry);
+  }
+  return expected;
+}
+
 async function createManifest(directory, manifestPath, artifactPath) {
   const sourceCommit = getSourceCommit();
   const buildNumber = getBuildNumber();
@@ -239,19 +289,7 @@ async function createManifest(directory, manifestPath, artifactPath) {
 
 async function verifyManifest(directory, manifestPath, artifactPath) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' || !Array.isArray(manifest.files) ||
-      !Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 0 ||
-      typeof manifest.project !== 'string' || manifest.project.length === 0 ||
-      !manifest.source || typeof manifest.source.gitCommit !== 'string' ||
-      typeof manifest.source.buildNumber !== 'string' ||
-      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt))) {
-    throw new Error('Unsupported or invalid artifact manifest metadata.');
-  }
-
-  if (manifest.ci !== undefined && (!manifest.ci || typeof manifest.ci !== 'object' ||
-      ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
-    throw new Error('Artifact manifest contains invalid CI provenance metadata.');
-  }
+  validateManifestStructure(manifest);
   verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') validateBuildProvenance(manifest, true);
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
@@ -277,25 +315,7 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
     }
   }
 
-  const expected = new Map();
-  for (const entry of manifest.files) {
-    if (!entry || typeof entry !== 'object') throw new Error('Manifest contains an invalid file entry.');
-    const rel = safeManifestPath(entry.path);
-    if (expected.has(rel) || !Number.isSafeInteger(entry.size) || entry.size < 0 ||
-        !/^[a-f0-9]{64}$/.test(entry.sha256)) {
-      throw new Error(`Invalid or duplicate manifest entry: ${rel}`);
-    }
-    expected.set(rel, entry);
-  }
-
-  if (manifest.artifact !== undefined) {
-    const artifact = manifest.artifact;
-    if (!artifact || typeof artifact.name !== 'string' || artifact.name.length === 0 ||
-        path.basename(artifact.name) !== artifact.name || !Number.isSafeInteger(artifact.size) ||
-        artifact.size < 0 || !/^[a-f0-9]{64}$/.test(artifact.sha256)) {
-      throw new Error('Manifest contains invalid packaged-artifact metadata.');
-    }
-  }
+  const expected = validateFileInventory(manifest.files);
 
   const actualFiles = await inventory(directory);
   const actual = new Map(actualFiles.map((entry) => [entry.path, entry]));
@@ -364,38 +384,16 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
   const stat = await lstat(artifact);
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Release artifact must be a regular file.');
 
-  const checksumContent = (await readFile(checksumPath, 'utf8')).trim();
-  const checksumMatch = checksumContent.match(/^([a-f0-9]{64})\s+\*?(.+)$/);
-  const actualHash = await hashFile(artifact);
-  if (!checksumMatch || checksumMatch[2] !== path.basename(artifact) || checksumMatch[1] !== actualHash) {
-    throw new Error('Release artifact SHA-256 sidecar verification failed.');
-  }
-
+  // Validate manifest structure and inventory metadata before hashing the package.
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  validateManifestStructure(manifest, true);
+  validateFileInventory(manifest.files);
+
   const expectedProject = process.env.PROJECT_NAME;
   if (expectedProject && manifest.project !== expectedProject) {
     throw new Error(`Release manifest project mismatch: expected ${expectedProject}, found ${manifest.project}.`);
   }
-  if (manifest.schemaVersion !== 1 || manifest.algorithm !== 'SHA256' ||
-      typeof manifest.project !== 'string' || !manifest.project.trim() ||
-      !manifest.source || typeof manifest.source.gitCommit !== 'string' ||
-      typeof manifest.source.buildNumber !== 'string' ||
-      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) ||
-      !manifest.artifact || typeof manifest.artifact.name !== 'string' ||
-      path.basename(manifest.artifact.name) !== manifest.artifact.name ||
-      !Number.isSafeInteger(manifest.artifact.size) || manifest.artifact.size < 0 ||
-      !/^[a-f0-9]{64}$/.test(manifest.artifact.sha256)) {
-    throw new Error('Release manifest metadata or packaged-artifact metadata is invalid.');
-  }
-  if (manifest.artifact.name !== path.basename(artifact) || manifest.artifact.size !== stat.size ||
-      manifest.artifact.sha256 !== actualHash) {
-    throw new Error('Release artifact does not match the manifest name, size, and SHA-256.');
-  }
 
-  if (manifest.ci !== undefined && (!manifest.ci || typeof manifest.ci !== 'object' ||
-      ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
-    throw new Error('Release manifest contains invalid CI provenance metadata.');
-  }
   verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') validateBuildProvenance(manifest, true);
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
@@ -414,6 +412,18 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
       throw new Error('Release manifest provenance is missing or does not match this build context.');
     }
   }
+
+  const checksumContent = (await readFile(checksumPath, 'utf8')).trim();
+  const checksumMatch = checksumContent.match(/^([a-f0-9]{64})\\s+\\*?(.+)$/);
+  const actualHash = await hashFile(artifact);
+  if (!checksumMatch || checksumMatch[2] !== path.basename(artifact) || checksumMatch[1] !== actualHash) {
+    throw new Error('Release artifact SHA-256 sidecar verification failed.');
+  }
+  if (manifest.artifact.name !== path.basename(artifact) || manifest.artifact.size !== stat.size ||
+      manifest.artifact.sha256 !== actualHash) {
+    throw new Error('Release artifact does not match the manifest name, size, and SHA-256.');
+  }
+
   console.log(`Release bundle verification PASSED: project=${manifest.project}; build=${manifest.source.buildNumber}; commit=${manifest.source.gitCommit}; artifact=${manifest.artifact.name}; size=${stat.size}; sha256=${actualHash}.`);
 }
 async function main() {
