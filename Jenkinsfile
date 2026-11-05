@@ -33,6 +33,7 @@ pipeline {
         bat 'node --version'
         bat 'npm --version'
         bat 'npm ci'
+        bat 'npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json'
       }
     }
     stage('Build') {
@@ -60,7 +61,7 @@ pipeline {
           $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
           node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
         '''
-        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256', fingerprint: true
+        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256,portfolio-dependencies.cdx.json', fingerprint: true
       }
     }
     stage('Sign manifest-ignore policy (optional)') {
