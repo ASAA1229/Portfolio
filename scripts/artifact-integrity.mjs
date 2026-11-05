@@ -22,6 +22,26 @@ function getCiBranch() {
   return branch.replace(/^refs\\/heads\\//, '').replace(/^origin\\//, '');
 }
 
+function releaseIdentityFor(manifest) {
+  const identity = [
+    manifest.project,
+    manifest.ci?.repository || 'UNKNOWN',
+    manifest.ci?.branch || 'UNKNOWN',
+    manifest.source?.gitCommit || 'UNKNOWN',
+    manifest.source?.buildNumber || 'LOCAL',
+  ];
+  return createHash(ALGORITHM).update(JSON.stringify(identity)).digest('hex');
+}
+
+function verifyReleaseIdentity(manifest, required = false) {
+  if (manifest.releaseIdentity === undefined && !required) return;
+  if (typeof manifest.releaseIdentity !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(manifest.releaseIdentity) ||
+      manifest.releaseIdentity !== releaseIdentityFor(manifest)) {
+    throw new Error('Artifact release identity is missing, invalid, or inconsistent with its provenance.');
+  }
+}
+
 
 function usage() {
   console.error(
@@ -129,6 +149,8 @@ async function createManifest(directory, manifestPath, artifactPath) {
     files,
   };
 
+  manifest.releaseIdentity = releaseIdentityFor(manifest);
+
   if (artifactPath) {
     const artifact = path.resolve(artifactPath);
     const stat = await lstat(artifact);
@@ -161,6 +183,7 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
       ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
     throw new Error('Artifact manifest contains invalid CI provenance metadata.');
   }
+  verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
       (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
         typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
@@ -303,6 +326,7 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
       ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
     throw new Error('Release manifest contains invalid CI provenance metadata.');
   }
+  verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
       (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
         typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
