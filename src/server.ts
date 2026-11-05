@@ -244,6 +244,53 @@ type AdminEnv = {
   RESUME_BUCKET?: PrivateBucket;
 };
 
+/**
+ * Local-only object storage keeps admin content workflows usable under Vite.
+ * It is intentionally process-memory-only; deployed environments must bind R2.
+ */
+let localDevelopmentBucket: PrivateBucket | undefined;
+
+function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
+  const configured = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  if (configured) return configured;
+  if (import.meta.env.DEV !== true) return undefined;
+  if (!localDevelopmentBucket) {
+    const objects = new Map<string, { bytes: Uint8Array; contentType?: string }>();
+    localDevelopmentBucket = {
+      async get(key) {
+        const stored = objects.get(key);
+        if (!stored) return null;
+        const bytes = stored.bytes.slice();
+        return {
+          httpMetadata: { contentType: stored.contentType },
+          async json<T>() {
+            return JSON.parse(new TextDecoder().decode(bytes)) as T;
+          },
+          async arrayBuffer() {
+            return bytes.slice().buffer;
+          },
+        };
+      },
+      async put(key, value, options) {
+        const bytes = typeof value === "string"
+          ? new TextEncoder().encode(value)
+          : value instanceof Uint8Array
+            ? value.slice()
+            : new Uint8Array(value.slice(0));
+        objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType });
+      },
+      async delete(key) {
+        objects.delete(key);
+      },
+    };
+  }
+  return localDevelopmentBucket;
+}
+
+function isLocalDevelopmentBucket(bucket: PrivateBucket): boolean {
+  return bucket === localDevelopmentBucket;
+}
+
 const RESUME_INDEX_KEY = "private-admin/resumes/index.json";
 const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 const ALLOWED_RESUME_TYPES = new Set([
@@ -383,7 +430,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   const path = normalizedPath(request);
   if (!path.startsWith("/api/admin/resumes") && path !== "/api/published-resumes") return null;
   if (path === "/api/published-resumes" && request.method === "GET") {
-    const publicBucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+    const publicBucket = resolvePrivateBucket(env);
     if (!publicBucket) return jsonResponse({ updatedAt: null, resumes: [] }, 200);
     const published = await publicBucket.get("public/approved-resumes.json");
     return published ? new Response(await published.arrayBuffer(), {
@@ -406,7 +453,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (boundedRequest instanceof Response) return boundedRequest;
     request = boundedRequest;
   }
-  const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  const bucket = resolvePrivateBucket(env);
   if (!bucket) return bucketNotConfigured();
 
   if (path === "/api/admin/resumes" && request.method === "GET") {
@@ -648,7 +695,7 @@ async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRec
 async function handlePortfolioImageApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (!path.startsWith("/api/admin/images") && path !== "/api/published-images" && !path.startsWith("/api/published-images/")) return null;
-  const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  const bucket = resolvePrivateBucket(env);
   if (!bucket) {
     if (path === "/api/published-images" && request.method === "GET") return jsonResponse({ images: [] }, 200);
     return bucketNotConfigured();
@@ -670,7 +717,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
   }
-  if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket) }, 200);
+  if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket), storageMode: isLocalDevelopmentBucket(bucket) ? "local-ephemeral" : "persistent" }, 200);
   if (path === "/api/admin/images" && request.method === "POST") {
     const boundedRequest = await limitRequestBody(request, MAX_IMAGE_BYTES + 1024 * 1024);
     if (boundedRequest instanceof Response) return boundedRequest;
@@ -800,7 +847,7 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
   // Always overwrite the internal field: a browser cannot choose the resume
   // facts used by the model, even if it submits a forged _publishedResume.
   let publishedResume: Record<string, unknown> | null = null;
-  const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  const bucket = resolvePrivateBucket(env);
   if (bucket) {
     try {
       const object = await bucket.get("public/approved-resumes.json");
