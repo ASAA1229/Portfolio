@@ -94,7 +94,7 @@ function normalizeRecord(value: unknown, profileId: string): PublishedProfileRes
     headline: value.headline.trim(),
     summary: value.summary.trim(),
     skills: normalizeSkills(value.skills),
-    ...(contact && Object.values(contact).some(Boolean) ? { contact } : {}),
+    ...(rawContact ? { contact } : {}),
     ...(uploadedAt ? { uploadedAt } : {}),
     ...(structuredSections ? { structuredSections } : {}),
   };
