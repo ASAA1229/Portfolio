@@ -90,7 +90,10 @@ pipeline {
     }
     stage('Publish to Nexus (optional)') {
       when {
-        expression { return env.NEXUS_RAW_REPOSITORY_URL?.trim() }
+        allOf {
+          branch 'dev'
+          expression { return env.NEXUS_RAW_REPOSITORY_URL?.trim() }
+        }
       }
       steps {
         withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASSWORD')]) {
