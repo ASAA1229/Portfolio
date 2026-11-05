@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
-import { mapResumeSections, suggestStructuredResumeEntries } from "@/lib/resume-mapping";
+import { mapResumeSections, suggestStructuredResumeEntries, suggestResumeContactDetails } from "@/lib/resume-mapping";
 import { createEmptyResumeEntry, type ResumeSectionEntry, type StructuredResumeEntry, type StructuredResumeSections, type ResumeSectionName } from "@/lib/resume-types";
 
 type ResumeRecord = {
@@ -199,7 +199,9 @@ function ResumeManager() {
   }
 
   function mapSections(record: ResumeRecord) {
-    const mapped = mapResumeSections(record.privateReviewNotes ?? "");
+    const sourceText = record.privateReviewNotes ?? "";
+    const mapped = mapResumeSections(sourceText);
+    const suggestedContact = suggestResumeContactDetails(sourceText);
     const sectionNames = Object.keys(mapped.sections);
     const privateBlock = [
       "[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY]",
@@ -216,6 +218,7 @@ function ResumeManager() {
     const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
     update(record.id, {
       skills: mapped.skills.length ? mapped.skills : record.skills,
+      contact: { ...record.contact, ...suggestedContact },
       structuredSections: {
         experience: mapped.sections.experience ? suggestStructuredResumeEntries("experience", mapped.sections.experience) : record.structuredSections?.experience ?? [],
         education: mapped.sections.education ? suggestStructuredResumeEntries("education", mapped.sections.education) : record.structuredSections?.education ?? [],
@@ -226,7 +229,7 @@ function ResumeManager() {
     });
     setMessage(
       sectionNames.length
-        ? `Mapped ${sectionNames.length} recognizable sections. Clearly labelled fields were suggested automatically; ambiguous text was kept in descriptions. Review every suggestion before saving or publishing.`
+        ? `Mapped ${sectionNames.length} recognizable sections and ${Object.keys(suggestedContact).length} explicit contact fields. Clearly labelled fields were suggested automatically; ambiguous text was kept in descriptions. Review every suggestion before saving or publishing.`
         : "No recognized section headings were found. No public fields were changed; review the extracted text manually.",
     );
     setError("");
