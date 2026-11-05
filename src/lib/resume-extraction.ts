@@ -209,7 +209,7 @@ function extractPdfTextFromContent(content: string): string[] {
   const blocks = content.match(/BT[\s\S]*?ET/g) ?? [];
   const n = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)";
   const tokenPattern = new RegExp(
-    "(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+Tm|(" + n + ")\\s+(" + n + ")\\s+Td|(" + n + ")\\s+(" + n + ")\\s+TD|(" + n + ")\\s+TL|(" + n + ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|(\\*)",
+    "(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+Tm|(" + n + ")\\s+(" + n + ")\\s+Td|(" + n + ")\\s+(" + n + ")\\s+TD|(" + n + ")\\s+TL|(" + n + ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|T(\\*)",
     "gi",
   );
   let order = 0;
