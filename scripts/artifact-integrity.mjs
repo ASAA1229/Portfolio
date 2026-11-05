@@ -43,6 +43,61 @@ function verifyReleaseIdentity(manifest, required = false) {
 }
 
 
+
+function validateBuildProvenance(manifest, compareContext = false) {
+  const source = manifest.source;
+  const ci = manifest.ci;
+  const commit = source?.gitCommit;
+  const buildNumber = source?.buildNumber;
+  const repository = ci?.repository;
+  const branch = ci?.branch;
+  const requiredCiFields = ['workflow', 'runId', 'runUrl'];
+
+  if (typeof commit !== 'string' || !/^[a-f0-9]{40,64}$/i.test(commit) ||
+      typeof buildNumber !== 'string' || !/^[1-9]\\d*$/.test(buildNumber)) {
+    throw new Error('Release provenance requires a full Git commit SHA and a positive numeric build number.');
+  }
+  if (typeof repository !== 'string' || !repository.trim() || repository === 'UNKNOWN' ||
+      /[\\s\\x00-\\x1f\\x7f]/.test(repository)) {
+    throw new Error('Release provenance requires a valid repository identifier.');
+  }
+  if (typeof branch !== 'string' || !branch.trim() || branch === 'UNKNOWN' ||
+      branch.startsWith('refs/heads/') || branch.startsWith('origin/') ||
+      /[\\s\\x00-\\x1f\\x7f]/.test(branch)) {
+    throw new Error('Release provenance requires a normalized, valid branch identifier.');
+  }
+  for (const key of requiredCiFields) {
+    const value = ci?.[key];
+    if (typeof value !== 'string' || !value.trim() || value === 'UNKNOWN' ||
+        /[\\x00-\\x1f\\x7f]/.test(value)) {
+      throw new Error(`Release provenance requires valid CI ${key} metadata.`);
+    }
+  }
+  let runUrl;
+  try {
+    runUrl = new URL(ci.runUrl);
+  } catch {
+    throw new Error('Release provenance requires a valid CI run URL.');
+  }
+  if (!['http:', 'https:'].includes(runUrl.protocol)) {
+    throw new Error('Release provenance CI run URL must use HTTP or HTTPS.');
+  }
+
+  if (compareContext) {
+    const expectedRepository = process.env.BUILD_REPOSITORY || process.env.GITHUB_REPOSITORY || '';
+    const expectedBranch = getCiBranch();
+    const expectedCommit = getSourceCommit();
+    const expectedBuild = getBuildNumber();
+    if ((expectedRepository && repository !== expectedRepository) ||
+        (expectedBranch && branch !== expectedBranch) ||
+        !/^[a-f0-9]{40,64}$/i.test(expectedCommit) ||
+        commit.toLowerCase() !== expectedCommit.toLowerCase() ||
+        !/^[1-9]\\d*$/.test(expectedBuild) || buildNumber !== expectedBuild) {
+      throw new Error('Release manifest provenance does not match this build context.');
+    }
+  }
+}
+
 function usage() {
   console.error(
     'Usage:\n' +
@@ -149,6 +204,8 @@ async function createManifest(directory, manifestPath, artifactPath) {
     files,
   };
 
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') validateBuildProvenance(manifest);
+
   manifest.releaseIdentity = releaseIdentityFor(manifest);
 
   if (artifactPath) {
@@ -184,6 +241,7 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
     throw new Error('Artifact manifest contains invalid CI provenance metadata.');
   }
   verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') validateBuildProvenance(manifest, true);
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
       (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
         typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
@@ -327,6 +385,7 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
     throw new Error('Release manifest contains invalid CI provenance metadata.');
   }
   verifyReleaseIdentity(manifest, process.env.REQUIRE_BUILD_PROVENANCE === 'true');
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') validateBuildProvenance(manifest, true);
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
       (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
         typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
