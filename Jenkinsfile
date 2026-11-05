@@ -86,11 +86,16 @@ pipeline {
         ]) {
           powershell '''
             $ErrorActionPreference = "Stop"
-            $privatePath = Join-Path $env:TEMP "portfolio-policy-private-$env:BUILD_NUMBER.pem"
+            if ([string]::IsNullOrWhiteSpace($env:MANIFEST_IGNORE_PRIVATE_KEY) -or
+                [string]::IsNullOrWhiteSpace($env:MANIFEST_IGNORE_PUBLIC_KEY)) {
+              throw "Policy-signing credentials are missing or empty."
+            }
+            $privateFileName = "portfolio-policy-private-" + [Guid]::NewGuid().ToString("N") + ".pem"
+            $privatePath = Join-Path $env:TEMP $privateFileName
             $publicPath = Join-Path $env:WORKSPACE ".manifest-ignore-public.pem"
             try {
-              [IO.File]::WriteAllText($privatePath, $env:MANIFEST_IGNORE_PRIVATE_KEY)
-              [IO.File]::WriteAllText($publicPath, $env:MANIFEST_IGNORE_PUBLIC_KEY)
+              [IO.File]::WriteAllText($privatePath, $env:MANIFEST_IGNORE_PRIVATE_KEY, [Text.Encoding]::ASCII)
+              [IO.File]::WriteAllText($publicPath, $env:MANIFEST_IGNORE_PUBLIC_KEY, [Text.Encoding]::ASCII)
               node scripts/policy-signature.mjs sign "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.sig" $privatePath
               if ($LASTEXITCODE -ne 0) { throw "Manifest-ignore signing failed." }
               node scripts/policy-signature.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.sig" $publicPath
@@ -99,7 +104,11 @@ pipeline {
               node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" "-" "portfolio-manifest-ignore.sig" $publicPath
               if ($LASTEXITCODE -ne 0) { throw "Signed customer release verification failed." }
             } finally {
-              Remove-Item -Force $privatePath -ErrorAction SilentlyContinue
+              if ($privatePath) {
+                Remove-Item -Force -LiteralPath $privatePath -ErrorAction SilentlyContinue
+              }
+              $env:MANIFEST_IGNORE_PRIVATE_KEY = $null
+              $env:MANIFEST_IGNORE_PUBLIC_KEY = $null
             }
           '''
           archiveArtifacts artifacts: 'portfolio-manifest-ignore.sig', fingerprint: true
