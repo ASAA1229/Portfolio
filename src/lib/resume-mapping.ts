@@ -184,3 +184,26 @@ export function suggestStructuredResumeEntries(
     return result;
   }).filter((entry) => Object.values(entry).some((value) => Array.isArray(value) ? value.length > 0 : Boolean(value)));
 }
+
+
+export type SuggestedResumeContact = {
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+};
+
+/** Extracts explicit contact tokens only; it does not infer or invent contact data. */
+export function suggestResumeContactDetails(text: string): SuggestedResumeContact {
+  const email = text.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i)?.[0];
+  const phone = text.match(/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?){2,4}\d{3,4}/)?.[0]?.trim();
+  const links = text.match(/https:\/\/[^\s<>()]+/gi) ?? [];
+  const linkedin = links.find((url) => /linkedin\.com\/in\//i.test(url))?.replace(/[.,;]+$/, "");
+  const github = links.find((url) => /github\.com\//i.test(url))?.replace(/[.,;]+$/, "");
+  return {
+    ...(email ? { email: email.slice(0, 320) } : {}),
+    ...(phone && phone.replace(/\D/g, "").length >= 7 ? { phone: phone.slice(0, 40) } : {}),
+    ...(linkedin ? { linkedin } : {}),
+    ...(github ? { github } : {}),
+  };
+}
