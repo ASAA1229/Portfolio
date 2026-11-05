@@ -118,9 +118,14 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
       answer = `Live AI is currently unavailable, so I am answering from verified profile data instead.\n\n${fallback}`;
       setMessages([...history, { role: "assistant", content: answer }]);
     } finally {
-      setBusy(false);
+      // A stopped request may finish after the user has already started another
+      // one. Only the request that still owns the controller may clear busy state.
+      if (controller.current === abort) {
+        controller.current = null;
+        setBusy(false);
+      }
     }
-    if ((speakReplies || mode === "intro") && answer.trim()) speak(answer);
+    if ((speakReplies || mode === "intro") && answer.trim() && !abort.signal.aborted) speak(answer);
   }
   function stopResponse() {
     controller.current?.abort();
