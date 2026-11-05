@@ -143,19 +143,27 @@ export function PortfolioChat() {
     try {
       const answer = await askAi(
         history.slice(-12),
-        (d) => patch((m) => ({ ...m, content: m.content + d })),
+        (d) => {
+          if (abortRef.current === ctrl && !ctrl.signal.aborted) {
+            patch((m) => ({ ...m, content: m.content + d }));
+          }
+        },
         ctrl.signal,
       );
-      if (speakReplies) speak(answer);
+      if (speakReplies && abortRef.current === ctrl && !ctrl.signal.aborted) speak(answer);
     } catch (error) {
-      if (ctrl.signal.aborted) return;
+      if (ctrl.signal.aborted || abortRef.current !== ctrl) return;
       const fallback = fallbackAnswer(q);
       const reason = error instanceof Error && error.message ? error.message : "The request failed.";
       const answer = `${fallback}\n\nLive AI status: ${reason}`;
       patch((m) => ({ ...m, content: answer, source: "fallback" }));
-      if (speakReplies) speak(answer);
+      if (speakReplies && abortRef.current === ctrl && !ctrl.signal.aborted) speak(answer);
     } finally {
-      setBusy(false);
+      // A cleared or superseded request must not change the state of a newer one.
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+        setBusy(false);
+      }
     }
   }
 
@@ -264,6 +272,7 @@ export function PortfolioChat() {
               aria-label="Close and clear chat"
               onClick={() => {
                 abortRef.current?.abort();
+                abortRef.current = null;
                 setMessages([]);
                 setBusy(false);
                 close();
