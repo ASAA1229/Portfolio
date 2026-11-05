@@ -54,7 +54,7 @@ async function askAi(history: ChatMessage[], onDelta: (t: string) => void, signa
       /* The server may return a non-JSON error page. */
     }
     const reason = res.status === 503 && detail.toLowerCase().includes("not configured")
-      ? "The AI service is not configured on the server (missing LOVABLE_API_KEY)."
+      ? "The AI service is not configured on the server (missing OPENAI_API_KEY)."
       : res.status === 401 || res.status === 403
         ? "The AI service rejected its server credentials (HTTP " + res.status + ")."
         : res.status === 402
@@ -73,6 +73,11 @@ async function askAi(history: ChatMessage[], onDelta: (t: string) => void, signa
     const t = dec.decode(value, { stream: true });
     got += t;
     onDelta(t);
+  }
+  const finalText = dec.decode();
+  if (finalText) {
+    got += finalText;
+    onDelta(finalText);
   }
   if (!got.trim()) throw new Error("empty");
   return got;
