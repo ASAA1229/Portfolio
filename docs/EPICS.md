@@ -183,6 +183,8 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 - Improve archive verifier portability/diagnostics and document the system `tar` prerequisite.
 - Complete customer verification stage reporting and failure diagnostics.
 - Document CI configuration, secret names, artifact retention and release/rollback handling without storing secrets.
+- Retain structured customer-verification failure reports and preserve verified release bundles with traceable build fingerprints.
+- Define operator rejection/quarantine and rollback/recovery steps; do not automatically promote or publish a failed release.
 - Preserve project-specific workflow differences while keeping shared manifest and verifier contracts aligned with JARVIS.
 
 **Exit criteria**
