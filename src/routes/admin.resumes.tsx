@@ -199,7 +199,7 @@ function ResumeManager() {
   }
 
   function mapSections(record: ResumeRecord) {
-    const sourceText = record.privateReviewNotes ?? "";
+    const sourceText = (record.privateReviewNotes ?? "").replace(/\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\][\s\S]*?\[END MAPPED SECTIONS\]/g, "").trim();
     const mapped = mapResumeSections(sourceText);
     const suggestedContact = suggestResumeContactDetails(sourceText);
     const sectionNames = Object.keys(mapped.sections);
@@ -212,7 +212,7 @@ function ResumeManager() {
       ]),
       "[END MAPPED SECTIONS]",
     ].join("\n");
-    const existing = (record.privateReviewNotes ?? "")
+    const existing = sourceText;
       .replace(/\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\][\s\S]*?\[END MAPPED SECTIONS\]/g, "")
       .trim();
     const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
