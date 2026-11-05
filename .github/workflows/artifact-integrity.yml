@@ -30,6 +30,7 @@ jobs:
       BUILD_RUN_ID: ${{ github.run_id }}
       BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       REQUIRE_BUILD_PROVENANCE: 'true'
+      CUSTOMER_RELEASE_REPORT_PATH: customer-release-report.json
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,7 +99,7 @@ jobs:
             portfolio-manifest-ignore.json.sha256
             portfolio-dependencies.cdx.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
       - name: Upload signed manifest-ignore policy
         if: hashFiles('portfolio-manifest-ignore.sig') != ''
         uses: actions/upload-artifact@v4
@@ -106,4 +107,12 @@ jobs:
           name: portfolio-policy-signature-${{ github.run_number }}
           path: portfolio-manifest-ignore.sig
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
+      - name: Retain customer release failure report
+        if: always() && hashFiles('customer-release-report.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-release-failure-${{ github.run_number }}
+          path: customer-release-report.json
+          if-no-files-found: error
+          retention-days: 14
