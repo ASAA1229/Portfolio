@@ -14,15 +14,35 @@ export type ResumeSectionMapping = {
 };
 
 const HEADINGS: { name: ResumeSectionName; pattern: RegExp }[] = [
-  { name: "experience", pattern: /^(?:work\s+)?experience(?:\s+&\s+internships?)?$|^employment\s+history$|^professional\s+experience$/i },
-  { name: "education", pattern: /^education(?:al\s+background)?$|^academic\s+background$/i },
-  { name: "skills", pattern: /^(?:technical\s+)?skills(?:\s+&\s+tools)?$|^technology\s+stack$/i },
-  { name: "projects", pattern: /^projects?(?:\s+experience)?$|^selected\s+projects$/i },
-  { name: "certifications", pattern: /^certifications?(?:\s+&\s+courses)?$|^licenses\s+&\s+certifications$/i },
+  {
+    name: "experience",
+    pattern: /^(?:professional\\s+experience|work(?:\\s+experience)?|employment\\s+(?:history|experience)|career\\s+history|experience(?:\\s+&\\s+internships?)?|internships?)$/i,
+  },
+  {
+    name: "education",
+    pattern: /^(?:education|educational\\s+background|academic\\s+background|academic\\s+qualifications?|education\\s*&\\s*qualifications?)$/i,
+  },
+  {
+    name: "skills",
+    pattern: /^(?:technical\\s+)?skills(?:\\s*&\\s*(?:tools|technologies))?|technical\\s+(?:proficiencies|expertise)|core\\s+competencies|technology\\s+stack|tools\\s*&\\s*technologies$/i,
+  },
+  {
+    name: "projects",
+    pattern: /^(?:selected\\s+|personal\\s+|academic\\s+)?projects?(?:\\s+experience)?$/i,
+  },
+  {
+    name: "certifications",
+    pattern: /^(?:certifications?|certificates?|licenses\\s*&\\s*certifications|certifications?\\s*&\\s*(?:courses|licenses))$/i,
+  },
 ];
 
 function normalizeHeading(line: string): string {
-  return line.replace(/^\s*(?:[#*•\-–—]+\s*)/, "").replace(/\s*[:|]\s*$/, "").trim();
+  return line
+    .replace(/^\\s*(?:(?:section\\s+)?\\d+(?:\\.\\d+)*[.)]?\\s*[:.)-]?\\s*)/, "")
+    .replace(/^\\s*[#*•●▪◦‣⁃\\-–—]+\\s*/, "")
+    .replace(/\\s*[:|.\\-–—]\\s*$/, "")
+    .replace(/\\s+/g, " ")
+    .trim();
 }
 
 /**
