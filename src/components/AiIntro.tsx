@@ -55,7 +55,9 @@ function DynamicIntroPlayer() {
           text += decoder.decode(value, { stream: true });
           setIntro(text);
         }
+        text += decoder.decode();
         if (!text.trim()) throw new Error("Empty AI intro");
+        setIntro(text);
       } catch {
         if (!controller.signal.aborted) {
           setOffline(true);
