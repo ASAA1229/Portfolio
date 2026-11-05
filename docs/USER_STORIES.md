@@ -281,7 +281,7 @@ Product baseline and remaining work: [POC.md](POC.md)
 
 ## PORT-E08 — Shared DevOps Pipeline, Provenance & Artifact Integrity
 
-### PORT-US-024 — Generate traceable portfolio build provenance
+### PORT-US-029 — Generate traceable portfolio build provenance
 **As a release maintainer,** I want every portfolio artifact to include a machine-readable provenance manifest, so that its project, source revision and CI origin can be identified.
 
 **Acceptance criteria**
@@ -291,7 +291,7 @@ Product baseline and remaining work: [POC.md](POC.md)
 - A deterministic release identity binds the project/source/build identity.
 - Missing or mismatched required provenance blocks acceptance.
 
-### PORT-US-025 — Validate manifest inventory and artifact integrity
+### PORT-US-030 — Validate manifest inventory and artifact integrity
 **As a release maintainer,** I want manifest inventory metadata and SHA-256 values validated before artifact acceptance, so that malformed or tampered packages are rejected.
 
 **Acceptance criteria**
@@ -300,8 +300,13 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Every file entry has a safe relative path, unique normalized path, non-negative safe-integer size and canonical SHA-256 digest.
 - Invalid inventory metadata is rejected before checksum verification.
 - The verifier compares archive members with the declared inventory and validates each file's size/hash before claiming archive-content integrity.
+- The customer release verifier validates manifest metadata, exact file count, artifact metadata, unique safe paths and per-file digest/size before accepting the inventory.
+- The authenticated policy's project, source commit and build number match the manifest.
+- Windows path separators are normalized before path validation.
 
-### PORT-US-026 — Verify customer packages and explain failures
+**Current development status:** strict manifest validation implemented in `scripts/customer-release-verifier.mjs` (commits `b70f8b39`, `94b1818d`, `fcb1a12f`). Automated execution remains paused.
+
+### PORT-US-031 — Verify customer packages and explain failures
 **As a release operator,** I want a consistent customer-package verification sequence with a useful report, so that delivery failures can be diagnosed safely.
 
 **Acceptance criteria**
@@ -311,7 +316,7 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Reports identify the failed validation stage and reason without disclosing secrets.
 - Legacy behavior is explicitly bounded and cannot bypass strict-provenance mode.
 
-### PORT-US-027 — Produce SBOM-backed and signed CI artifacts
+### PORT-US-032 — Produce SBOM-backed and signed CI artifacts
 **As a release maintainer,** I want GitHub Actions and Jenkins to produce traceable artifacts with dependency SBOM and integrity metadata, so that releases can be independently reviewed.
 
 **Acceptance criteria**
@@ -322,7 +327,7 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Exact-head pipeline execution and artifact inspection are recorded before acceptance.
 - Nexus publication remains disabled until separately authorized.
 
-### PORT-US-028 — Gate promotion and deployment on release evidence
+### PORT-US-033 — Gate promotion and deployment on release evidence
 **As the portfolio owner,** I want promotion and deployment to remain controlled by explicit approval, so that unverified artifacts cannot be published.
 
 **Acceptance criteria**
