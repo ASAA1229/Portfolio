@@ -37,6 +37,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Generate CycloneDX dependency SBOM
+        run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
       - name: Build
         run: npm run build
       - name: Create and verify SHA-256 build manifest
@@ -83,6 +85,7 @@ jobs:
             portfolio-build.tar.gz.sha256
             portfolio-manifest-ignore.json
             portfolio-manifest-ignore.json.sha256
+            portfolio-dependencies.cdx.json
           if-no-files-found: error
           retention-days: 7
       - name: Upload signed manifest-ignore policy
