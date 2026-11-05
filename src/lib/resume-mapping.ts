@@ -16,32 +16,32 @@ export type ResumeSectionMapping = {
 const HEADINGS: { name: ResumeSectionName; pattern: RegExp }[] = [
   {
     name: "experience",
-    pattern: /^(?:professional\\s+experience|work(?:\\s+experience)?|employment\\s+(?:history|experience)|career\\s+history|experience(?:\\s+&\\s+internships?)?|internships?)$/i,
+    pattern: /^(?:professional\s+experience|work(?:\s+experience)?|employment\s+(?:history|experience)|career\s+history|experience(?:\s+&\s+internships?)?|internships?)$/i,
   },
   {
     name: "education",
-    pattern: /^(?:education|educational\\s+background|academic\\s+background|academic\\s+qualifications?|education\\s*&\\s*qualifications?)$/i,
+    pattern: /^(?:education|educational\s+background|academic\s+background|academic\s+qualifications?|education\s*&\s*qualifications?)$/i,
   },
   {
     name: "skills",
-    pattern: /^(?:technical\\s+)?skills(?:\\s*&\\s*(?:tools|technologies))?|technical\\s+(?:proficiencies|expertise)|core\\s+competencies|technology\\s+stack|tools\\s*&\\s*technologies$/i,
+    pattern: /^(?:(?:technical\s+)?skills(?:\s*&\s*(?:tools|technologies))?|technical\s+(?:proficiencies|expertise)|core\s+competencies|technology\s+stack|tools\s*&\s*technologies)$/i,
   },
   {
     name: "projects",
-    pattern: /^(?:selected\\s+|personal\\s+|academic\\s+)?projects?(?:\\s+experience)?$/i,
+    pattern: /^(?:(?:selected|personal|academic)\s+)?projects?(?:\s+experience)?$/i,
   },
   {
     name: "certifications",
-    pattern: /^(?:certifications?|certificates?|licenses\\s*&\\s*certifications|certifications?\\s*&\\s*(?:courses|licenses))$/i,
+    pattern: /^(?:certifications?|certificates?|licenses\s*&\s*certifications|certifications?\s*&\s*(?:courses|licenses))$/i,
   },
 ];
 
 function normalizeHeading(line: string): string {
   return line
-    .replace(/^\\s*(?:(?:section\\s+)?\\d+(?:\\.\\d+)*[.)]?\\s*[:.)-]?\\s*)/, "")
-    .replace(/^\\s*[#*•●▪◦‣⁃\\-–—]+\\s*/, "")
-    .replace(/\\s*[:|.\\-–—]\\s*$/, "")
-    .replace(/\\s+/g, " ")
+    .replace(/^\s*(?:(?:section\s+)?\d+(?:\.\d+)*[.)]?\s*[:.)-]?\s*)/, "")
+    .replace(/^\s*[#*•●▪◦‣⁃\-–—]+\s*/, "")
+    .replace(/\s*[:|.\-–—]\s*$/, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
