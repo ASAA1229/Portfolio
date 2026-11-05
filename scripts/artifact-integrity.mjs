@@ -232,37 +232,42 @@ function runTar(args, onStdout) {
   return new Promise((resolve, reject) => {
     const child = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
-    child.stdout.on('data', (chunk) => onStdout(chunk));
+    let outputError = null;
+    child.stdout.on('data', (chunk) => {
+      if (outputError) return;
+      try { onStdout(chunk); } catch (error) { outputError = error; child.kill(); }
+    });
     child.stderr.on('data', (chunk) => {
       stderr += chunk.toString('utf8');
       if (stderr.length > 16_384) stderr = stderr.slice(-16_384);
     });
     child.on('error', reject);
     child.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(\`Unable to inspect release archive with tar (exit \${code}): \${stderr.trim()}\`));
+      if (outputError) reject(outputError);
+      else if (code === 0) resolve();
+      else reject(new Error('Unable to inspect release archive with tar (exit ' + code + '): ' + stderr.trim()));
     });
   });
 }
 
 function normalizeArchiveMember(rawName) {
   if (rawName === './' || rawName === '.') return null;
-  let name = rawName.replaceAll('\\\\', '/');
+  let name = rawName.replaceAll(String.fromCharCode(92), '/');
   const isDirectory = name.endsWith('/');
   if (isDirectory) name = name.slice(0, -1);
   while (name.startsWith('./')) name = name.slice(2);
   if (!name) return null;
   const normalized = safeManifestPath(name);
-  if (normalized !== name) throw new Error(\`Non-canonical archive member path rejected: \${rawName}\`);
+  if (normalized !== name) throw new Error('Non-canonical archive member path rejected: ' + rawName);
   return isDirectory ? null : normalized;
 }
 
 async function archiveMemberDigest(archivePath, memberPath) {
   const hash = createHash(ALGORITHM);
   let size = 0;
-  await runTar(['-xOzf', archivePath, '--', \`./\${memberPath}\`], (chunk) => {
+  await runTar(['-xOzf', archivePath, '--', './' + memberPath], (chunk) => {
     size += chunk.length;
-    if (!Number.isSafeInteger(size)) throw new Error(\`Archive member is too large: \${memberPath}\`);
+    if (!Number.isSafeInteger(size)) throw new Error('Archive member is too large: ' + memberPath);
     hash.update(chunk);
   });
   return { size, sha256: hash.digest('hex') };
@@ -272,41 +277,30 @@ async function verifyArchiveInventory(archivePath, expected) {
   let listing = '';
   await runTar(['-tzf', archivePath], (chunk) => {
     listing += chunk.toString('utf8');
-    if (listing.length > 64 * 1024 * 1024) {
-      throw new Error('Archive member listing exceeds the 64 MiB safety limit.');
-    }
+    if (listing.length > 64 * 1024 * 1024) throw new Error('Archive member listing exceeds the 64 MiB safety limit.');
   });
-
   const archived = new Map();
-  for (const rawName of listing.split('\\n')) {
+  for (const rawName of listing.split('\n')) {
     if (!rawName) continue;
     const member = normalizeArchiveMember(rawName);
     if (!member) continue;
-    if (archived.has(member)) throw new Error(\`Duplicate archive member rejected: \${member}\`);
+    if (archived.has(member)) throw new Error('Duplicate archive member rejected: ' + member);
     archived.set(member, rawName);
   }
-
   const problems = [];
   for (const [member, entry] of expected) {
-    if (!archived.has(member)) {
-      problems.push(\`ARCHIVE MISSING: \${member}\`);
-      continue;
-    }
+    if (!archived.has(member)) { problems.push('ARCHIVE MISSING: ' + member); continue; }
     const actual = await archiveMemberDigest(archivePath, member);
-    if (actual.size !== entry.size || actual.sha256 !== entry.sha256) {
-      problems.push(\`ARCHIVE MISMATCH: \${member}\`);
-    }
+    if (actual.size !== entry.size || actual.sha256 !== entry.sha256) problems.push('ARCHIVE MISMATCH: ' + member);
     archived.delete(member);
   }
-  for (const member of archived.keys()) problems.push(\`ARCHIVE UNEXPECTED: \${member}\`);
-
+  for (const member of archived.keys()) problems.push('ARCHIVE UNEXPECTED: ' + member);
   if (problems.length) {
     console.error('Release archive inventory verification FAILED:');
-    for (const problem of problems) console.error(\` - \${problem}\`);
+    for (const problem of problems) console.error(' - ' + problem);
     throw new Error('Release archive contents do not match the manifest inventory.');
   }
 }
-
 async function createManifest(directory, manifestPath, artifactPath) {
   const sourceCommit = getSourceCommit();
   const buildNumber = getBuildNumber();
