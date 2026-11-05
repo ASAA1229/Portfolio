@@ -761,17 +761,31 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       indexed = true;
       return jsonResponse({ image: record }, 201);
     } catch (error) {
+      // Keep the API failure actionable during local development instead of
+      // allowing the framework to replace it with an opaque HTTPError response.
+      console.error("Portfolio image upload failed while storing or indexing the image.", error);
+      const cleanupFailures: string[] = [];
       if (!indexed) {
         if (storedPublic) {
           try { await bucket.delete(publicKey); }
-          catch (cleanupError) { console.error("Failed to clean up an incomplete public image upload.", cleanupError); }
+          catch (cleanupError) {
+            cleanupFailures.push("public image cleanup failed");
+            console.error("Failed to clean up an incomplete public image upload.", cleanupError);
+          }
         }
         if (storedPrivate) {
           try { await bucket.delete(privateKey); }
-          catch (cleanupError) { console.error("Failed to clean up an incomplete private image upload.", cleanupError); }
+          catch (cleanupError) {
+            cleanupFailures.push("private image cleanup failed");
+            console.error("Failed to clean up an incomplete private image upload.", cleanupError);
+          }
         }
       }
-      throw error;
+      return jsonResponse({
+        error: "Image upload failed while saving the image. Check the development server terminal for the detailed cause and retry.",
+        code: "IMAGE_UPLOAD_STORAGE_FAILED",
+        cleanupWarning: cleanupFailures.length ? cleanupFailures.join("; ") : undefined,
+      }, 500);
     }
   }
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
