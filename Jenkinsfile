@@ -11,6 +11,7 @@ pipeline {
     ARTIFACT_FILE = 'portfolio-build.tar.gz'
     MANIFEST_FILE = 'portfolio-manifest.json'
     CHECKSUM_FILE = 'portfolio-build.tar.gz.sha256'
+    CUSTOMER_RELEASE_REPORT_PATH = 'customer-release-report.json'
   }
   parameters {
     booleanParam(name: 'ENABLE_NEXUS_PUBLISH', defaultValue: false, description: 'Nexus publishing is paused; enable only after explicit approval and configuration.')
@@ -73,6 +74,11 @@ pipeline {
           $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
           Invoke-Node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" $trustedPolicyHash
 '''
+      }
+    }
+    stage('Archive verified release bundle') {
+      steps {
+        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256,portfolio-dependencies.cdx.json', fingerprint: true, onlyIfSuccessful: true
       }
     }
     stage('Sign manifest-ignore policy (optional)') {
@@ -231,6 +237,7 @@ pipeline {
       echo 'Portfolio pipeline failed. Review the first failing stage; publication is gated behind successful verification.'
     }
     always {
+      archiveArtifacts artifacts: 'customer-release-report.json', fingerprint: false, allowEmptyArchive: true
       powershell 'Remove-Item -Force (Join-Path $env:WORKSPACE ".manifest-ignore-public.pem") -ErrorAction SilentlyContinue'
     }
   }
