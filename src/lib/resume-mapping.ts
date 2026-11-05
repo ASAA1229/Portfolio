@@ -107,9 +107,9 @@ export function splitResumeSectionEntries(sectionText: string): string[] {
       flush();
       continue;
     }
-    const startsListItem = /^(?:[•●▪◦*-]|\d+[.)])\s+/.test(line);
+    const startsListItem = /^(?:[•●▪◦‣⁃*‐‑–—-]|\d+[.)])\s+/.test(line);
     if (startsListItem && current.length) flush();
-    current.push(line.replace(/^(?:[•●▪◦*-]|\d+[.)])\s+/, ""));
+    current.push(line.replace(/^(?:[•●▪◦‣⁃*‐‑–—-]|\d+[.)])\s+/, ""));
   }
   flush();
   return entries.slice(0, 40).map((entry) => entry.slice(0, 1200));
