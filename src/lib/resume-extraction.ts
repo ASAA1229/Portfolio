@@ -230,7 +230,7 @@ function extractPdfTextFromContent(content: string): string[] {
         let combined = "";
         const startX = x;
         for (const token of tokens) {
-          if (/^(?:\\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
+          if (/^(?:\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
           else x -= Number(token) / 1000 * fontSize;
         }
         if (combined.trim()) positioned.push({ text: combined, x: startX, y, order: order++ });
