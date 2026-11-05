@@ -98,6 +98,18 @@ async function createManifest(directory, manifestPath, artifactPath) {
       gitCommit: process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || 'UNKNOWN',
       buildNumber: process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || 'LOCAL',
     },
+    ci: {
+      provider: process.env.GITHUB_ACTIONS === 'true' ? 'github-actions' : process.env.JENKINS_URL ? 'jenkins' : 'local',
+      repository: process.env.BUILD_REPOSITORY || process.env.GITHUB_REPOSITORY || 'UNKNOWN',
+      branch: process.env.BUILD_BRANCH || process.env.GITHUB_REF_NAME || 'UNKNOWN',
+      workflow: process.env.BUILD_WORKFLOW || process.env.GITHUB_WORKFLOW || 'UNKNOWN',
+      runId: process.env.BUILD_RUN_ID || process.env.GITHUB_RUN_ID || 'UNKNOWN',
+      runUrl: process.env.BUILD_RUN_URL || (
+        process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+          ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+          : 'UNKNOWN'
+      ),
+    },
     createdAt: new Date().toISOString(),
     fileCount: files.length,
     files,
@@ -129,6 +141,16 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
       typeof manifest.source.buildNumber !== 'string' ||
       typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt))) {
     throw new Error('Unsupported or invalid artifact manifest metadata.');
+  }
+
+  if (manifest.ci !== undefined && (!manifest.ci || typeof manifest.ci !== 'object' ||
+      ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
+    throw new Error('Artifact manifest contains invalid CI provenance metadata.');
+  }
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
+      (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
+        typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
+    throw new Error('Artifact manifest is missing complete CI run provenance.');
   }
 
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
@@ -263,6 +285,15 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
     throw new Error('Release artifact does not match the manifest name, size, and SHA-256.');
   }
 
+  if (manifest.ci !== undefined && (!manifest.ci || typeof manifest.ci !== 'object' ||
+      ['provider', 'repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof manifest.ci[key] !== 'string'))) {
+    throw new Error('Release manifest contains invalid CI provenance metadata.');
+  }
+  if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
+      (!manifest.ci || ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) =>
+        typeof manifest.ci[key] !== 'string' || !manifest.ci[key].trim() || manifest.ci[key] === 'UNKNOWN'))) {
+    throw new Error('Release manifest is missing complete CI run provenance.');
+  }
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') {
     const expectedCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
     const expectedBuild = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
