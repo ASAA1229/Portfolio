@@ -54,22 +54,22 @@ function validateBuildProvenance(manifest, compareContext = false) {
   const requiredCiFields = ['workflow', 'runId', 'runUrl'];
 
   if (typeof commit !== 'string' || !/^[a-f0-9]{40,64}$/i.test(commit) ||
-      typeof buildNumber !== 'string' || !/^[1-9]\\d*$/.test(buildNumber)) {
+      typeof buildNumber !== 'string' || !/^[1-9]\d*$/.test(buildNumber)) {
     throw new Error('Release provenance requires a full Git commit SHA and a positive numeric build number.');
   }
   if (typeof repository !== 'string' || !repository.trim() || repository === 'UNKNOWN' ||
-      /[\\s\\x00-\\x1f\\x7f]/.test(repository)) {
+      /[\s\x00-\x1f\x7f]/.test(repository)) {
     throw new Error('Release provenance requires a valid repository identifier.');
   }
   if (typeof branch !== 'string' || !branch.trim() || branch === 'UNKNOWN' ||
       branch.startsWith('refs/heads/') || branch.startsWith('origin/') ||
-      /[\\s\\x00-\\x1f\\x7f]/.test(branch)) {
+      /[\s\x00-\x1f\x7f]/.test(branch)) {
     throw new Error('Release provenance requires a normalized, valid branch identifier.');
   }
   for (const key of requiredCiFields) {
     const value = ci?.[key];
     if (typeof value !== 'string' || !value.trim() || value === 'UNKNOWN' ||
-        /[\\x00-\\x1f\\x7f]/.test(value)) {
+        /[\x00-\x1f\x7f]/.test(value)) {
       throw new Error(`Release provenance requires valid CI ${key} metadata.`);
     }
   }
@@ -92,7 +92,7 @@ function validateBuildProvenance(manifest, compareContext = false) {
         (expectedBranch && branch !== expectedBranch) ||
         !/^[a-f0-9]{40,64}$/i.test(expectedCommit) ||
         commit.toLowerCase() !== expectedCommit.toLowerCase() ||
-        !/^[1-9]\\d*$/.test(expectedBuild) || buildNumber !== expectedBuild) {
+        !/^[1-9]\d*$/.test(expectedBuild) || buildNumber !== expectedBuild) {
       throw new Error('Release manifest provenance does not match this build context.');
     }
   }
