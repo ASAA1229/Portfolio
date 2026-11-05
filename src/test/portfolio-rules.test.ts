@@ -172,6 +172,11 @@ describe("Portfolio factual and contact rules", () => {
       { profileId: "sai", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001" },
     ] }, "ammu")).toBe("/api/published-images/123e4567-e89b-12d3-a456-426614174000");
     expect(normalizePublishedPortrait({ images: [
+      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-02d3-a456-426614174000" },
+      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-c456-426614174000" },
+      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567e89b12d3a456426614174000" },
+    ] }, "ammu")).toBeNull();
+    expect(normalizePublishedPortrait({ images: [
       { profileId: "ammu", slot: "portrait", src: "https://attacker.example/image.png" },
     ] }, "ammu")).toBeNull();
     expect(normalizePublishedPortrait({ images: [
