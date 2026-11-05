@@ -45,9 +45,17 @@ function verifyReleaseIdentity(manifest, required = false) {
 
 
 function validateBuildProvenance(manifest, compareContext = false) {
+  const project = manifest.project;
   const source = manifest.source;
   const ci = manifest.ci;
   const commit = source?.gitCommit;
+  if (typeof project !== 'string' || !project.trim() || project === 'unnamed-project' ||
+      project !== project.trim() || /[\\x00-\\x1f\\x7f]/.test(project)) {
+    throw new Error('Release provenance requires a valid, explicit project identifier.');
+  }
+  if (!ci || !['github-actions', 'jenkins'].includes(ci.provider)) {
+    throw new Error('Release provenance requires a recognized CI provider.');
+  }
   const buildNumber = source?.buildNumber;
   const repository = ci?.repository;
   const branch = ci?.branch;
@@ -84,11 +92,15 @@ function validateBuildProvenance(manifest, compareContext = false) {
   }
 
   if (compareContext) {
+    const expectedProject = process.env.PROJECT_NAME || '';
+    const expectedProvider = process.env.GITHUB_ACTIONS === 'true' ? 'github-actions' : process.env.JENKINS_URL ? 'jenkins' : '';
     const expectedRepository = process.env.BUILD_REPOSITORY || process.env.GITHUB_REPOSITORY || '';
     const expectedBranch = getCiBranch();
     const expectedCommit = getSourceCommit();
     const expectedBuild = getBuildNumber();
-    if ((expectedRepository && repository !== expectedRepository) ||
+    if ((expectedProject && project !== expectedProject) ||
+        (expectedProvider && ci.provider !== expectedProvider) ||
+        (expectedRepository && repository !== expectedRepository) ||
         (expectedBranch && branch !== expectedBranch) ||
         !/^[a-f0-9]{40,64}$/i.test(expectedCommit) ||
         commit.toLowerCase() !== expectedCommit.toLowerCase() ||
