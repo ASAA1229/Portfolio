@@ -129,22 +129,13 @@ export function PersonUnavailable({
   );
 }
 function ContactActions({ profile }: { profile: PersonPortfolio }) {
+  const published = usePublishedProfileResume(profile.id);
+  const email = published?.contact?.email || profile.email;
+  const phone = published?.contact?.phone || profile.phone;
   return (
     <>
-      {profile.email && (
-        <Button asChild className="min-h-11">
-          <a href={`mailto:${profile.email}`}>
-            <Mail /> Email {profile.displayName}
-          </a>
-        </Button>
-      )}
-      {profile.phone && (
-        <Button asChild variant="outline" className="min-h-11">
-          <a href={`tel:${profile.phone.replaceAll(" ", "")}`}>
-            <Phone /> Call {profile.displayName}
-          </a>
-        </Button>
-      )}
+      {email && <Button asChild className="min-h-11"><a href={"mailto:" + email}><Mail /> Email {profile.displayName}</a></Button>}
+      {phone && <Button asChild variant="outline" className="min-h-11"><a href={"tel:" + phone.replace(/[^+0-9]/g, "")}><Phone /> Call {profile.displayName}</a></Button>}
     </>
   );
 }
@@ -367,6 +358,10 @@ export function PersonContent({
   section: PortfolioSection;
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedEmail = publishedResume?.contact?.email || profile.email;
+  const publishedPhone = publishedResume?.contact?.phone || profile.phone;
+  const publishedLinkedIn = publishedResume?.contact?.linkedin;
+  const publishedGitHub = publishedResume?.contact?.github;
   const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string; slot?: string }[]>([]);
   useEffect(() => {
     let active = true;
@@ -596,19 +591,19 @@ export function PersonContent({
           <section>
             <h2 className="text-4xl">Let's talk.</h2>
             <div className="mt-7 space-y-5">
-              {profile.email && (
-                <a className="person-contact-detail" href={`mailto:${profile.email}`}>
+              {publishedEmail && (
+                <a className="person-contact-detail" href={"mailto:" + publishedEmail}>
                   <Mail />
-                  <span>{profile.email}</span>
+                  <span>{publishedEmail}</span>
                 </a>
               )}
-              {profile.phone && (
-                <a className="person-contact-detail" href={`tel:${profile.phone.replaceAll(" ", "")}`}>
+              {publishedPhone && (
+                <a className="person-contact-detail" href={"tel:" + publishedPhone?.replace(/[^+0-9]/g, "")}>
                   <Phone />
-                  <span>{profile.phone}</span>
+                  <span>{publishedPhone}</span>
                 </a>
               )}
-              {!profile.email && !profile.phone && (
+              {!publishedEmail && !publishedPhone && (
                 <p className="max-w-md text-sm leading-7 text-muted-foreground">
                   Contact details will be added after the profile information is confirmed.
                 </p>
@@ -624,7 +619,7 @@ export function PersonContent({
           <section className="border-t border-border pt-6">
             <h2 className="text-3xl">Elsewhere</h2>
             <div className="mt-6 space-y-5">
-              {profile.socialLabels.map((social) => (
+              {[{ platform: "LinkedIn", handle: profile.socialLabels.find((item) => item.platform === "LinkedIn")?.handle ?? null, url: publishedLinkedIn }, { platform: "GitHub", handle: profile.socialLabels.find((item) => item.platform === "GitHub")?.handle ?? null, url: publishedGitHub }].map((social) => (
                 <div key={social.platform} className="flex items-start gap-3 text-muted-foreground">
                   {social.platform === "GitHub" ? (
                     <Github className="size-5" />
@@ -636,7 +631,7 @@ export function PersonContent({
                     {social.handle && (
                       <p className="mt-2 break-all font-mono text-xs">{social.handle}</p>
                     )}
-                    <p className="mt-2 text-xs">URL not provided</p>
+                    {social.url ? <a className="mt-2 block break-all text-xs text-primary underline" href={social.url} target="_blank" rel="noreferrer">{social.url}</a> : <p className="mt-2 text-xs">URL not provided</p>}
                   </div>
                 </div>
               ))}
