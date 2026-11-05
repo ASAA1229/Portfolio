@@ -280,7 +280,7 @@ export async function extractResumeText(
     return {
       text,
       method: "pdf-text",
-      warning: "PDF extraction is best-effort. Scanned pages, complex font encodings, and some compressed PDF structures may not be readable. Verify every extracted field against the original.",
+      warning: "PDF extraction is a best-effort first pass. Scanned pages need OCR, and complex font encodings or multi-column layouts may be incomplete or appear in the wrong reading order. Verify every extracted field and its order against the original.",
     };
   }
 
