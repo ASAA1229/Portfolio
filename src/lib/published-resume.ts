@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { ResumeSectionEntry, StructuredResumeEntry, StructuredResumeSections, ResumeSectionName } from "@/lib/resume-types";
 
 export type PublishedProfileResume = {
   id: string;
@@ -9,12 +10,7 @@ export type PublishedProfileResume = {
   skills: string[];
   contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
   uploadedAt?: string;
-  structuredSections?: {
-    experience?: string[];
-    education?: string[];
-    projects?: string[];
-    certifications?: string[];
-  };
+  structuredSections?: Partial<StructuredResumeSections>;
 };
 
 type PublishedResumeRecord = {
@@ -40,16 +36,35 @@ function normalizeSkills(value: unknown): string[] {
     .map((skill) => skill.trim());
 }
 
-function normalizeSections(value: unknown): PublishedProfileResume["structuredSections"] {
+function normalizeStructuredEntry(value: unknown): ResumeSectionEntry | null {
+  if (typeof value === "string") {
+    const text = value.trim().slice(0, 2000);
+    return text ? text : null;
+  }
+  if (!isRecord(value)) return null;
+  const allowed = ["title", "organization", "role", "location", "startDate", "endDate", "description", "technologies", "url", "credentialId", "grade"];
+  if (Object.keys(value).some((key) => !allowed.includes(key))) return null;
+  const entry: StructuredResumeEntry = {};
+  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"] as const) {
+    const field = value[key];
+    if (typeof field === "string") entry[key] = field.trim().slice(0, key === "description" ? 2000 : 320);
+  }
+  if (Array.isArray(value.technologies)) {
+    entry.technologies = value.technologies
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .slice(0, 30).map((item) => item.trim().slice(0, 80));
+  }
+  if (entry.url && !/^https:\/\//i.test(entry.url)) delete entry.url;
+  return Object.values(entry).some((field) => Array.isArray(field) ? field.length > 0 : !!field) ? entry : null;
+}
+
+function normalizeSections(value: unknown): Partial<StructuredResumeSections> | undefined {
   if (!isRecord(value)) return undefined;
-  const sections: NonNullable<PublishedProfileResume["structuredSections"]> = {};
+  const sections: Partial<StructuredResumeSections> = {};
   for (const name of ["experience", "education", "projects", "certifications"] as const) {
     const entries = value[name];
     if (Array.isArray(entries)) {
-      sections[name] = entries
-        .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-        .slice(0, 20)
-        .map((entry) => entry.trim().slice(0, 2000));
+      sections[name] = entries.map(normalizeStructuredEntry).filter((entry): entry is ResumeSectionEntry => entry !== null).slice(0, 40);
     }
   }
   return Object.keys(sections).length ? sections : undefined;
