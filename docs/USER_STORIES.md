@@ -304,7 +304,7 @@ Product baseline and remaining work: [POC.md](POC.md)
 - The authenticated policy's project, source commit and build number match the manifest.
 - Windows path separators are normalized before path validation.
 
-**Current development status:** strict manifest validation implemented in `scripts/customer-release-verifier.mjs` (commits `b70f8b39`, `94b1818d`, `fcb1a12f`). Automated execution remains paused.
+**Current development status:** strict manifest validation implemented in `scripts/customer-release-verifier.mjs` (commits `b70f8b39`, `94b1818d`, `fcb1a12f`, `474c435b`). Policy creation also rejects a package whose filename, size or SHA-256 does not match the manifest. Automated execution remains paused.
 
 ### PORT-US-031 — Verify customer packages and explain failures
 **As a release operator,** I want a consistent customer-package verification sequence with a useful report, so that delivery failures can be diagnosed safely.
