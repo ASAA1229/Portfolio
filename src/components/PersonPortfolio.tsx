@@ -430,10 +430,7 @@ export function PersonContent({
             {publishedResume?.structuredSections?.education?.length ? (
               <div className="grid gap-5 md:grid-cols-2">
                 {publishedResume.structuredSections.education.map((entry, index) => (
-                  <article key={index} className="rounded-lg border border-border bg-card p-6">
-                    <GraduationCap className="size-7 text-primary" />
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
-                  </article>
+                  <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
                 ))}
               </div>
             ) : <Education profile={profile} />}
@@ -479,10 +476,7 @@ export function PersonContent({
           <div className="grid gap-6 md:grid-cols-2">
             {publishedResume?.structuredSections?.projects?.length ? (
               publishedResume.structuredSections.projects.map((entry, index) => (
-                <article key={index} className="rounded-lg border border-border bg-card p-6">
-                  <p className="font-mono text-xs text-primary">UPLOADED RESUME / PROJECT 0{index + 1}</p>
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
-                </article>
+                <ResumeEntryCard key={index} entry={entry} section="projects" index={index} />
               ))
             ) : profile.projects.map((project, index) => (
               <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
@@ -495,10 +489,7 @@ export function PersonContent({
           {publishedResume?.structuredSections?.experience?.length ? (
             <div className="grid gap-5 md:grid-cols-2">
               {publishedResume.structuredSections.experience.map((entry, index) => (
-                <article key={index} className="rounded-lg border border-border bg-card p-6">
-                  <p className="font-mono text-xs text-primary">UPLOADED RESUME / EXPERIENCE 0{index + 1}</p>
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
-                </article>
+                <ResumeEntryCard key={index} entry={entry} section="experience" index={index} />
               ))}
             </div>
           ) : (
@@ -544,11 +535,7 @@ export function PersonContent({
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {publishedResume?.structuredSections?.certifications?.length ? (
               publishedResume.structuredSections.certifications.map((entry, index) => (
-                <article key={index} className="cert-card">
-                  <Award className="size-7 text-gold" />
-                  <p className="mt-5 font-mono text-xs text-gold">UPLOADED RESUME</p>
-                  <h2 className="mt-3 whitespace-pre-wrap text-lg leading-tight">{entry}</h2>
-                </article>
+                <ResumeEntryCard key={index} entry={entry} section="certifications" index={index} compact />
               ))
             ) : profile.certifications.map((cert) => (
               <article key={cert.title} className="cert-card">
@@ -566,10 +553,7 @@ export function PersonContent({
           {publishedResume?.structuredSections?.education?.length ? (
             <div className="grid gap-5 md:grid-cols-2">
               {publishedResume.structuredSections.education.map((entry, index) => (
-                <article key={index} className="rounded-lg border border-border bg-card p-6">
-                  <GraduationCap className="size-7 text-primary" />
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
-                </article>
+                <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
               ))}
             </div>
           ) : <Education profile={profile} />}
