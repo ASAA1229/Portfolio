@@ -180,7 +180,7 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 - CI signing/checksum foundations, scoped signing credentials, temporary-key cleanup and fail-fast command handling.
 
 **Remaining development scope**
-- Compare the actual archive contents (not only a separately supplied extracted directory) with the declared inventory and verify per-file size/hash.
+- Improve archive verifier portability/diagnostics and document the system `tar` prerequisite.
 - Complete customer verification stage reporting and failure diagnostics.
 - Document CI configuration, secret names, artifact retention and release/rollback handling without storing secrets.
 - Preserve project-specific workflow differences while keeping shared manifest and verifier contracts aligned with JARVIS.
@@ -198,4 +198,4 @@ The portfolio artifact-integrity implementation enforces explicit project identi
 
 **Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`, `474c435b`.
 
-Archive-member-to-manifest verification, richer stage-specific reports and documentation remain open. Pipeline execution and artifact acceptance remain pending; testing is paused.
+The customer verifier now inspects `.tar.gz` member names and entry types before extraction, rejects unsafe paths and non-regular entries (including symbolic/hard links), extracts into an isolated temporary directory, and compares the resulting inventory with manifest file paths, sizes and SHA-256 values. GitHub Actions and Jenkins now pass the archive directly to the verifier. This implementation requires the system `tar` utility on the CI agent. Richer stage-specific reports, CI/rollback documentation and exact-head acceptance remain open; pipeline execution and artifact acceptance are pending because testing is paused.
