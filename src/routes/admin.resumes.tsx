@@ -212,7 +212,7 @@ function ResumeManager() {
       ]),
       "[END MAPPED SECTIONS]",
     ].join("\n");
-    const existing = sourceText;
+    const existing = sourceText
       .replace(/\[MAPPED RESUME SECTIONS — PRIVATE REVIEW ONLY\][\s\S]*?\[END MAPPED SECTIONS\]/g, "")
       .trim();
     const notes = [existing, privateBlock].filter(Boolean).join("\n\n").slice(0, 12000);
