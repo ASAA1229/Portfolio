@@ -150,6 +150,7 @@ export function usePublishedProfileResume(profileId: string): PublishedProfileRe
   const [resume, setResume] = useState<PublishedProfileResume | null>(null);
   useEffect(() => {
     let active = true;
+    setResume(null);
     fetch("/api/published-resumes", {
       headers: { accept: "application/json" },
       cache: "no-store",
@@ -169,6 +170,7 @@ export function usePublishedProfilePortrait(profileId: string): string | null {
   const [portrait, setPortrait] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
+    setPortrait(null);
     fetch("/api/published-images", {
       headers: { accept: "application/json" },
       cache: "no-store",
