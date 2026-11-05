@@ -65,8 +65,10 @@ pipeline {
           node scripts/artifact-integrity.mjs hash "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256"
           $trustedPolicyHash = (Get-Content "portfolio-manifest-ignore.json.sha256").Split(' ')[0]
           node scripts/customer-release-verifier.mjs verify "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "$env:MANIFEST_FILE" "$env:ARTIFACT_FILE" "$artifactDir" $trustedPolicyHash
+          node scripts/release-index.mjs "$env:ARTIFACT_FILE" "$env:MANIFEST_FILE" "$env:CHECKSUM_FILE" "portfolio-dependencies.cdx.json" "portfolio-manifest-ignore.json" "portfolio-manifest-ignore.json.sha256" "portfolio-release-index.json"
+          if ($LASTEXITCODE -ne 0) { throw "Release index creation failed." }
         '''
-        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256,portfolio-dependencies.cdx.json', fingerprint: true
+        archiveArtifacts artifacts: 'portfolio-build.tar.gz,portfolio-manifest.json,portfolio-build.tar.gz.sha256,portfolio-manifest-ignore.json,portfolio-manifest-ignore.json.sha256,portfolio-dependencies.cdx.json,portfolio-release-index.json', fingerprint: true
       }
     }
     stage('Sign manifest-ignore policy (optional)') {
