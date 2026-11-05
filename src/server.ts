@@ -348,7 +348,7 @@ async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRe
       headline,
       summary,
       skills,
-      ...(contact ? { contact } : {}),
+      contact: contact ?? {},
       structuredSections: structuredSections ?? {
         experience: [],
         education: [],
