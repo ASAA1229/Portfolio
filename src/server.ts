@@ -514,6 +514,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
           payload.skills.some((skill) => typeof skill !== "string") ||
+          !isValidPublicContact(payload.contact) ||
           (payload.structuredSections !== undefined && (!payload.structuredSections || typeof payload.structuredSections !== "object" || !["experience", "education", "projects", "certifications"].every((section) => Array.isArray(payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>]) && (payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>] as unknown[]).every((entry) => typeof entry === "string")))) ||
           (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
           !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
@@ -529,6 +530,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
+        ...(payload.contact ? { contact: payload.contact } : {}),
         structuredSections: {
           experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
           education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => entry.slice(0, 1200)),
