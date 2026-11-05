@@ -234,3 +234,47 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Every portfolio portrait and gallery image reference resolves to a committed file.
 - Missing image paths fail the automated test suite with the missing path listed.
 - The check covers all supported profile entries and does not rely on remote network access.
+
+
+## Additional stories — current hardening increments
+
+### PORT-US-024 — Approved, profile-scoped resume context for AI
+
+**As a visitor,** I want the portfolio assistant to use only the selected person's latest approved published resume information, so that answers are current without exposing private drafts or mixing profiles.
+
+**Acceptance criteria**
+- The server obtains resume context only from the approved published-resume feed.
+- The selected profile ID is matched before context is attached or used.
+- Client-supplied resume context cannot override server-approved context.
+- Private drafts, original resume files and review notes are excluded.
+- Resume content is treated as untrusted data; embedded instructions are ignored.
+- Request-size limits remain enforced after context enrichment.
+- Missing or unavailable approved context falls back safely without inventing facts.
+
+**Current status:** IMPLEMENTED in source; runtime and regression verification pending.
+
+### PORT-US-025 — Reliable AI streaming and request cancellation
+
+**As a visitor,** I want streamed assistant responses to finish completely and respect cancellation, so that I do not see truncated text, stale answers or speech after stopping a request.
+
+**Acceptance criteria**
+- Final buffered server-sent events are processed even when the stream ends without a newline.
+- UTF-8 decoder buffers are flushed at stream completion.
+- Only the active request may update the current conversation or busy state.
+- Cancelled requests do not continue speaking or overwrite a newer response.
+- Offline fallback content is shown in the conversation when the provider request fails.
+
+**Current status:** IMPLEMENTED in source; browser and automated verification pending.
+
+### PORT-US-026 — Validate release and snapshot integrity inputs
+
+**As a portfolio maintainer,** I want release manifests and environment snapshot inventories validated before comparison, so that unsafe paths or malformed metadata cannot produce misleading integrity reports.
+
+**Acceptance criteria**
+- Manifest inventory paths reject absolute, traversal, NUL-containing and Windows drive-relative/drive-prefixed paths.
+- Duplicate manifest paths, invalid sizes and malformed SHA-256 digests are rejected.
+- Snapshot inventories validate schema, file count, unique safe paths, sizes and SHA-256 values.
+- Baseline and snapshot ignore policies must be equivalent; policy entries are deduplicated and sorted before comparison.
+- Invalid inputs fail closed and do not produce a success report.
+
+**Current status:** IMPLEMENTED in source; automated execution remains paused. This story covers generic repository integrity utilities only, not the separate CMM/Nexus product.
