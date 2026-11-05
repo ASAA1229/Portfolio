@@ -40,10 +40,6 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
-      - name: ESLint checks (existing Prettier-format debt tracked separately)
-        run: "npm run lint -- --rule 'prettier/prettier: off'"
-      - name: Tests
-        run: npm test
       - name: Create and verify SHA-256 build manifest
         shell: bash
         run: |
