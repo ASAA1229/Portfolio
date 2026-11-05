@@ -110,14 +110,36 @@ export async function createSnapshot(root, destination, ignorePath) {
   return snapshot;
 }
 
-export function compareInventories(baseline, current) {
-  for (const value of [baseline, current]) {
-    if (value?.schemaVersion !== SCHEMA_VERSION || value?.algorithm !== 'SHA256' || !Array.isArray(value.files)) {
-      fail('Invalid baseline or snapshot schema.');
-    }
+function validatedInventory(value, label) {
+  if (value?.schemaVersion !== SCHEMA_VERSION || value?.algorithm !== 'SHA256' ||
+      !Array.isArray(value.files) || !Number.isSafeInteger(value.fileCount) ||
+      value.fileCount < 0 || value.fileCount !== value.files.length ||
+      !Array.isArray(value.ignoredPaths) || value.ignoredPaths.some((entry) => typeof entry !== 'string')) {
+    fail('Invalid ' + label + ' schema or file count.');
   }
-  const before = new Map(baseline.files.map((entry) => [normalizeRelative(entry.path), entry]));
-  const after = new Map(current.files.map((entry) => [normalizeRelative(entry.path), entry]));
+  const entries = new Map();
+  for (const entry of value.files) {
+    if (!entry || typeof entry !== 'object') fail('Invalid file entry in ' + label + '.');
+    const relative = normalizeRelative(entry.path);
+    if (entries.has(relative) || !Number.isSafeInteger(entry.size) || entry.size < 0 ||
+        typeof entry.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      fail('Invalid or duplicate file entry in ' + label + ': ' + relative);
+    }
+    entries.set(relative, entry);
+  }
+  const ignored = value.ignoredPaths.map(normalizeRelative);
+  if (new Set(ignored).size !== ignored.length) fail('Duplicate ignored path in ' + label + '.');
+  return { entries, ignored };
+}
+
+export function compareInventories(baseline, current) {
+  const beforeInventory = validatedInventory(baseline, 'baseline');
+  const afterInventory = validatedInventory(current, 'snapshot');
+  if (JSON.stringify(beforeInventory.ignored) !== JSON.stringify(afterInventory.ignored)) {
+    fail('Baseline and snapshot use different ignored-path policies; create a new baseline or use the matching ignore file.');
+  }
+  const before = beforeInventory.entries;
+  const after = afterInventory.entries;
   const modified = [], missing = [], unexpected = [], unchanged = [];
   for (const [name, oldEntry] of before) {
     const newEntry = after.get(name);
