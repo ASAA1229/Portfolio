@@ -19,7 +19,7 @@ function getBuildNumber() {
 
 function getCiBranch() {
   const branch = process.env.BUILD_BRANCH || process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '';
-  return branch.replace(/^refs\\/heads\\//, '').replace(/^origin\\//, '');
+  return branch.replace(/^refs\/heads\//, '').replace(/^origin\//, '');
 }
 
 function releaseIdentityFor(manifest) {
