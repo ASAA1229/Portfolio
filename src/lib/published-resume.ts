@@ -65,7 +65,7 @@ function normalizeRecord(value: unknown, profileId: string): PublishedProfileRes
   const rawContact = isRecord(value.contact) ? value.contact : undefined;
   const contact = rawContact ? Object.fromEntries(
     (["email", "phone", "linkedin", "github"] as const)
-      .filter((key) => typeof rawContact[key] === "string")
+      .filter((key) => typeof rawContact[key] === "string" && (key !== "linkedin" && key !== "github" || /^https:\/\//i.test(String(rawContact[key]).trim())))
       .map((key) => [key, String(rawContact[key]).trim().slice(0, 320)]),
   ) as NonNullable<PublishedProfileResume["contact"]> : undefined;
   const uploadedAt = typeof value.uploadedAt === "string" && Number.isFinite(Date.parse(value.uploadedAt))
