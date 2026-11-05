@@ -275,31 +275,63 @@ async function archiveMemberDigest(archivePath, memberPath) {
 
 async function verifyArchiveInventory(archivePath, expected) {
   let listing = '';
+  let verboseListing = '';
+  const listingLimit = 64 * 1024 * 1024;
   await runTar(['-tzf', archivePath], (chunk) => {
     listing += chunk.toString('utf8');
-    if (listing.length > 64 * 1024 * 1024) throw new Error('Archive member listing exceeds the 64 MiB safety limit.');
+    if (listing.length > listingLimit) throw new Error('Archive member listing exceeds the 64 MiB safety limit.');
   });
+  await runTar(['-tvzf', archivePath], (chunk) => {
+    verboseListing += chunk.toString('utf8');
+    if (verboseListing.length > listingLimit) throw new Error('Verbose archive listing exceeds the 64 MiB safety limit.');
+  });
+
+  const verboseLines = verboseListing.split('\\n').filter(Boolean);
   const archived = new Map();
-  for (const rawName of listing.split('\n')) {
+  const problems = [];
+  for (const rawName of listing.split('\\n')) {
     if (!rawName) continue;
     const member = normalizeArchiveMember(rawName);
     if (!member) continue;
-    if (archived.has(member)) throw new Error('Duplicate archive member rejected: ' + member);
+    if (archived.has(member)) {
+      problems.push('ARCHIVE DUPLICATE: ' + member);
+      continue;
+    }
+    const metadata = verboseLines.find((line) => line.endsWith(rawName));
+    if (!metadata || !metadata.length) {
+      problems.push('ARCHIVE TYPE UNKNOWN: ' + member + ' (could not read verbose tar metadata)');
+    } else if (metadata[0] !== '-') {
+      problems.push('ARCHIVE TYPE REJECTED: ' + member + ' (only regular files are permitted; type=' + metadata[0] + ')');
+    }
     archived.set(member, rawName);
   }
-  const problems = [];
+
   for (const [member, entry] of expected) {
-    if (!archived.has(member)) { problems.push('ARCHIVE MISSING: ' + member); continue; }
-    const actual = await archiveMemberDigest(archivePath, member);
-    if (actual.size !== entry.size || actual.sha256 !== entry.sha256) problems.push('ARCHIVE MISMATCH: ' + member);
+    if (!archived.has(member)) {
+      problems.push('ARCHIVE MISSING: ' + member);
+      continue;
+    }
+    try {
+      const actual = await archiveMemberDigest(archivePath, member);
+      if (actual.size !== entry.size) {
+        problems.push('ARCHIVE SIZE MISMATCH: ' + member + ' (expected=' + entry.size + ', actual=' + actual.size + ')');
+      }
+      if (actual.sha256 !== entry.sha256) {
+        problems.push('ARCHIVE SHA256 MISMATCH: ' + member + ' (expected=' + entry.sha256 + ', actual=' + actual.sha256 + ')');
+      }
+    } catch (error) {
+      problems.push('ARCHIVE UNREADABLE: ' + member + ' (' + error.message + ')');
+    }
     archived.delete(member);
   }
   for (const member of archived.keys()) problems.push('ARCHIVE UNEXPECTED: ' + member);
+
   if (problems.length) {
-    console.error('Release archive inventory verification FAILED:');
+    console.error('Release archive inventory verification FAILED (' + problems.length + ' issue(s)):');
     for (const problem of problems) console.error(' - ' + problem);
-    throw new Error('Release archive contents do not match the manifest inventory.');
+    throw new Error('Release archive contents or entry types do not match the manifest inventory.');
   }
+  console.log('Release archive inventory verification PASSED: ' + expected.size + ' regular file(s) verified.');
 }
 async function createManifest(directory, manifestPath, artifactPath) {
   const sourceCommit = getSourceCommit();
