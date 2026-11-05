@@ -189,8 +189,8 @@ function ResumeManager() {
       }
       update(record.id, { privateReviewNotes: payload.text });
       setMessage(payload.warning
-        ? `Text extracted into private review notes. ${payload.warning}`
-        : "Text extracted into private review notes. Review it, then save the private draft.");
+        ? `Assistive extraction completed into private review notes. ${payload.warning} Review the original before mapping or publishing.`
+        : "Assistive extraction completed into private review notes. Check headings, bullets, dates, and reading order against the original before mapping or publishing.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not extract document text.");
     } finally {
