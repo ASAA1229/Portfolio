@@ -15,6 +15,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
   structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
   privateReviewNotes?: string;
 };
@@ -123,7 +124,7 @@ function ResumeManager() {
       const response = await fetch(`/api/admin/resumes/${record.id}/publish`, {
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
+        body: JSON.stringify({ profileId: record.profileId ?? "unassigned", displayName: record.displayName, headline: record.headline, summary: record.summary, skills: record.skills, contact: record.contact ?? {}, structuredSections: record.structuredSections ?? { experience: [], education: [], projects: [], certifications: [] }, privateReviewNotes: record.privateReviewNotes ?? "" }),
       });
       const payload = await response.json() as { resume?: ResumeRecord; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Could not approve the resume.");
@@ -372,6 +373,16 @@ function ResumeManager() {
                 <label className="text-xs text-white/60 sm:col-span-2">Public summary<textarea value={record.summary} onChange={(event) => update(record.id, { summary: event.target.value })} maxLength={3000} rows={4} placeholder="Write and verify the summary that may be public." className="mt-2 w-full border border-white/15 bg-black/30 p-3 text-sm text-white" /></label>
                 <label className="text-xs text-white/60 sm:col-span-2">Skills (comma-separated)<input value={record.skills.join(", ")} onChange={(event) => update(record.id, { skills: event.target.value.split(",").map((skill) => skill.trim()).filter(Boolean).slice(0, 60) })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" /></label>
                 <div className="sm:col-span-2 rounded border border-white/10 p-4">
+                  <h4 className="text-sm font-semibold text-white/80">Public contact & social links</h4>
+                  <p className="mt-1 text-xs text-white/40">Optional. Only reviewed values are published; use full HTTPS URLs for social profiles.</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {(["email", "phone", "linkedin", "github"] as const).map((field) => (
+                      <label key={field} className="text-xs capitalize text-white/60">{field}
+                        <input value={record.contact?.[field] ?? ""} onChange={(event) => update(record.id, { contact: { ...record.contact, [field]: event.target.value } })} maxLength={320} placeholder={field === "linkedin" || field === "github" ? "https://..." : ""} className="mt-2 min-h-10 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="my-4 border-t border-white/10" />
                   <h4 className="text-sm font-semibold text-white/80">Structured profile sections</h4>
                   <p className="mt-1 text-xs text-white/40">Edit, add or remove individual entries. Changes stay private until you explicitly approve and publish this resume.</p>
                   {(["experience", "education", "projects", "certifications"] as const).map((section) => {
