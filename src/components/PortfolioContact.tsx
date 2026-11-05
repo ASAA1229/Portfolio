@@ -4,8 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/Reveal";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
 import { CONTACT } from "@/lib/portfolio-data";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 
 export function PortfolioContact() {
+  const published = usePublishedProfileResume("abhishek");
+  const email = published?.contact?.email || CONTACT.email;
+  const phone = published?.contact?.phone || CONTACT.phone;
+  const linkedin = published?.contact?.linkedin || CONTACT.linkedin;
+  const github = published?.contact?.github || CONTACT.github;
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -35,7 +41,7 @@ export function PortfolioContact() {
     setIsSubmitting(true);
     const data = result.data;
     const body = `${data.message}\n\n— ${data.name} (${data.email})`;
-    window.location.href = `mailto:${CONTACT.email}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(body)}`;
     setFeedback(
       "Email draft prepared. Send it in your email app; no message has been sent from this website.",
     );
@@ -44,7 +50,7 @@ export function PortfolioContact() {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(CONTACT.email);
+      await navigator.clipboard.writeText(email);
       setCopied(true);
       setCopyFeedback("Email copied to clipboard.");
       setTimeout(() => setCopied(false), 3000);
@@ -71,10 +77,10 @@ export function PortfolioContact() {
                 <span className="min-w-0 break-all">
                   <span className="text-muted-foreground">email:</span>{" "}
                   <a
-                    href={`mailto:${CONTACT.email}`}
+                    href={`mailto:${email}`}
                     className="transition-colors hover:text-accent"
                   >
-                    {CONTACT.email}
+                    {email}
                   </a>
                 </span>
                 <Button
@@ -91,10 +97,10 @@ export function PortfolioContact() {
               <p>
                 <span className="text-muted-foreground">phone:</span>{" "}
                 <a
-                  href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}
+                  href={`tel:${phone.replace(/[^+0-9]/g, "")}`}
                   className="transition-colors hover:text-accent"
                 >
-                  {CONTACT.phone}
+                  {phone}
                 </a>
               </p>
               <p>
@@ -104,24 +110,24 @@ export function PortfolioContact() {
                 {copyFeedback}
               </p>
               <div className="flex flex-wrap gap-3 pt-4">
-                {CONTACT.linkedin && (
+                {linkedin && (
                   <Button
                     variant="portfolio"
                     asChild
                     className="transition-transform duration-200 hover:-translate-y-0.5"
                   >
-                    <a href={CONTACT.linkedin} target="_blank" rel="noopener noreferrer">
+                    <a href={linkedin} target="_blank" rel="noopener noreferrer">
                       LinkedIn
                     </a>
                   </Button>
                 )}
-                {CONTACT.github && (
+                {github && (
                   <Button
                     variant="portfolio"
                     asChild
                     className="transition-transform duration-200 hover:-translate-y-0.5"
                   >
-                    <a href={CONTACT.github} target="_blank" rel="noopener noreferrer">
+                    <a href={github} target="_blank" rel="noopener noreferrer">
                       GitHub
                     </a>
                   </Button>
