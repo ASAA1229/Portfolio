@@ -230,7 +230,9 @@ function ResumeManager() {
     setMessage(
       sectionNames.length
         ? `Mapped ${sectionNames.length} recognizable sections and ${Object.keys(suggestedContact).length} explicit contact fields. Clearly labelled fields were suggested automatically; ambiguous text was kept in descriptions. Review every suggestion before saving or publishing.`
-        : "No recognized section headings were found. No public fields were changed; review the extracted text manually.",
+        : Object.keys(suggestedContact).length
+          ? `No recognized section headings were found, but ${Object.keys(suggestedContact).length} explicit contact fields were suggested. Review them and the extracted text manually.`
+          : "No recognized section headings or explicit contact fields were found. No public fields were changed; review the extracted text manually.",
     );
     setError("");
   }
