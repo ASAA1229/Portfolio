@@ -72,7 +72,7 @@ export function PersonShell({
       </a>
       <PortfolioNavbar person={profile} />
       <div id="person-content">{children}</div>
-      <PersonPortfolioAssistant profile={profile} />
+      <PersonPortfolioAssistant key={profile.id} profile={profile} />
       <footer className="site-footer">
         <div className="site-container">
           <p className="font-mono text-xs text-primary">THE NEXT CHAPTER</p>
