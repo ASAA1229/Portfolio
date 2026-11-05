@@ -9,6 +9,20 @@ const ALGORITHM = 'sha256';
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, '..');
 
+function getSourceCommit() {
+  return process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || process.env.GITHUB_SHA || '';
+}
+
+function getBuildNumber() {
+  return process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+}
+
+function getCiBranch() {
+  const branch = process.env.BUILD_BRANCH || process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || '';
+  return branch.replace(/^refs\\/heads\\//, '').replace(/^origin\\//, '');
+}
+
+
 function usage() {
   console.error(
     'Usage:\n' +
@@ -77,8 +91,8 @@ function safeManifestPath(value) {
 }
 
 async function createManifest(directory, manifestPath, artifactPath) {
-  const sourceCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
-  const buildNumber = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+  const sourceCommit = getSourceCommit();
+  const buildNumber = getBuildNumber();
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true' &&
       (!/^[a-f0-9]{40,64}$/i.test(sourceCommit) || !buildNumber.trim())) {
     throw new Error('Release provenance requires a full Git commit SHA and build number.');
@@ -95,13 +109,13 @@ async function createManifest(directory, manifestPath, artifactPath) {
     project: process.env.PROJECT_NAME || 'unnamed-project',
     algorithm: ALGORITHM.toUpperCase(),
     source: {
-      gitCommit: process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || 'UNKNOWN',
-      buildNumber: process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || 'LOCAL',
+      gitCommit: getSourceCommit() || 'UNKNOWN',
+      buildNumber: getBuildNumber() || 'LOCAL',
     },
     ci: {
       provider: process.env.GITHUB_ACTIONS === 'true' ? 'github-actions' : process.env.JENKINS_URL ? 'jenkins' : 'local',
       repository: process.env.BUILD_REPOSITORY || process.env.GITHUB_REPOSITORY || 'UNKNOWN',
-      branch: process.env.BUILD_BRANCH || process.env.GITHUB_REF_NAME || 'UNKNOWN',
+      branch: getCiBranch() || 'UNKNOWN',
       workflow: process.env.BUILD_WORKFLOW || process.env.GITHUB_WORKFLOW || 'UNKNOWN',
       runId: process.env.BUILD_RUN_ID || process.env.GITHUB_RUN_ID || 'UNKNOWN',
       runUrl: process.env.BUILD_RUN_URL || (
@@ -161,8 +175,8 @@ async function verifyManifest(directory, manifestPath, artifactPath) {
   }
 
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') {
-    const expectedCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
-    const expectedBuild = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+    const expectedCommit = getSourceCommit();
+    const expectedBuild = getBuildNumber();
     if (!/^[a-f0-9]{40,64}$/i.test(expectedCommit) || !expectedBuild.trim() ||
         manifest.source.gitCommit.toLowerCase() !== expectedCommit.toLowerCase() ||
         manifest.source.buildNumber !== expectedBuild) {
