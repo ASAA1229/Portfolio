@@ -214,11 +214,11 @@ function extractPdfTextFromContent(content: string): string[] {
   );
   let order = 0;
   for (const block of blocks) {
-    let x = 0, y = 0, leading = 0, fontSize = 10;
+    let x = 0, y = 0, lineX = 0, lineY = 0, leading = 0, fontSize = 10;
     for (const match of block.matchAll(tokenPattern)) {
-      if (match[1] !== undefined) { x = Number(match[5]); y = Number(match[6]); }
-      else if (match[7] !== undefined) { x += Number(match[7]); y += Number(match[8]); }
-      else if (match[9] !== undefined) { x += Number(match[9]); y += Number(match[10]); }
+      if (match[1] !== undefined) { lineX = x = Number(match[5]); lineY = y = Number(match[6]); }
+      else if (match[7] !== undefined) { lineX += Number(match[7]); lineY += Number(match[8]); x = lineX; y = lineY; }
+      else if (match[9] !== undefined) { const tx = Number(match[9]), ty = Number(match[10]); leading = -ty; lineX += tx; lineY += ty; x = lineX; y = lineY; }
       else if (match[11] !== undefined) leading = Number(match[11]);
       else if (match[12] !== undefined) fontSize = Math.abs(Number(match[12])) || fontSize;
       else if (match[13] !== undefined) {
@@ -228,14 +228,16 @@ function extractPdfTextFromContent(content: string): string[] {
       } else if (match[14] !== undefined) {
         const tokens = match[14].match(/\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>|[-+]?(?:\\d+\\.?\\d*|\\.\\d+)/gi) ?? [];
         let combined = "";
+        const startX = x;
         for (const token of tokens) {
           if (/^(?:\\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
           else x -= Number(token) / 1000 * fontSize;
         }
-        if (combined.trim()) positioned.push({ text: combined, x, y, order: order++ });
+        if (combined.trim()) positioned.push({ text: combined, x: startX, y, order: order++ });
       } else if (match[15] !== undefined) {
-        x = 0;
-        y -= leading || fontSize * 1.2;
+        lineY -= leading || fontSize * 1.2;
+        x = lineX;
+        y = lineY;
       }
     }
   }
