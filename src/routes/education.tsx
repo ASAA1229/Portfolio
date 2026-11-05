@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, GraduationCap, MapPin, CalendarDays } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
+import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
 
@@ -39,6 +40,7 @@ function Education() {
         <span className="chapter-hero-index">KNOWLEDGE · PRACTICE · PROGRESS</span>
       </section>
       <PageBody>
+        <PublishedResumePanel profileId="abhishek" section="education" />
         <section id="education-record" className="career-timeline">
           <Reveal>
             <article className="career-chapter">
