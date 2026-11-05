@@ -925,8 +925,19 @@ export default {
     if (authResponse) return authResponse;
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
-    const imageResponse = await handlePortfolioImageApi(request, env);
-    if (imageResponse) return imageResponse;
+    try {
+      const imageResponse = await handlePortfolioImageApi(request, env);
+      if (imageResponse) return imageResponse;
+    } catch (error) {
+      // Keep image API failures inside the API boundary so the admin UI receives
+      // a JSON response instead of an opaque framework-generated HTTP 500.
+      console.error("Portfolio image API request failed.", error);
+      const message = error instanceof Error ? error.message : "Unknown image storage error.";
+      return jsonResponse({
+        error: "The image operation failed on the server.",
+        ...(import.meta.env.DEV === true ? { detail: message } : {}),
+      }, 500);
+    }
 
     // Admin routes remain protected by default. For local testing only, set
     // PORTFOLIO_ADMIN_AUTH_BYPASS=true with NODE_ENV other than production.
