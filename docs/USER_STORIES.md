@@ -314,6 +314,9 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Manifest schema, provenance and release identity are validated before package acceptance.
 - Package checksum is checked against trusted release metadata.
 - Reports identify the failed validation stage and reason without disclosing secrets.
+- CI persists the structured failure report when customer verification fails.
+- Verified release bundles are archived with traceable fingerprints/metadata and bounded retention.
+- A failed verification cannot enter the successful release archive or promotion path.
 - Legacy behavior is explicitly bounded and cannot bypass strict-provenance mode.
 
 ### PORT-US-032 — Produce SBOM-backed and signed CI artifacts
