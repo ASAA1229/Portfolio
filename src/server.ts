@@ -804,11 +804,12 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
               !!item && typeof item === "object" && !Array.isArray(item) &&
               item.profileId === profileId)
           : [];
-        candidates.sort((a, b) => {
-          const aTime = typeof a.uploadedAt === "string" ? Date.parse(a.uploadedAt) : 0;
-          const bTime = typeof b.uploadedAt === "string" ? Date.parse(b.uploadedAt) : 0;
-          return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
-        });
+        const timestamp = (record: Record<string, unknown>): number => {
+          if (typeof record.uploadedAt !== "string") return 0;
+          const parsed = Date.parse(record.uploadedAt);
+          return Number.isFinite(parsed) ? parsed : 0;
+        };
+        candidates.sort((a, b) => timestamp(b) - timestamp(a));
         const latest = candidates[0];
         if (latest) {
           const candidate = JSON.stringify(latest);
@@ -822,12 +823,25 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
     }
   }
 
+  // Discard any client-supplied internal field before adding trusted data.
+  const { _publishedResume: _untrustedResume, ...clientPayload } = payload;
+  let body = JSON.stringify({ ...clientPayload, _publishedResume: publishedResume });
+  const encoder = new TextEncoder();
+  if (encoder.encode(body).byteLength > 70 * 1024) {
+    // Preserve a valid user request when its body leaves no room for resume
+    // context; the chat route will then use its static verified profile data.
+    body = JSON.stringify({ ...clientPayload, _publishedResume: null });
+  }
+  if (encoder.encode(body).byteLength > 70 * 1024) {
+    return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
+  }
+
   const headers = new Headers(boundedRequest.headers);
   headers.delete("content-length");
   return new Request(boundedRequest.url, {
     method: boundedRequest.method,
     headers,
-    body: JSON.stringify({ ...payload, _publishedResume: publishedResume }),
+    body,
     redirect: boundedRequest.redirect,
   });
 }
