@@ -77,16 +77,18 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   validateReleaseManifest(manifest);
   const st = await lstat(artifactPath);
-  if (!st.isFile() || st.isSymbolicLink() || manifest?.schemaVersion !== 1 ||
-      manifest?.algorithm !== 'SHA256' || !Array.isArray(manifest.files) || !manifest.artifact) {
-    fail('Cannot create manifest-ignore policy from invalid release inputs.');
+  if (!st.isFile() || st.isSymbolicLink()) fail('Cannot create manifest-ignore policy from an invalid package artifact.');
+  const artifactHash = await hash(artifactPath);
+  if (path.basename(artifactPath) !== manifest.artifact.name ||
+      st.size !== manifest.artifact.size || artifactHash !== manifest.artifact.sha256) {
+    fail('Package artifact does not match the release manifest; policy was not created.');
   }
   const policy = {
     schemaVersion: 1, algorithm: 'SHA256', purpose: 'manifest-ignore',
     project: manifest.project, source: manifest.source,
     releaseIdentity: manifest.releaseIdentity,
     manifest: { name: path.basename(manifestPath), sha256: await hash(manifestPath) },
-    artifact: { name: path.basename(artifactPath), size: st.size, sha256: await hash(artifactPath) },
+    artifact: { name: path.basename(artifactPath), size: st.size, sha256: artifactHash },
   };
   await writeFile(policyPath, JSON.stringify(policy, null, 2) + '\n', { flag: 'wx' });
   console.log('Manifest-ignore created. Hash it with artifact-integrity.mjs and distribute that trusted digest separately.');
