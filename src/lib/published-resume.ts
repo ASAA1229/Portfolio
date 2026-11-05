@@ -116,7 +116,7 @@ export function normalizePublishedPortrait(payload: unknown, profileId: string):
   if (!isRecord(payload) || !Array.isArray(payload.images)) return null;
   const candidates = payload.images.filter((image): image is Record<string, unknown> =>
     isRecord(image) && image.profileId === profileId && image.slot === "portrait" &&
-    typeof image.src === "string" && /^\\/api\\/published-images\\/[0-9a-f-]{36}$/i.test(image.src),
+    typeof image.src === "string" && /^\\/api\\/published-images\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(image.src),
   );
   return typeof candidates.at(-1)?.src === "string" ? candidates.at(-1)!.src as string : null;
 }
