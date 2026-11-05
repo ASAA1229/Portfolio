@@ -3,11 +3,10 @@ name: Portfolio CI and Artifact Integrity
 on:
   push:
     branches:
-      - devops-integrity-pipeline
+      - new
   pull_request:
     branches:
       - dev
-      - main
   workflow_dispatch:
 
 permissions:
