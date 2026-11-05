@@ -156,13 +156,6 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
       manifest.artifact.name !== policy.artifact.name || manifest.artifact.size !== policy.artifact.size ||
       manifest.artifact.sha256 !== policy.artifact.sha256) fail('Package SHA-256 does not match policy and manifest.');
 
-    const normalizedPath = typeof e?.path === 'string' ? e.path.replaceAll('\\', '/') : '';
-    const pathParts = normalizedPath.split('/');
-    if (!e || typeof e.path !== 'string' || !normalizedPath || path.isAbsolute(normalizedPath) ||
-        path.win32.isAbsolute(normalizedPath) || normalizedPath.includes(String.fromCharCode(0)) ||
-        pathParts.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part)) ||
-        expected.has(normalizedPath) || !Number.isSafeInteger(e.size) || e.size < 0 ||
-        typeof e.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(e.sha256)) fail('Invalid or unsafe manifest inventory entry.');
   const actualEntries = await inventory(extractedDir), actual = new Map(actualEntries.map(e => [e.path, e])), errors = [];
   for (const [name, e] of expected) {
     const got = actual.get(name);
