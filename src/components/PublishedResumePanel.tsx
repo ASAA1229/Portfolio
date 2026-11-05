@@ -23,7 +23,7 @@ export function PublishedResumePanel({
   if (!resume) return null;
 
   const Icon = sectionMeta[section].icon;
-  const entries = resume.structuredSections?.[section] ?? [];
+  const entries = section === "skills" ? [] : resume.structuredSections?.[section] ?? [];
   const hasContent = section === "skills" ? resume.skills.length > 0 : entries.length > 0;
   if (!hasContent) return null;
 
