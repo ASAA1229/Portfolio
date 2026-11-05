@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, BriefcaseBusiness, MapPin } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
+import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { Reveal } from "@/components/Reveal";
 import { TechnologyList } from "@/components/TechLogo";
 import { MISSIONS } from "@/lib/portfolio-data";
@@ -40,6 +41,7 @@ function Experience() {
         <span className="chapter-hero-index">WORK IN PROGRESS · WORK THAT SHIPS</span>
       </section>
       <PageBody>
+        <PublishedResumePanel profileId="abhishek" section="experience" />
         <section className="experience-summary">
           <p className="chapter-kicker">ON THE JOB</p>
           <p>
