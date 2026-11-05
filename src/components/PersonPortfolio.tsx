@@ -130,8 +130,8 @@ export function PersonUnavailable({
 }
 function ContactActions({ profile }: { profile: PersonPortfolio }) {
   const published = usePublishedProfileResume(profile.id);
-  const email = published?.contact?.email || profile.email;
-  const phone = published?.contact?.phone || profile.phone;
+  const email = published ? published.contact?.email : profile.email;
+  const phone = published ? published.contact?.phone : profile.phone;
   return (
     <>
       {email && <Button asChild className="min-h-11"><a href={"mailto:" + email}><Mail /> Email {profile.displayName}</a></Button>}
@@ -348,8 +348,8 @@ export function PersonContent({
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedPortrait = usePublishedProfilePortrait(profile.id);
-  const publishedEmail = publishedResume?.contact?.email || profile.email;
-  const publishedPhone = publishedResume?.contact?.phone || profile.phone;
+  const publishedEmail = publishedResume ? publishedResume.contact?.email : profile.email;
+  const publishedPhone = publishedResume ? publishedResume.contact?.phone : profile.phone;
   const publishedLinkedIn = publishedResume?.contact?.linkedin;
   const publishedGitHub = publishedResume?.contact?.github;
   const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string; slot?: string }[]>([]);
