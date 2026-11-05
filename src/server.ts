@@ -220,6 +220,7 @@ type ResumeRecord = {
   headline: string;
   summary: string;
   skills: string[];
+  contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
   structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
   privateReviewNotes?: string;
 };
@@ -241,6 +242,21 @@ const ALLOWED_RESUME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
+function isValidPublicContact(value: unknown): value is NonNullable<ResumeRecord["contact"]> {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const contact = value as Record<string, unknown>;
+  for (const key of ["email", "phone", "linkedin", "github"] as const) {
+    const item = contact[key];
+    if (item !== undefined && (typeof item !== "string" || item.length > 320)) return false;
+    if (typeof item === "string" && (item.includes("\n") || item.includes("\r"))) return false;
+  }
+  if (typeof contact.email === "string" && contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) return false;
+  if (typeof contact.linkedin === "string" && contact.linkedin && !/^https:\/\//i.test(contact.linkedin)) return false;
+  if (typeof contact.github === "string" && contact.github && !/^https:\/\//i.test(contact.github)) return false;
+  return true;
+}
+
 function isResumeRecord(value: unknown): value is ResumeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Partial<ResumeRecord>;
@@ -256,7 +272,7 @@ function isResumeRecord(value: unknown): value is ResumeRecord {
     (record.status === "pending" || record.status === "approved") &&
     (record.profileId === undefined || validProfiles.includes(record.profileId)) &&
     typeof record.displayName === "string" && typeof record.headline === "string" &&
-    typeof record.summary === "string" && Array.isArray(record.skills) &&
+    typeof record.summary === "string" && Array.isArray(record.skills) && isValidPublicContact(record.contact) &&
     record.skills.every((skill) => typeof skill === "string") &&
     (record.privateReviewNotes === undefined || typeof record.privateReviewNotes === "string") &&
     (sections === undefined || (!!sections && typeof sections === "object" &&
@@ -287,7 +303,7 @@ async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]):
 async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
   const publicResumes = records
     .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
-     .map(({ id, profileId, displayName, headline, summary, skills, structuredSections, uploadedAt }) => ({
+     .map(({ id, profileId, displayName, headline, summary, skills, contact, structuredSections, uploadedAt }) => ({
       id,
       uploadedAt,
       profileId,
@@ -295,6 +311,7 @@ async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRe
       headline,
       summary,
       skills,
+      ...(contact ? { contact } : {}),
       structuredSections: structuredSections ?? {
         experience: [],
         education: [],
@@ -454,6 +471,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
           typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
           payload.skills.some((skill) => typeof skill !== "string") ||
+          !isValidPublicContact(payload.contact) ||
           (payload.structuredSections !== undefined && (!payload.structuredSections || typeof payload.structuredSections !== "object" || !["experience", "education", "projects", "certifications"].every((section) => Array.isArray(payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>]) && (payload.structuredSections?.[section as keyof NonNullable<ResumeRecord["structuredSections"]>] as unknown[]).every((entry) => typeof entry === "string")))) ||
           (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
           !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
@@ -466,6 +484,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
+        ...(payload.contact ? { contact: payload.contact } : {}),
         structuredSections: {
           experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => entry.slice(0, 1200)),
           education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => entry.slice(0, 1200)),
