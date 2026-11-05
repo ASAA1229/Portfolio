@@ -278,3 +278,56 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Invalid inputs fail closed and do not produce a success report.
 
 **Current status:** IMPLEMENTED in source; automated execution remains paused. This story covers generic repository integrity utilities only, not the separate CMM/Nexus product.
+
+## PORT-E08 — Shared DevOps Pipeline, Provenance & Artifact Integrity
+
+### PORT-US-024 — Generate traceable portfolio build provenance
+**As a release maintainer,** I want every portfolio artifact to include a machine-readable provenance manifest, so that its project, source revision and CI origin can be identified.
+
+**Acceptance criteria**
+- The manifest records project identity, repository, normalized branch, full source commit, build number and CI provider/run metadata.
+- Required fields are nonblank, non-placeholder and structurally valid.
+- CI metadata is compared with current environment values when available.
+- A deterministic release identity binds the project/source/build identity.
+- Missing or mismatched required provenance blocks acceptance.
+
+### PORT-US-025 — Validate manifest inventory and artifact integrity
+**As a release maintainer,** I want manifest inventory metadata and SHA-256 values validated before artifact acceptance, so that malformed or tampered packages are rejected.
+
+**Acceptance criteria**
+- Manifest schema version and checksum algorithm are supported and validated.
+- Declared file count equals the inventory array length.
+- Every file entry has a safe relative path, unique normalized path, non-negative safe-integer size and canonical SHA-256 digest.
+- Invalid inventory metadata is rejected before checksum verification.
+- The verifier compares archive members with the declared inventory and validates each file's size/hash before claiming archive-content integrity.
+
+### PORT-US-026 — Verify customer packages and explain failures
+**As a release operator,** I want a consistent customer-package verification sequence with a useful report, so that delivery failures can be diagnosed safely.
+
+**Acceptance criteria**
+- Manifest-ignore policy is authenticated and evaluated before manifest processing.
+- Manifest schema, provenance and release identity are validated before package acceptance.
+- Package checksum is checked against trusted release metadata.
+- Reports identify the failed validation stage and reason without disclosing secrets.
+- Legacy behavior is explicitly bounded and cannot bypass strict-provenance mode.
+
+### PORT-US-027 — Produce SBOM-backed and signed CI artifacts
+**As a release maintainer,** I want GitHub Actions and Jenkins to produce traceable artifacts with dependency SBOM and integrity metadata, so that releases can be independently reviewed.
+
+**Acceptance criteria**
+- Configured pipelines package artifact, manifest, checksum, signature metadata and CycloneDX SBOM.
+- Signing credentials are available only to signing operations and temporary key files are cleaned up.
+- Pipeline steps stop on command failures and reject incomplete output.
+- CI configuration is documented using secret/variable names only.
+- Exact-head pipeline execution and artifact inspection are recorded before acceptance.
+- Nexus publication remains disabled until separately authorized.
+
+### PORT-US-028 — Gate promotion and deployment on release evidence
+**As the portfolio owner,** I want promotion and deployment to remain controlled by explicit approval, so that unverified artifacts cannot be published.
+
+**Acceptance criteria**
+- Feature development remains on authorized `new` branch and integration promotion follows the documented branch policy.
+- Failed artifacts can be rejected/quarantined with an actionable reason.
+- Rollback and recovery instructions are documented.
+- No merge to production, deployment or Nexus publication occurs without explicit owner approval.
+- Testing and pipeline acceptance remain pending while validation is paused.
