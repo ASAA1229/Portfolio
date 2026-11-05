@@ -98,11 +98,14 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, ext
       manifest.artifact.sha256 !== policy.artifact.sha256) fail('Package SHA-256 does not match policy and manifest.');
   const expected = new Map();
   for (const e of manifest.files) {
-    if (!e || typeof e.path !== 'string' || !e.path || path.isAbsolute(e.path) || path.win32.isAbsolute(e.path) ||
-        e.path.includes(String.fromCharCode(0)) || e.path.replaceAll('\\', '/').split('/').some(s => !s || s === '.' || s === '..') ||
-        expected.has(e.path.replaceAll('\\', '/')) || !Number.isSafeInteger(e.size) || e.size < 0 ||
-        !/^[a-f0-9]{64}$/.test(e.sha256)) fail('Invalid or unsafe manifest inventory entry.');
-    expected.set(e.path.replaceAll('\\', '/'), { size: e.size, sha256: e.sha256 });
+    const normalizedPath = typeof e?.path === 'string' ? e.path.replaceAll('\\', '/') : '';
+    const pathParts = normalizedPath.split('/');
+    if (!e || typeof e.path !== 'string' || !normalizedPath || path.isAbsolute(normalizedPath) ||
+        path.win32.isAbsolute(normalizedPath) || normalizedPath.includes(String.fromCharCode(0)) ||
+        pathParts.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part)) ||
+        expected.has(normalizedPath) || !Number.isSafeInteger(e.size) || e.size < 0 ||
+        typeof e.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(e.sha256)) fail('Invalid or unsafe manifest inventory entry.');
+    expected.set(normalizedPath, { size: e.size, sha256: e.sha256 });
   }
   const actualEntries = await inventory(extractedDir), actual = new Map(actualEntries.map(e => [e.path, e])), errors = [];
   for (const [name, e] of expected) {
