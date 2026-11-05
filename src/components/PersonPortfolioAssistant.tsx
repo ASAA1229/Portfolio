@@ -114,7 +114,7 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
       if (abort.signal.aborted) return;
       const fallback = fallbackProfileAnswer(profile, question, mode);
       answer = `Live AI is currently unavailable, so I am answering from verified profile data instead.\n\n${fallback}`;
-
+      setMessages([...history, { role: "assistant", content: answer }]);
     } finally {
       setBusy(false);
     }
