@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileLock2, LogOut, ShieldCheck, UploadCloud, Trash2, Download, Save, RefreshCw, FilePenLine, ListTree } from "lucide-react";
 import { mapResumeSections, splitResumeSectionEntries } from "@/lib/resume-mapping";
+import { createEmptyResumeEntry, type ResumeSectionEntry, type StructuredResumeEntry, type StructuredResumeSections, type ResumeSectionName } from "@/lib/resume-types";
 
 type ResumeRecord = {
   id: string;
@@ -16,9 +17,49 @@ type ResumeRecord = {
   summary: string;
   skills: string[];
   contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
-  structuredSections?: { experience: string[]; education: string[]; projects: string[]; certifications: string[] };
+  structuredSections?: StructuredResumeSections;
   privateReviewNotes?: string;
 };
+
+function StructuredEntryEditor({
+  entry, section, index, onChange,
+}: {
+  entry: ResumeSectionEntry;
+  section: ResumeSectionName;
+  index: number;
+  onChange: (entry: ResumeSectionEntry) => void;
+}) {
+  if (typeof entry === "string") {
+    return <textarea aria-label={section + " entry " + (index + 1)} value={entry} onChange={(event) => onChange(event.target.value)} maxLength={section === "certifications" ? 500 : 2000} rows={3} className="w-full border border-white/15 bg-black/30 p-3 text-sm text-white" />;
+  }
+  const fields: { key: keyof StructuredResumeEntry; label: string; multiline?: boolean }[] = section === "experience"
+    ? [{ key: "role", label: "Role / designation" }, { key: "organization", label: "Company" }, { key: "location", label: "Location" }, { key: "startDate", label: "Start date" }, { key: "endDate", label: "End date" }, { key: "description", label: "Responsibilities / achievements", multiline: true }, { key: "technologies", label: "Technologies" }]
+    : section === "education"
+      ? [{ key: "title", label: "Qualification / degree" }, { key: "organization", label: "Institution" }, { key: "location", label: "Location" }, { key: "startDate", label: "Start date" }, { key: "endDate", label: "End date" }, { key: "grade", label: "Grade / score" }, { key: "description", label: "Description", multiline: true }]
+      : section === "projects"
+        ? [{ key: "title", label: "Project name" }, { key: "role", label: "Role" }, { key: "description", label: "Description", multiline: true }, { key: "technologies", label: "Technologies" }, { key: "url", label: "Project URL" }]
+        : [{ key: "title", label: "Certification name" }, { key: "organization", label: "Issuing organization" }, { key: "startDate", label: "Issue date" }, { key: "credentialId", label: "Credential ID" }, { key: "url", label: "Verification URL" }, { key: "description", label: "Description", multiline: true }];
+  function change(key: keyof StructuredResumeEntry, value: string) {
+    onChange({
+      ...entry,
+      [key]: key === "technologies" ? value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 30) : value,
+    });
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {fields.map(({ key, label, multiline }) => (
+        <label key={key} className={"text-[11px] text-white/55 " + (multiline ? "sm:col-span-2" : "")}>
+          {label}
+          {multiline ? (
+            <textarea value={key === "technologies" ? "" : String(entry[key] ?? "")} onChange={(event) => change(key, event.target.value)} maxLength={2000} rows={3} className="mt-1 w-full border border-white/15 bg-black/30 p-2 text-sm text-white" />
+          ) : (
+            <input value={key === "technologies" ? (entry.technologies ?? []).join(", ") : String(entry[key] ?? "")} onChange={(event) => change(key, event.target.value)} maxLength={320} placeholder={key === "url" ? "https://..." : ""} className="mt-1 min-h-10 w-full border border-white/15 bg-black/30 px-3 text-sm text-white" />
+          )}
+        </label>
+      ))}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/admin/resumes")({
   head: () => ({
