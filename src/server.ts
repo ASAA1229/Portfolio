@@ -772,6 +772,66 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+async function attachPublishedResumeContext(request: Request, env: unknown): Promise<Request | Response> {
+  const boundedRequest = await limitRequestBody(request, 70 * 1024);
+  if (boundedRequest instanceof Response) return boundedRequest;
+
+  let payload: Record<string, unknown>;
+  try {
+    const parsed: unknown = await boundedRequest.clone().json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return jsonResponse({ error: "Invalid request." }, 400);
+    }
+    payload = parsed as Record<string, unknown>;
+  } catch {
+    return jsonResponse({ error: "Invalid request." }, 400);
+  }
+
+  const profileId = typeof payload.person === "string" ? payload.person : "abhishek";
+  if (!["abhishek", "ammu", "bava", "sai"].includes(profileId)) return boundedRequest;
+
+  // Always overwrite the internal field: a browser cannot choose the resume
+  // facts used by the model, even if it submits a forged _publishedResume.
+  let publishedResume: Record<string, unknown> | null = null;
+  const bucket = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  if (bucket) {
+    try {
+      const object = await bucket.get("public/approved-resumes.json");
+      if (object) {
+        const feed = await object.json<{ resumes?: unknown[] }>();
+        const candidates = Array.isArray(feed.resumes)
+          ? feed.resumes.filter((item): item is Record<string, unknown> =>
+              !!item && typeof item === "object" && !Array.isArray(item) &&
+              item.profileId === profileId)
+          : [];
+        candidates.sort((a, b) => {
+          const aTime = typeof a.uploadedAt === "string" ? Date.parse(a.uploadedAt) : 0;
+          const bTime = typeof b.uploadedAt === "string" ? Date.parse(b.uploadedAt) : 0;
+          return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+        });
+        const latest = candidates[0];
+        if (latest) {
+          const candidate = JSON.stringify(latest);
+          if (new TextEncoder().encode(candidate).byteLength <= 20 * 1024) publishedResume = latest;
+        }
+      }
+    } catch (error) {
+      // A missing or unreadable publication must not expose private drafts or
+      // block the static portfolio assistant.
+      console.error("Could not load the approved resume context for portfolio chat.", error);
+    }
+  }
+
+  const headers = new Headers(boundedRequest.headers);
+  headers.delete("content-length");
+  return new Request(boundedRequest.url, {
+    method: boundedRequest.method,
+    headers,
+    body: JSON.stringify({ ...payload, _publishedResume: publishedResume }),
+    redirect: boundedRequest.redirect,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const path = normalizedPath(request);
@@ -790,6 +850,12 @@ export default {
     }
     if (isAdmin && path === "/admin/login" && request.method !== "GET") {
       return privateNotFound();
+    }
+
+    if (path === "/api/chat" && request.method === "POST") {
+      const contextualRequest = await attachPublishedResumeContext(request, env);
+      if (contextualRequest instanceof Response) return contextualRequest;
+      request = contextualRequest;
     }
 
     try {
