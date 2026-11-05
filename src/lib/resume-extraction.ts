@@ -226,7 +226,7 @@ function extractPdfTextFromContent(content: string): string[] {
         if (text.trim()) positioned.push({ text, x, y, order: order++ });
         x += text.length * fontSize * 0.48;
       } else if (match[14] !== undefined) {
-        const tokens = match[14].match(/\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>|[-+]?(?:\\d+\\.?\\d*|\\.\\d+)/gi) ?? [];
+        const tokens = match[14].match(/\((?:\\.|[^\\)])*\)|<[\da-f\s]*>|[-+]?(?:\d+\.?\d*|\.\d+)/gi) ?? [];
         let combined = "";
         const startX = x;
         for (const token of tokens) {
