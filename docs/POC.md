@@ -220,6 +220,10 @@ The `new` branch includes the portfolio side of the shared DevOps baseline:
 - Scoped signing credentials, temporary signing-key cleanup, and fail-fast pipeline command handling.
 - Strict validation of project identity, recognized CI provider and source/build metadata against current environment values.
 
-**Remaining:** harden manifest inventory schema, validate declared inventory against actual archive members, finish customer verification reports, document CI configuration and rollback/rejection handling, and execute exact-head pipeline/package acceptance when validation resumes. Nexus publishing remains explicitly paused and disabled. No tests, builds, CI runs, audits, or Nexus publishing were performed for this snapshot.
+**Completed in the current development increment:** the customer verifier now validates release-manifest metadata before trusting inventory entries. It checks schema/algorithm, project identity, source metadata, timestamp, exact file count, artifact filename/size/SHA-256, unique safe inventory paths, per-file sizes and digests, and optional release-identity format. The authenticated policy's project and source commit/build identity must match the manifest.
+
+**Remaining:** compare the actual archive contents (not only a separately supplied extracted directory) against the declared inventory, improve stage-specific customer verification reports, document CI configuration and rollback/rejection handling, and execute exact-head pipeline/package acceptance when validation resumes. Nexus publishing remains explicitly paused and disabled. No tests, builds, CI runs, audits, or Nexus publishing were performed for this snapshot.
+
+**Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`.
 
 See [docs/EPICS.md](EPICS.md) and [docs/USER_STORIES.md](USER_STORIES.md) for the DevOps delivery backlog.
