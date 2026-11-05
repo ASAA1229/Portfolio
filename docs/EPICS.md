@@ -166,3 +166,33 @@ CI provenance helpers now align GitHub Actions and Jenkins source-commit/build-n
 **Status:** IMPLEMENTED / TEST EXECUTION PAUSED. Related commits: `b8d760f7`, `6503eebb`, `0d35110f`, `f18b1cb2`, `7f573f53`.
 
 Do not mark either increment TEST-PASSED or ACCEPTED until checks run against the exact branch head. CMM-specific pipeline and Nexus configuration remain outside this portfolio epic register.
+
+## PORT-E08 — Shared DevOps Pipeline, Provenance & Artifact Integrity
+
+**Status:** IN PROGRESS — source implementation present; validation paused; Nexus publishing paused.
+
+**Goal:** Align portfolio artifact production with JARVIS so builds are traceable, verifiable and consistently packaged across GitHub Actions and Jenkins.
+
+**Implemented source scope**
+- Build provenance manifest with project, CI and source identity plus deterministic release identity.
+- SHA-256 manifest/checksum verification and customer-package verification policy.
+- CycloneDX dependency SBOM generation and artifact packaging.
+- CI signing/checksum foundations, scoped signing credentials, temporary-key cleanup and fail-fast command handling.
+
+**Remaining development scope**
+- Harden manifest header and file-inventory schema validation before checksum verification.
+- Compare declared inventory with actual archive members and verify per-file size/hash.
+- Complete customer verification stage reporting and failure diagnostics.
+- Document CI configuration, secret names, artifact retention and release/rollback handling without storing secrets.
+- Preserve project-specific workflow differences while keeping shared manifest and verifier contracts aligned with JARVIS.
+
+**Exit criteria**
+- Invalid manifests and inconsistent inventories fail closed.
+- Archive content matches the declared inventory.
+- Customer package verification follows the policy → manifest → package sequence and provides actionable results.
+- Exact-head GitHub Actions and Jenkins runs provide artifact, signature, checksum and SBOM evidence.
+- Nexus remains disabled unless separately approved; production deployment requires explicit owner approval.
+
+### PORT-E08 implementation note — provenance and signing foundations (2026-11-05)
+
+The portfolio artifact-integrity implementation enforces explicit project identity, recognized CI provider, source commit/build metadata and current-environment consistency. Customer package verification binds authenticated policy metadata to the manifest release identity. CI definitions include SBOM, checksum/signing foundations, scoped credentials and temporary-key cleanup. Pipeline execution and artifact acceptance remain pending; testing is paused.
