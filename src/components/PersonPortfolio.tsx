@@ -352,17 +352,24 @@ export function PersonContent({
   const publishedPhone = publishedResume ? publishedResume.contact?.phone : profile.phone;
   const publishedLinkedIn = publishedResume?.contact?.linkedin;
   const publishedGitHub = publishedResume?.contact?.github;
-  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string; slot?: string }[]>([]);
+  const [publishedImagesState, setPublishedImagesState] = useState<{
+    profileId: string;
+    images: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
+  }>(() => ({ profileId: profile.id, images: [] }));
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : { images: [] })
       .then((payload: { images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[] }) => {
-        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot !== "portrait"));
+        if (active) setPublishedImagesState({
+          profileId: profile.id,
+          images: (payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot !== "portrait"),
+        });
       })
-      .catch(() => { if (active) setPublishedImages([]); });
+      .catch(() => { if (active) setPublishedImagesState({ profileId: profile.id, images: [] }); });
     return () => { active = false; };
   }, [profile.id]);
+  const publishedImages = publishedImagesState.profileId === profile.id ? publishedImagesState.images : [];
   const galleryPhotos = [
     ...profile.gallery,
     ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
