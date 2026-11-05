@@ -1,6 +1,7 @@
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Award, BriefcaseBusiness, Code2, GraduationCap, FolderKanban } from "lucide-react";
 import { TechnologyList } from "@/components/TechLogo";
+import { ResumeEntryCard } from "@/components/ResumeEntryCard";
 
 type ResumeSection = "skills" | "projects" | "experience" | "certifications" | "education";
 
@@ -36,10 +37,7 @@ export function PublishedResumePanel({
       ) : (
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           {entries.map((entry, index) => (
-            <article key={index} className="rounded-md border border-border p-4">
-              <p className="mb-2 font-mono text-[10px] text-primary">{section.toUpperCase()} / {String(index + 1).padStart(2, "0")}</p>
-              <p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry}</p>
-            </article>
+            <ResumeEntryCard key={index} entry={entry} section={section} index={index} />
           ))}
         </div>
       )}
