@@ -221,8 +221,8 @@ function extractPdfTextFromContent(content: string): string[] {
       else if (match[9] !== undefined) { x += Number(match[9]); y += Number(match[10]); }
       else if (match[11] !== undefined) leading = Number(match[11]);
       else if (match[12] !== undefined) fontSize = Math.abs(Number(match[12])) || fontSize;
-      else if (match[14] !== undefined) {
-        const text = decodePdfString(match[14]);
+      else if (match[13] !== undefined) {
+        const text = decodePdfString(match[13]);
         if (text.trim()) positioned.push({ text, x, y, order: order++ });
         x += text.length * fontSize * 0.48;
       } else if (match[15] !== undefined) {
