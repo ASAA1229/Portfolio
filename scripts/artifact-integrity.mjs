@@ -49,7 +49,7 @@ function usage() {
     '  node scripts/artifact-integrity.mjs create <directory> <manifest.json> [artifact.tar.gz]\n' +
     '  node scripts/artifact-integrity.mjs verify <directory> <manifest.json> [artifact.tar.gz]\n' +
     '  node scripts/artifact-integrity.mjs hash <file> <checksum-file>\n' +
-    '  node scripts/artifact-integrity.mjs verify-hash <file> <checksum-file>\\n' +
+    '  node scripts/artifact-integrity.mjs verify-hash <file> <checksum-file>\n' +
     '  node scripts/artifact-integrity.mjs verify-release <artifact.tar.gz> <manifest.json> <checksum-file>'
   );
   process.exit(2);
@@ -333,8 +333,8 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
     throw new Error('Release manifest is missing complete CI run provenance.');
   }
   if (process.env.REQUIRE_BUILD_PROVENANCE === 'true') {
-    const expectedCommit = process.env.GIT_COMMIT || process.env.GIT_COMMIT_SHA || '';
-    const expectedBuild = process.env.BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || '';
+    const expectedCommit = getSourceCommit();
+    const expectedBuild = getBuildNumber();
     if (!/^[a-f0-9]{40,64}$/i.test(manifest.source.gitCommit) || !manifest.source.buildNumber.trim() ||
         manifest.source.gitCommit === 'UNKNOWN' || manifest.source.buildNumber === 'LOCAL' ||
         !/^[a-f0-9]{40,64}$/i.test(expectedCommit) || !expectedBuild.trim() ||
