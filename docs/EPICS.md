@@ -180,8 +180,7 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 - CI signing/checksum foundations, scoped signing credentials, temporary-key cleanup and fail-fast command handling.
 
 **Remaining development scope**
-- Harden manifest header and file-inventory schema validation before checksum verification.
-- Compare declared inventory with actual archive members and verify per-file size/hash.
+- Compare the actual archive contents (not only a separately supplied extracted directory) with the declared inventory and verify per-file size/hash.
 - Complete customer verification stage reporting and failure diagnostics.
 - Document CI configuration, secret names, artifact retention and release/rollback handling without storing secrets.
 - Preserve project-specific workflow differences while keeping shared manifest and verifier contracts aligned with JARVIS.
@@ -193,6 +192,10 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 - Exact-head GitHub Actions and Jenkins runs provide artifact, signature, checksum and SBOM evidence.
 - Nexus remains disabled unless separately approved; production deployment requires explicit owner approval.
 
-### PORT-E08 implementation note — provenance and signing foundations (2026-11-05)
+### PORT-E08 implementation note — provenance, signing and strict manifest validation (2026-11-05)
 
-The portfolio artifact-integrity implementation enforces explicit project identity, recognized CI provider, source commit/build metadata and current-environment consistency. Customer package verification binds authenticated policy metadata to the manifest release identity. CI definitions include SBOM, checksum/signing foundations, scoped credentials and temporary-key cleanup. Pipeline execution and artifact acceptance remain pending; testing is paused.
+The portfolio artifact-integrity implementation enforces explicit project identity, recognized CI provider, source commit/build metadata and current-environment consistency. Customer package verification now validates manifest schema, timestamp, exact inventory count, safe unique paths, per-file size/SHA-256, artifact metadata and optional release identity before package inventory comparison. Authenticated policy project/source identity must match the manifest. Windows path separators are normalized correctly before validation.
+
+**Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`.
+
+Archive-member-to-manifest verification, richer stage-specific reports and documentation remain open. Pipeline execution and artifact acceptance remain pending; testing is paused.
