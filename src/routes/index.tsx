@@ -6,6 +6,7 @@ import { AiIntro } from "@/components/AiIntro";
 import { Reveal } from "@/components/Reveal";
 import { ProjectCard, ResumeAction, SocialLinks } from "@/components/SitePrimitives";
 import { pageHead, siteProjects } from "@/lib/site-data";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import portrait from "@/assets/my_1.jpeg";
 
 export const Route = createFileRoute("/")({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/")({
 });
 function Home() {
   const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
-  const [publishedResume, setPublishedResume] = useState<{ headline: string; summary: string; uploadedAt?: string } | null>(null);
+  const publishedResume = usePublishedProfileResume("abhishek");
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
@@ -30,19 +31,6 @@ function Home() {
         setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
       })
       .catch(() => { if (active) setPublishedPortrait(null); });
-    return () => { active = false; };
-  }, []);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : { resumes: [] })
-      .then((payload: { resumes?: { profileId: string; headline: string; summary: string; uploadedAt?: string }[] }) => {
-        if (!active) return;
-        const resumes = (payload.resumes ?? []).filter((item) => item.profileId === "abhishek");
-        resumes.sort((a, b) => Date.parse(b.uploadedAt ?? "") - Date.parse(a.uploadedAt ?? ""));
-        setPublishedResume(resumes[0] ?? null);
-      })
-      .catch(() => { if (active) setPublishedResume(null); });
     return () => { active = false; };
   }, []);
   return (
