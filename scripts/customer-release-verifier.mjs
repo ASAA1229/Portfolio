@@ -15,9 +15,10 @@ const hash = async (file) => {
   return h.digest('hex');
 };
 let activeStage = 'INPUT_VALIDATION';
-const fail = (message) => {
+const fail = (message, code) => {
   const error = new Error(message);
   error.stage = activeStage;
+  if (code) error.code = code;
   throw error;
 };
 
@@ -241,7 +242,10 @@ async function verify(policyPath, policySumPath, manifestPath, artifactPath, tru
     }
     for (const name of actual.keys()) if (!expected.has(name)) errors.push('UNEXPECTED: ' + name);
     if (errors.length || manifest.fileCount !== expected.size) {
-      fail('Package archive inventory failed: ' + errors.join('; '));
+      const preview = errors.slice(0, 50);
+      const omitted = errors.length - preview.length;
+      const detail = preview.join('; ') + (omitted > 0 ? `; ... ${omitted} additional discrepancy(s) omitted` : '');
+      fail(`Package archive inventory failed (${errors.length} discrepancies): ${detail}`, 'ARCHIVE_INVENTORY_MISMATCH');
     }
     console.log(`Stage 3 PASSED: archive SHA-256 and ${actualEntries.length} archive files verified.`);
   } finally {
@@ -263,7 +267,7 @@ main().catch((error) => {
     type: 'customer-release-verification',
     status: 'FAILED',
     stage,
-    code: `${stage}_FAILED`,
+    code: error.code || `${stage}_FAILED`,
     message: error.message || 'Unexpected verification failure.',
   };
   console.error('CUSTOMER_RELEASE_REPORT ' + JSON.stringify(report));
