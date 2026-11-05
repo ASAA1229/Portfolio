@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import type { PublishedProfileResume } from "@/lib/published-resume";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Award, BriefcaseBusiness, Code2, GraduationCap, FolderKanban } from "lucide-react";
 import { TechnologyList } from "@/components/TechLogo";
