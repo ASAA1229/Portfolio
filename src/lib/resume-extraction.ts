@@ -271,9 +271,11 @@ async function extractPdf(bytes: Uint8Array): Promise<{ text: string; skippedStr
       try {
         content = new TextDecoder("windows-1252").decode(await decompress(streamBytes, "deflate"));
       } catch {
+        skippedStreams += 1;
         continue;
       }
     } else if (/\/Filter\b/.test(dictionary)) {
+      skippedStreams += 1;
       continue;
     }
 
@@ -285,7 +287,10 @@ async function extractPdf(bytes: Uint8Array): Promise<{ text: string; skippedStr
     if (totalCharacters >= MAX_EXTRACTED_CHARS) break;
   }
 
-  return normalizeExtractedText(chunks.join("\n"));
+  return {
+    text: normalizeExtractedText(chunks.join("\n")),
+    skippedStreams,
+  };
 }
 
 export async function extractResumeText(
