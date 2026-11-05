@@ -301,7 +301,6 @@ function isResumeRecord(value: unknown): value is ResumeRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Partial<ResumeRecord>;
   const validProfiles = ["abhishek", "ammu", "bava", "sai", "unassigned"];
-  const validSections = ["experience", "education", "projects", "certifications"] as const;
   const sections = record.structuredSections;
   return typeof record.id === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
