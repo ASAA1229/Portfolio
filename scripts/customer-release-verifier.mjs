@@ -44,7 +44,7 @@ function validateReleaseManifest(manifest) {
     const segments = normalizedPath.split('/');
     if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !normalizedPath ||
         path.isAbsolute(normalizedPath) || path.win32.isAbsolute(normalizedPath) ||
-        normalizedPath.includes(String.fromCharCode(0)) || /[\\x01-\\x1f\\x7f]/.test(normalizedPath) ||
+        normalizedPath.includes(String.fromCharCode(0)) || /[\x01-\x1f\x7f]/.test(normalizedPath) ||
         segments.some((part) => !part || part === '.' || part === '..' || /^[a-zA-Z]:/.test(part)) ||
         entries.has(normalizedPath) || !Number.isSafeInteger(entry.size) || entry.size < 0 ||
         typeof entry.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
@@ -92,8 +92,8 @@ async function extractVerifiedArchive(archivePath) {
     fail('Package archive could not be listed safely by the system tar utility.');
   }
 
-  const nameLines = names.split(/\\r?\\n/).filter(Boolean);
-  const detailLines = details.split(/\\r?\\n/).filter(Boolean);
+  const nameLines = names.split(/\r?\n/).filter(Boolean);
+  const detailLines = details.split(/\r?\n/).filter(Boolean);
   if (!nameLines.length || nameLines.length !== detailLines.length) {
     fail('Package archive has an empty or ambiguous member listing.');
   }
@@ -102,10 +102,10 @@ async function extractVerifiedArchive(archivePath) {
   for (let index = 0; index < nameLines.length; index += 1) {
     const rawName = nameLines[index];
     const detail = detailLines[index];
-    if (/[\\x00-\\x1f\\x7f]/.test(rawName) || rawName.includes('\\\\') || !detail || !['-', 'd'].includes(detail[0])) {
+    if (/[\x00-\x1f\x7f]/.test(rawName) || rawName.includes('\\') || !detail || !['-', 'd'].includes(detail[0])) {
       fail('Package archive contains an unsupported entry type or control character.');
     }
-    let normalized = rawName.replaceAll('\\\\', '/');
+    let normalized = rawName.replaceAll('\\', '/');
     while (normalized.startsWith('./')) normalized = normalized.slice(2);
     if (normalized === '' || normalized === '/') continue;
     const isDirectory = normalized.endsWith('/');
