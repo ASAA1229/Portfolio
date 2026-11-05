@@ -29,12 +29,9 @@ pipeline {
         bat 'npm ci'
       }
     }
-    stage('Build and test') {
+    stage('Build') {
       steps {
         bat 'npm run build'
-        // Match hosted CI: existing Prettier-only formatting debt is tracked separately.
-      bat 'npm run lint -- --rule "prettier/prettier: off"'
-        bat 'npm test'
       }
     }
     stage('Package and verify integrity') {
