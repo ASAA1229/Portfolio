@@ -122,16 +122,21 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
 }
 
 function adminAuthBypassed(env: unknown): boolean {
-  // Wrangler runs the production-built bundle locally, so import.meta.env.PROD
-  // cannot distinguish local preview from a deployed Worker. Require two
-  // explicit local-only bindings instead; absent or production values fail closed.
+  // The local Vite dev server has no Wrangler bindings, so it uses the
+  // development-only constants injected by vite.config.ts. Worker/preview
+  // requests must use explicit runtime bindings instead.
   const bindings = env as {
     PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown;
     ENVIRONMENT?: unknown;
   } | undefined;
 
-  return bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
+  const runtimeBypass = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
     bindings?.ENVIRONMENT === "development";
+  const localDevBypass = process.env.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
+    process.env.ENVIRONMENT === "development" &&
+    process.env.NODE_ENV === "development";
+
+  return runtimeBypass || localDevBypass;
 }
 
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
