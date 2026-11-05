@@ -148,3 +148,22 @@ export function usePublishedProfileResume(profileId: string): PublishedProfileRe
   }, [profileId]);
   return resume;
 }
+
+/** Shared client hook for the validated portrait selected by the admin publisher. */
+export function usePublishedProfilePortrait(profileId: string): string | null {
+  const [portrait, setPortrait] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", {
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload: unknown) => {
+        if (active) setPortrait(normalizePublishedPortrait(payload, profileId));
+      })
+      .catch(() => { if (active) setPortrait(null); });
+    return () => { active = false; };
+  }, [profileId]);
+  return portrait;
+}
