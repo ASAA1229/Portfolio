@@ -824,7 +824,8 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
   }
 
   // Discard any client-supplied internal field before adding trusted data.
-  const { _publishedResume: _untrustedResume, ...clientPayload } = payload;
+  const clientPayload = { ...payload };
+  delete clientPayload._publishedResume;
   let body = JSON.stringify({ ...clientPayload, _publishedResume: publishedResume });
   const encoder = new TextEncoder();
   if (encoder.encode(body).byteLength > 70 * 1024) {
