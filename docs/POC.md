@@ -226,6 +226,6 @@ The `new` branch includes the portfolio side of the shared DevOps baseline:
 
 **Remaining:** improve stage-specific customer verification reports, document CI configuration and rollback/rejection handling, and execute exact-head pipeline/package acceptance when validation resumes. Nexus publishing remains explicitly paused and disabled. No tests, builds, CI runs, audits, or Nexus publishing were performed for this snapshot.
 
-**Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`.
+**Latest implementation commits:** `636562c8`, `99632acb`, `ab7d56ce`, `4e5f4fcf`, `7e3ffeb1`, `5bf78bd7`.
 
 See [docs/EPICS.md](EPICS.md) and [docs/USER_STORIES.md](USER_STORIES.md) for the DevOps delivery backlog.
