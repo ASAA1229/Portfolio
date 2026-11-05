@@ -132,9 +132,12 @@ function adminAuthBypassed(env: unknown): boolean {
 
   const runtimeBypass = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
     bindings?.ENVIRONMENT === "development";
-  const localDevBypass = process.env.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
-    process.env.ENVIRONMENT === "development" &&
-    process.env.NODE_ENV === "development";
+
+  // Vite replaces import.meta.env.DEV/MODE at bundle time. This is more
+  // reliable than process.env in the Cloudflare/TanStack server runtime.
+  // The DEV flag is false in production builds and deployed Workers.
+  const localDevBypass = import.meta.env.DEV === true &&
+    import.meta.env.MODE === "development";
 
   return runtimeBypass || localDevBypass;
 }
