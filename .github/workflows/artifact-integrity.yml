@@ -30,8 +30,6 @@ jobs:
       BUILD_RUN_ID: ${{ github.run_id }}
       BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       REQUIRE_BUILD_PROVENANCE: 'true'
-      MANIFEST_IGNORE_PRIVATE_KEY: ${{ secrets.MANIFEST_IGNORE_PRIVATE_KEY }}
-      MANIFEST_IGNORE_PUBLIC_KEY: ${{ secrets.MANIFEST_IGNORE_PUBLIC_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,6 +46,9 @@ jobs:
         run: npm run build
       - name: Create and verify SHA-256 build manifest
         shell: bash
+        env:
+          MANIFEST_IGNORE_PRIVATE_KEY: ${{ secrets.MANIFEST_IGNORE_PRIVATE_KEY }}
+          MANIFEST_IGNORE_PUBLIC_KEY: ${{ secrets.MANIFEST_IGNORE_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           if [ -d .output ]; then
@@ -68,9 +69,14 @@ jobs:
           TRUSTED_POLICY_HASH="$(cut -d' ' -f1 portfolio-manifest-ignore.json.sha256)"
           node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" "$TRUSTED_POLICY_HASH"
           if [[ -n "${MANIFEST_IGNORE_PRIVATE_KEY:-}" && -n "${MANIFEST_IGNORE_PUBLIC_KEY:-}" ]]; then
-            private_key_file="$RUNNER_TEMP/manifest-ignore-private.pem"
-            public_key_file="$RUNNER_TEMP/manifest-ignore-public.pem"
-            trap 'rm -f "$private_key_file" "$public_key_file"' EXIT
+            umask 077
+            private_key_file="$(mktemp "$RUNNER_TEMP/manifest-ignore-private.XXXXXX.pem")"
+            public_key_file="$(mktemp "$RUNNER_TEMP/manifest-ignore-public.XXXXXX.pem")"
+            cleanup_signing_material() {
+              rm -f -- "$private_key_file" "$public_key_file"
+              unset MANIFEST_IGNORE_PRIVATE_KEY MANIFEST_IGNORE_PUBLIC_KEY
+            }
+            trap cleanup_signing_material EXIT
             printf '%s' "$MANIFEST_IGNORE_PRIVATE_KEY" > "$private_key_file"
             printf '%s' "$MANIFEST_IGNORE_PUBLIC_KEY" > "$public_key_file"
             chmod 600 "$private_key_file"
