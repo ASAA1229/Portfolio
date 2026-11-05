@@ -194,8 +194,8 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 
 ### PORT-E08 implementation note — provenance, signing and strict manifest validation (2026-11-05)
 
-The portfolio artifact-integrity implementation enforces explicit project identity, recognized CI provider, source commit/build metadata and current-environment consistency. Customer package verification now validates manifest schema, timestamp, exact inventory count, safe unique paths, per-file size/SHA-256, artifact metadata and optional release identity before package inventory comparison. Authenticated policy project/source identity must match the manifest. Windows path separators are normalized correctly before validation.
+The portfolio artifact-integrity implementation enforces explicit project identity, recognized CI provider, source commit/build metadata and current-environment consistency. Customer package verification now validates manifest schema, timestamp, exact inventory count, safe unique paths, per-file size/SHA-256, artifact metadata and optional release identity before package inventory comparison. Authenticated policy project/source identity must match the manifest. Policy creation refuses package inputs that do not match the manifest filename, size and digest. Windows path separators are normalized correctly before validation.
 
-**Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`.
+**Latest implementation commits:** `b70f8b39`, `94b1818d`, `fcb1a12f`, `474c435b`.
 
 Archive-member-to-manifest verification, richer stage-specific reports and documentation remain open. Pipeline execution and artifact acceptance remain pending; testing is paused.
