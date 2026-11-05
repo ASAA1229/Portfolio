@@ -177,3 +177,34 @@ The current development increment also aligns Amulya's selector avatar and hero 
 - Limits skills to 20 entries and 80 characters each; malformed records and unexpected payload shapes are ignored.
 - Added regression coverage for cross-profile leakage, malformed fields, non-string skills, oversized skills and unexpected API responses.
 - The existing profile UI consumer has not yet been switched to this helper; do not treat this increment as fully integrated until that wiring and exact-head test execution are complete.
+
+
+## Development increment — AI profile context and streaming reliability
+
+**Branch:** `new`  
+**Status:** IMPLEMENTED / RUNTIME VERIFICATION PENDING
+
+- The Worker attaches only the latest matching profile record from the approved published-resume feed to portfolio chat requests. Client-supplied resume context is not trusted; private drafts and review notes are excluded.
+- The chat API uses the approved resume context only when its profile ID matches the selected profile. Prompt guidance treats resume content as untrusted data and prohibits invented facts.
+- Request-size limits are preserved when approved context is attached; oversized enriched requests fail safely.
+- AI chat, profile assistant and introduction streaming now flush trailing UTF-8 decoder bytes so final partial characters are not silently lost.
+- The chat server processes a final buffered server-sent event even when the stream ends without a newline.
+- Assistant request cancellation and overlapping-request handling were hardened so stale requests cannot overwrite newer chat state or continue speaking after cancellation.
+- The offline assistant fallback is now displayed in the conversation rather than leaving the UI in a thinking state.
+
+Relevant implementation commits include `1a082657`, `4c8e7823`, `27a3dc2f`, `4ac17edf`, `119d514b`, `c05a13b`, `390c757e`, `d714c7c3` and `b87b1143`.
+
+## Development increment — release integrity and on-site snapshot safeguards
+
+**Branch:** `new`  
+**Status:** IMPLEMENTED / TEST AND BUILD EXECUTION PAUSED
+
+- CI branch, source-commit and build-number metadata handling was aligned across supported GitHub Actions and Jenkins variables.
+- Customer release verification now uses the shared provenance helpers and rejects drive-relative or drive-prefixed manifest inventory paths in addition to unsafe paths, duplicate entries and invalid SHA-256 values.
+- On-Site Change Detection validates inventory schema, file counts, safe paths, unique file entries, safe sizes and SHA-256 checksums before comparison.
+- Snapshot comparison rejects mismatched ignore policies. Ignore paths are now deduplicated and sorted, so equivalent policies compare consistently regardless of input order.
+- These scripts are supporting integrity utilities in the repository; CMM-specific customer pipeline/Nexus configuration remains outside the portfolio product scope.
+
+Relevant latest commits: `b8d760f7`, `6503eebb`, `0d35110f`, `f18b1cb2` and `7f573f53`.
+
+**Verification note:** automated tests, lint and production build remain unexecuted because verification was paused. Do not mark these increments TEST-PASSED or ACCEPTED until they are run against the exact branch head.
