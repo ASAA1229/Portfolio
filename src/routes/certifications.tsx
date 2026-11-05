@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Award, BadgeCheck } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
+import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { Reveal } from "@/components/Reveal";
 import { CERTS } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
@@ -38,6 +39,7 @@ function Certifications() {
         </span>
       </section>
       <PageBody>
+        <PublishedResumePanel profileId="abhishek" section="certifications" />
         <div className="certs-note">
           <BadgeCheck />
           <p>
