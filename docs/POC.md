@@ -1,162 +1,71 @@
-# Portfolio POC — Project Overview, Implementation Status and Remaining Work
+# Portfolio POC — Status Baseline, Constraints and Future Scope
 
-**Repository:** `ASAA1229/pixel-perfect-pixel`  
-**Active documentation/development branch:** `new`  
-**Status snapshot:** 2026-11-07  
-**Overall status:** IN PROGRESS — substantial portfolio and DevOps source implementation exists; runtime verification, quality acceptance and production release are incomplete.
+**Repository:** `ASAA1229/pixel-perfect-pixel`
+**Branch:** `new` (local commits not yet pushed)
+**Status snapshot:** 2026-11-07 (after the testing-resumed development round)
+**Overall status:** IN PROGRESS — core product works locally and passes all automated checks; production configuration, deployment and some lifecycle features remain.
 
-## Documentation status checkpoint — 2026-11-07 (authoritative)
+**Status vocabulary:** **DONE — VERIFIED (automated)** · **DONE — VERIFIED LOCALLY** (dev server / browser on the owner's laptop) · **IMPLEMENTED — NEEDS TESTING** (test named) · **PARTIAL — NEEDS DEVELOPMENT** · **NOT STARTED**. Nothing is marked production-verified: no CI run, deployment or production check has happened for this head.
 
-- **Development:** RESUMED 2026-11-07 by owner instruction; baseline defects fixed and remaining work started.
-- **Testing/validation:** RESUMED 2026-11-07. Local typecheck, lint, tests, build, route matrix, browser pass and admin upload lifecycle pass — see “Verification status”. CI/Jenkins exact-head runs are still pending.
-- **Implemented in source, not verified:** four-profile portfolio foundations; shared profile/section rendering; profile-aware AI context/chat and stream cancellation; published-resume normalization and selected section precedence; asset/profile integrity checks; admin resume/image upload foundations and improved multipart handling/diagnostics; provenance, SHA-256, archive/customer verification, SBOM/signing and release-disposition utilities.
-- **Partially implemented:** complete route/content consistency, admin security and resume/image lifecycle, AI provider/runtime behavior, responsive/accessibility behavior, and operational CI/artifact workflows.
-- **Admin issues:** the upload HTTP 500s were reproduced and fixed (body-limit helper); the `/admin/images` 404 did not reproduce. Production-runtime confirmation remains pending.
-- **Not complete:** full route matrix and four-profile content acceptance, secure admin publish/unpublish/rollback lifecycle, complete accessibility/performance/SEO review, exact-head CI and artifact acceptance, and production release.
-- No story is accepted until its criteria are evidenced on the exact branch revision. Test files and source changes alone are not acceptance evidence.
+## 1. Product summary
 
-## Current documentation and development control — 2026-11-07
+A cinematic, Netflix-inspired portfolio presenting four people — **Abhishek** (root site `/`), **Amulya / Ammu**, **Anjini Kumar / Bava** and **Sai / Darling** (`/people/{ammu,bava,sai}`, `/people/darling` → `/people/sai`). All profiles now share one visual template (chapter heroes, featured projects, contact panel, footer, per-person monogram). Visitors can chat with a profile-grounded AI assistant, which now runs on the owner's **JARVIS personal AI** (OpenAI optional fallback; offline profile answers when no AI is reachable). A private `/admin` area lets the owner upload resumes and images, review them, and publish/unpublish.
 
-**Current activity: DEVELOPMENT AND TESTING RESUMED (2026-11-07).** See “Verification status” for evidence.
+**Latest local evidence (2026-11-07):** typecheck 0 errors · lint 0 errors (6 warnings) · **107 Vitest + 4 Node tests pass** · production build passes · 33-route matrix and all **43 sitemap routes return 200** · Edge headless pass at 1440 px and 390 px with no page errors or horizontal overflow · axe serious issues **62 → 2** (both are `aria-hidden` watermark false positives) · admin image lifecycle and resume upload verified on the dev server.
 
-### What this product is
+## 2. Status at a glance
 
-A multi-profile personal portfolio website designed to present four people — Abhishek, Amulya, Anjini and Sai — through one shared cinematic interface. Visitors can select a profile and explore biography, skills, projects, experience, education, certifications and contact information. The product also contains profile-aware AI introduction/chat foundations and an owner-only admin area intended to manage resumes and profile images through controlled review and publishing.
+| Epic | Done | Needs testing | Pending development |
+|---|---|---|---|
+| **PORT-E01** Shared design & four profiles | Shared template for all four profiles (`0b2308f`); per-person monogram (no more GA logo on other profiles); identity isolation | Owner visual/content review of every page per profile | Personal hero images for Ammu/Bava/Sai; merge the two contact components; Sai monogram “DR” vs data initials “DS” (decision) |
+| **PORT-E02** Routes & content | Route matrix, direct load/refresh, 404s, `/portfolio` → 301 `/`, `/people/darling` → Sai, broken project links fixed + 301 | Owner click-through of every nav link on phone | Resume files for Ammu/Bava/Sai (Resume buttons hidden until provided) |
+| **PORT-E03** AI intro & chat | Profile-grounded chat, approved-resume context, streaming/cancellation, offline fallback, idle-based timeouts | Voice/video intro on a real phone and desktop browser | — |
+| **AI provider via JARVIS** | `/api/chat` prefers JARVIS (`JARVIS_AI_URL` + `JARVIS_AI_KEY`), OpenAI fallback, 503 → offline answers; live local chain answered Ammu/Sai in 14–24 s | Production: deployed site → Cloudflare Tunnel → JARVIS | Tunnel + site key + deployment secrets (owner setup) |
+| **PORT-E04** Admin, resumes, images | Upload HTTP 500 fixed (`f12ebb9`); resume false “reset” error fixed and `/admin` hub (`9e9b761`); image upload → publish → public → unpublish → delete verified on dev server | Persistent R2 bucket + real admin login/session expiry in a deployed environment | Resume rollback to a previous published version; partial-failure reconciliation |
+| **PORT-E05** Quality engineering | All checks green locally; strict `npm run typecheck` added; CI/Jenkins lint+tests re-enabled | First CI/Jenkins run (happens after push) | Browser journeys (chat, contact, admin) as automated tests |
+| **PORT-E06** Accessibility & responsive | Skip link, focus styles, mobile-menu focus handling, reduced motion, AA contrast; no overflow at 390 px | Screen-reader pass (NVDA/Narrator) | — |
+| **PORT-E07** Performance, SEO, release | `sitemap.xml`, `robots.txt`, canonical/OG/Twitter tags, admin `noindex`; profile photos 11.9 MB → 0.7 MB WebP | Lighthouse/Web Vitals on the deployed site | Set `VITE_SITE_URL`; remove unused/original images (owner approval); production release (not authorized) |
+| **PORT-E08** DevOps & artifact integrity | Provenance, SHA-256/archive verification (verifier SyntaxError and Windows `tar` bug fixed), customer reports, quarantine/recovery records | GitHub Actions + Jenkins exact-head artifact run | Nexus publishing (disabled by policy) |
 
-The repository additionally contains portfolio-focused CI/artifact-integrity tooling (provenance, manifests, SHA-256 verification, SBOM/signing foundations and release disposition records). This is not the separate CMM configuration-tool project.
+## 3. How to test what's ready
 
-### Current source implementation inventory
+1. **Run locally:** `npm ci`, then `npx vite dev --port 8081`. Open `/`, `/profiles`, `/people/ammu`, `/people/bava`, `/people/sai` and each section; check on desktop and a phone (or 390 px DevTools).
+2. **Admin:** open `/admin` → Image Manager → upload a JPEG/PNG/WebP for a profile → **Publish** (or tick *Publish immediately after upload*) → confirm it appears in that profile's gallery → **Unpublish** → confirm it disappears. Resume Manager → upload a PDF/DOCX → extract → review → publish. *Dev storage is in memory and is cleared on restart.*
+3. **AI chat with JARVIS:** start JARVIS with `JARVIS_SITE_GATEWAY_PORT=3100`, create a key (`npm run site-key -- create portfolio`), then start the portfolio with `JARVIS_AI_URL=http://127.0.0.1:3100` and `JARVIS_AI_KEY=<key>`; ask a profile question. Stop JARVIS and confirm the chat falls back to offline answers.
+4. **SEO:** open `/sitemap.xml` and `/robots.txt`; confirm `/admin` is disallowed.
+5. **Automated:** `npm run typecheck && npm run lint && npm test && npm run build`.
 
-| Capability | What is present in source | Classification |
-|---|---|---|
-| Four-profile portfolio | Shared application, profile data, profile media and profile-specific content foundations for Abhishek, Amulya, Anjini and Sai | PARTIALLY IMPLEMENTED — NOT VERIFIED |
-| Shared visual experience | Cinematic layout, shared components, profile selection and responsive styling foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
-| Profile sections | About, Skills, Projects, Experience, Education, Certifications and Contact page/content foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
-| Published resume content | Shared profile-scoped normalization/rendering path; Abhishek's five section pages prefer valid published resume data and fall back to curated content; other profiles use the shared profile-aware renderer | IMPLEMENTED IN SOURCE — NOT VERIFIED |
-| AI introduction/chat | Server-side OpenAI integration, approved profile-scoped resume context, streaming/cancellation safeguards and offline fallback foundations | IMPLEMENTED IN SOURCE — NOT VERIFIED |
-| Voice/video introduction | Optional narration/video and interaction foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
-| Admin access and management | Admin route/auth, resume/image upload and management foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED; latest upload 500s remain open |
-| Automated quality checks | Typecheck, lint, unit/integration tests, build and CI/Jenkins definitions | PASSING LOCALLY; CI re-enabled, exact-head CI run pending |
-| Artifact integrity | Provenance manifest, SHA-256 checks, archive-backed verification, customer reports, SBOM/signing foundations and quarantine/recovery records | IMPLEMENTED IN SOURCE — NOT VERIFIED |
-| Accessibility, performance and SEO | Some foundations and metadata exist | INCOMPLETE — systematic implementation/review remains |
-| Production release | Release controls and documentation foundations | NOT RELEASE-READY; no deployment authorization |
+## 4. Known constraints
 
-### Latest admin upload incident
+- **Dev storage is ephemeral:** without the R2 `RESUME_BUCKET` binding, uploads live in server memory and vanish on restart.
+- **Live AI depends on the owner's laptop:** JARVIS must be running and reachable (Cloudflare Tunnel) for deployed chat; otherwise visitors get offline profile answers.
+- **Local model latency:** CPU-only `llama3.2` took 14–24 s per answer (~2 tokens/s while OneDrive sync loaded the CPU). Moving projects out of OneDrive / “Best performance” power mode is expected to help.
+- **Lovable sync:** pushing `new` syncs to Lovable; avoid history rewrites.
+- **Secrets stay server-side:** AI keys, admin secrets and bucket bindings only in server/deployment environment, never in client code.
+- **Canonical URLs** are relative until `VITE_SITE_URL` is set in the deployment.
 
-Latest reported browser errors:
-- `POST /api/admin/images` — HTTP 500.
-- `POST /api/admin/resumes` — HTTP 500.
+## 5. Open decisions for the owner
 
-Source changes now validate multipart resume files without relying solely on cross-runtime `instanceof File` and return structured server diagnostics. The admin image and resume screens display optional server diagnostic details. The underlying storage, bucket, database or indexing failure has not been identified from a successful retry. Both upload stories remain OPEN and must not be marked fixed.
+1. Push `new` (triggers CI and Lovable sync) and open a PR to `dev`?
+2. Sai's monogram: “DR” (first + last name) or “DS” (profile data)?
+3. Delete the original large photos and the 3 unused images flagged by `npm run audit:images`?
+4. Provide resume files and personal hero photos for Ammu, Bava and Sai?
+5. Keep OpenAI as a fallback provider or JARVIS + offline only?
+6. Production target and domain (sets `VITE_SITE_URL`, tunnel hostname, R2 bucket).
 
-Related commits on `new`: `4b185ffa1e913472606685da8750d673e80d57c7`, `d3f39d94f412f7e246d94cec0c3b23b786d52ae1`, `f9d3e58151cf4869cc9b9b9d3b20f268c2d9c456`.
+## 6. Future scope / enhancement candidates
 
-### What is developed versus what is not
-
-**Implemented in source, but not tested/accepted:** profile-aware portfolio foundations; selected published-resume integration; AI context and streaming safeguards; asset-integrity checks; artifact provenance, manifest/checksum/archive verification and release-disposition tooling.
-
-**Partially implemented:** all-profile content/visual consistency; complete route/legacy compatibility; voice/video behavior; secure admin lifecycle; resume/image review and publishing; responsive/accessibility/SEO/performance work.
-
-**Not complete / not yet implemented as an accepted capability:** full end-to-end admin authorization and upload lifecycle; reliable image/resume storage and publish/unpublish/rollback; complete browser acceptance for every profile and route; full accessibility/performance/SEO acceptance; production release and deployment.
-
-**Testing state:** resumed 2026-11-07; local checks pass (see “Verification status”). CI/Jenkins evidence for the exact head is still required for acceptance.
-
-## Read this first — what this project is
-
-This project is a cinematic, Netflix-inspired multi-person portfolio website for four profiles: Abhishek, Amulya, Anjini and Sai. It provides a shared visual system with profile-specific identity, biography, skills, projects, experience, education, certifications and contact information.
-
-It also includes an optional profile-aware AI introduction/chat experience, optional narration/video, and a protected owner-only administration workflow intended to manage profile resumes and images through review and publishing.
-
-**The portfolio's purpose is to present accurate, approved profile information.** AI responses and resume-derived information must remain grounded in the selected profile's approved data. Private resume originals, review notes, admin records and API credentials must never become public.
-
-## Status vocabulary used in this POC
-
-| Status | Meaning |
-|---|---|
-| **IMPLEMENTED — NOT VERIFIED** | Source implementation is present, but relevant tests, browser checks or operational acceptance have not been run on the current branch head. |
-| **PARTIALLY IMPLEMENTED — NOT VERIFIED** | Some pages, data paths or foundations exist; important integration, security, consistency or acceptance remains incomplete. |
-| **NOT IMPLEMENTED** | No complete implementation is currently evidenced; it remains development work. |
-| **VERIFIED** | The exact current branch revision has passed the relevant checks and acceptance evidence is recorded. No new item is marked VERIFIED by this documentation refresh. |
-
-A route/component or test file existing does not prove the page works in a browser. A successful build alone does not prove profile correctness, admin security or release readiness.
-
-## Current status at a glance
-
-| Area | What exists in source | Current status / what remains |
-|---|---|---|
-| Product and four profiles | Shared portfolio application and profile-specific content/media for Abhishek, Amulya, Anjini and Sai | Partially implemented; full four-profile content and visual consistency review remains |
-| Design system and responsive UI | Cinematic shared layout, profile selector, section pages, reusable components and responsive styling foundations | Partially implemented; desktop/tablet/mobile and accessibility acceptance not run |
-| Routes and content | Profile/section routes, project content, shared profile renderer and published-resume section precedence | Partially implemented; route matrix, direct refresh, legacy links and all-profile correctness remain unverified |
-| AI introduction and chat | Server-side AI integration foundations, profile-scoped approved-resume context, streaming/cancellation handling and offline fallback | Implemented in source in key paths; provider, privacy and all-profile runtime behavior not verified |
-| Admin, resume and images | Admin route/auth foundations, resume/image management components, resume/image upload handlers and published-resume workflow foundations | Partially implemented; latest image and resume upload attempts returned HTTP 500. Diagnostic response handling was improved in source, but the underlying storage/persistence failure is not confirmed fixed; full authorization and upload-to-publish acceptance remain open |
-| Quality engineering | Regression tests and CI definitions exist; some asset, profile and AI checks are authored | Testing is paused; no current exact-head test/build/lint/browser/CI pass is claimed |
-| Accessibility, performance and SEO | Some responsive/accessibility and metadata foundations | Not fully implemented or accepted; systematic audits/reviews remain |
-| Shared DevOps and artifact integrity | Provenance manifest, SHA-256 checks, SBOM/signing foundations, archive-backed customer verification and release quarantine/recovery records | Source implementation present; exact-head workflow/package acceptance is pending; Nexus publishing disabled |
-
-## What is developed but not yet tested
-
-The current `new` branch contains source implementation for the four-profile experience, shared section rendering, profile-aware AI context, streaming and cancellation safeguards, published-resume content precedence, profile asset integrity checks, and shared DevOps/artifact-integrity utilities.
-
-The latest recorded portfolio increment (2026-11-07) makes Abhishek's Skills, Projects, Experience, Education and Certifications pages prefer valid published resume sections, while retaining curated static content as fallback. Recent same-day source increments also align section navigation with published content and harden admin resume/image multipart upload handling with clearer diagnostics; these changes remain runtime-unverified. The shared published-resume panel receives normalized profile-scoped data from its caller. Other profiles continue through the shared profile-aware renderer with static fallback.
-
-The DevOps implementation includes provenance and release identity, manifest and SHA-256 validation, archive-backed `.tar.gz` verification, structured customer verification reports, SBOM/signing foundations, and operator-invoked quarantine/recovery evidence records. These are source-level implementation claims, not evidence of successful pipeline execution.
-
-**No tests, build, lint, browser checks, route matrix, CI/Jenkins run, artifact acceptance or deployment were performed for this documentation refresh. Testing remains paused.**
-
-## Known issue history (see Verification status for the 2026-11-07 resolution)
-
-Historical issue: the owner previously reported `GET /admin/images` returning HTTP 404. Later upload attempts produced `POST /api/admin/images` and `POST /api/admin/resumes` HTTP 500 responses. Diagnostic/error-handling changes were committed on `new` (see the current upload incident section above). These changes improve error visibility and address a possible multipart File validation issue; they do not prove the storage/persistence root cause is fixed. The upload issue remains OPEN pending a user retry and the resulting server diagnostic.
-
-## Not yet developed or not complete
-
-- Complete, verified route coverage for all profiles, section pages, project details, direct URL loads, refreshes, legacy routes and mobile navigation.
-- Full visual consistency and content accuracy review across all four profiles.
-- Complete secure admin lifecycle: authentication/authorization on every operation, upload validation, profile assignment, review, publish, unpublish, rollback and failure recovery.
-- Resolution and browser verification of the paused `/admin/images` 404.
-- Complete AI provider failure-path acceptance, profile-switch behavior and privacy review.
-- Full keyboard/screen-reader, reduced-motion, responsive, performance and SEO acceptance.
-- Exact-head clean install/build/lint/unit/browser/CI evidence. Testing is paused by owner instruction.
-- Operational Jenkins/GitHub Actions artifact acceptance, release rollback/recovery exercise and production readiness.
-- Nexus publication or production deployment. Both remain disabled unless separately approved.
-
-## Scope boundaries
-
-This repository is the portfolio product. CMM-specific shared pipeline configuration tooling, customer environment snapshot utilities and on-site change-detection products are separate DevOps workstreams, not portfolio application features. The portfolio's own artifact-integrity/CI implementation is included under PORT-E08.
-
-## Verification status — testing resumed 2026-11-07
-
-Testing was resumed by the owner on 2026-11-07. Local results on branch `new` (Windows 11, Node 24.16, Edge headless):
-
-| Check | Result |
-|---|---|
-| `npm run typecheck` (new; strict tsc) | PASS — 0 errors (≈120 were hidden behind a test-file parse error) |
-| `npm run lint` | PASS — 0 errors, 6 react-refresh warnings (1,832 formatting errors fixed) |
-| `npm test` | PASS — 68 Vitest + 4 Node tests (6 were failing) |
-| `npm run build` | PASS |
-| Route matrix (dev server) | PASS — 33 routes; unknown profile/section/page return 404; `/people/abhishek` → `/`; `/portfolio` → 301 `/` |
-| Browser pass (Edge, 20 routes × 1440px/390px) | PASS — no page errors; no horizontal overflow after fix |
-| Admin uploads (dev server) | PASS — image upload → publish → public feed/bytes → unpublish → delete; PDF resume upload + extraction |
-
-**Defects found and fixed in this pass**
-- **Admin upload HTTP 500 (open incident):** root cause found — `limitRequestBody` read request metadata after consuming the body; on the Node/srvx runtime that throws “Response body object should not be disturbed or locked”. Fixed with a regression test. The same path also broke `/api/chat` on Node.
-- **`/admin/images` 404:** not reproduced; the route renders and its API responds in the dev server.
-- `scripts/customer-release-verifier.mjs` had a SyntaxError, so the CI release verifier could not run; tar calls failed on Windows paths with GNU tar.
-- `PersonPortfolio.tsx` used `ResumeEntryCard` without importing it (render crash when published sections exist).
-- `vite.config.ts` passed a function to `defineConfig`, which silently ignores Lovable options; the local admin-auth bypass could also have been enabled by `vite build --mode development`.
-- `/portfolio` legacy links returned 404 (PORT-US-006) — now a 301 to `/`.
-- CI/Jenkins had lint and tests paused since 2026-11-05; they are re-enabled and a strict typecheck step is added.
-
-Production-runtime (Cloudflare) upload acceptance, CI/Jenkins exact-head runs and accessibility/performance/SEO reviews remain open. Deployment and Nexus publishing remain disabled.
-
-## Branch and safety rules
-
-- `main` is production-protected and is never updated automatically.
-- `dev` is the integration branch; approved pull requests from development branches target `dev`.
-- `new` is the current feature/development branch; `fix` is for authorized fixes; `test` is for testing/audit work.
-- No PR, merge, deployment, Nexus publication or production change without explicit authorization.
-- Secrets and API keys stay in local/server environment configuration and must not be committed.
+- Resume version history with one-click rollback; scheduled publish.
+- Per-profile analytics (privacy-friendly) and a contact form with a real delivery service.
+- Automated Playwright journeys in CI (chat, contact, admin publish/unpublish).
+- Responsive `srcset` image pipeline and automatic WebP/AVIF generation on upload.
+- Chat answer caching for common questions to hide local-model latency.
+- Additional profiles via configuration only (no code changes).
+- Dark/light theme toggle; multilingual content.
 
 ---
+
+> **Historical notes below are retained for traceability.** Earlier “development stopped” / “testing paused” statements are superseded by the 2026-11-07 status above.
 
 ## Historical implementation notes
 

@@ -1,93 +1,61 @@
 # Portfolio — User Stories and Acceptance Criteria
 
-**Repository:** `ASAA1229/pixel-perfect-pixel`  
-**Branch:** `new`  
-**Updated:** 2026-11-07 (documentation reconciliation)  
-**Rule:** Every story remains OPEN until its acceptance criteria are evidenced on the exact branch revision.
+**Repository:** `ASAA1229/pixel-perfect-pixel`
+**Branch:** `new`
+**Updated:** 2026-11-07 (status baseline after testing resumed)
+**Rule:** A story is fully closed only when its acceptance criteria are evidenced; production/CI evidence is still pending for every story.
 
-Epic mapping: [EPICS.md](EPICS.md)  
-Project overview and implementation baseline: [POC.md](POC.md)
+Epic mapping: [EPICS.md](EPICS.md) · Project overview, constraints and future scope: [POC.md](POC.md)
 
-## Owner pause and evidence boundary — 2026-11-07
+## Status vocabulary
 
-Development and testing resumed on 2026-11-07 (see POC “Verification status”). This file is an implementation inventory, not a test or acceptance report. Recent source increments include published-resume section precedence, navigation alignment with available published content, and improved multipart handling/diagnostics for admin resume and image uploads. None of these changes has been verified in a browser or against the current branch head. The previously reported `/admin/images` 404 remains open until explicitly reproduced and resolved through validation. All stories remain OPEN until their acceptance criteria are evidenced.
+- **DONE — VERIFIED (automated):** covered by passing automated tests on the current head (local run).
+- **DONE — VERIFIED LOCALLY:** checked on the dev server / Edge browser on the owner's laptop.
+- **IMPLEMENTED — NEEDS TESTING:** built; the named test is still required.
+- **PARTIAL — NEEDS DEVELOPMENT:** some behaviour exists; listed gaps remain.
+- **NOT STARTED:** no implementation yet.
 
-## Authoritative implementation and verification snapshot — 2026-11-07
+Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node tests · build OK · 43 sitemap routes 200 · Edge 1440/390 px clean · axe serious 62 → 2 (false positives). No CI/production run yet.
 
-This section supersedes older status wording below wherever it conflicts. It is an inventory of source implementation, not proof of acceptance.
+## Story status summary
 
-### Project in one paragraph
-
-This repository contains a cinematic, multi-profile portfolio for Abhishek, Amulya, Anjini and Sai. Visitors select a person and view profile-specific biography, skills, projects, experience, education, certifications and contact details. The application includes profile-aware AI introduction/chat foundations and an owner-facing admin workflow for resume/image management. It also contains portfolio CI and artifact-integrity utilities. The separate CMM configuration-tool project is outside this repository's product scope.
-
-### Epic-level delivery status
-
-| Epic | Developed in source | Not yet accepted / remaining |
-|---|---|---|
-| PORT-E01 — Shared design and four-profile UI | Shared cinematic layout, profile selector, reusable components, profile content/media foundations | Full identity/content/visual review for all four profiles; responsive and accessibility acceptance |
-| PORT-E02 — Routes and portfolio content | Profile/section route foundations; published-resume precedence for Abhishek's Skills, Projects, Experience, Education and Certifications; shared profile-aware renderer for other profiles | Full route/refresh/legacy-route matrix, all-profile content correctness and browser acceptance |
-| PORT-E03 — AI introduction/chat | Server-side AI integration foundations, approved profile-scoped resume context, streaming/cancellation safeguards and offline fallback | Exact runtime/provider/privacy acceptance; complete voice/video and device behavior |
-| PORT-E04 — Admin/resume/images | Admin/auth foundations, resume and image upload handlers/UI, published-resume workflow foundations; diagnostic error reporting | Latest upload 500 root cause, full authorization, storage reliability, review/publish/unpublish/rollback lifecycle |
-| PORT-E05 — Quality engineering | Test suites/regression checks, npm scripts and CI definitions are present | Execution is paused; no exact-head test/build/lint/browser/CI success is claimed |
-| PORT-E06 — Accessibility/responsive | Some responsive and accessibility foundations | Systematic keyboard/screen-reader, contrast, reduced-motion and device acceptance |
-| PORT-E07 — Performance/SEO/release | Some metadata and release documentation foundations | Performance optimization/audit, SEO completeness, production configuration and approved release |
-| PORT-E08 — Artifact integrity | Provenance, manifest, SHA-256, archive-backed verification, structured customer reports, SBOM/signing foundations, quarantine/recovery record tooling | Exact-head CI/Jenkins execution, artifact inspection, operational exercise; Nexus remains disabled |
-
-### Latest admin upload incident — unresolved
-
-The owner reported `POST /api/admin/images` and `POST /api/admin/resumes` returning HTTP 500.
-
-Source changes were committed on `new`:
-- `4b185ffa1e913472606685da8750d673e80d57c7`: multipart resume file validation and structured server-side diagnostics.
-- `d3f39d94f412f7e246d94cec0c3b23b786d52ae1`: image admin UI displays optional server diagnostic details.
-- `f9d3e58151cf4869cc9b9b9d3b20f268c2d9c456`: resume admin UI displays optional server diagnostic details.
-
-These are diagnostic/error-handling improvements, not proof that image/resume persistence works. The underlying storage or indexing failure is still unknown until the owner retries and provides the new diagnostic. PORT-US-012 and PORT-US-014 remain OPEN.
-
-### How to interpret the story statuses
-
-- **IMPLEMENTED — NOT VERIFIED:** source behavior exists, but its acceptance checks have not been run or evidenced.
-- **PARTIALLY IMPLEMENTED — NOT VERIFIED:** some implementation exists, with material capability gaps still open.
-- **NOT IMPLEMENTED / NOT COMPLETE:** the required capability is absent or incomplete.
-- **TEST-AUTHORED / EXECUTION PAUSED:** tests exist but have not been executed for the current branch head.
-- **VERIFIED:** only use when exact-commit evidence and the relevant acceptance criteria are recorded. No story is marked VERIFIED in this snapshot.
-
-### Current owner instructions
-
-- Feature development is stopped; documentation maintenance only.
-- Do not run tests, builds, lint, audits, browser checks, CI/Jenkins workflows or deployment while the pause remains.
-- Do not merge, create a PR, deploy or publish to Nexus without explicit owner approval.
-- Continue development only when the owner explicitly resumes it.
-
-## Current story status — 2026-11-07
-
-**Important:** This is an implementation inventory, not an acceptance report. All stories remain open until acceptance criteria are evidenced on the exact branch revision. No tests/build/lint/browser/CI checks were run for this documentation update.
-
-| Epic / story range | Current implementation summary |
+| Story | Status |
 |---|---|
-| E01 / US-001–003 | Shared design system and cinematic multi-profile page foundations exist; full four-profile visual/content consistency remains unverified. |
-| E02 / US-004–006 | Profile/section routes and published-resume precedence exist in part; complete route matrix, legacy compatibility and content review remain open. |
-| E03 / US-007–010, US-024–025 | Profile-aware AI context, chat, streaming and cancellation safeguards exist; runtime, privacy and voice/video acceptance remain open. |
-| E04 / US-011–014 | Admin/resume/image foundations and recent multipart upload hardening exist in source; full secure lifecycle remains incomplete and the reported `/admin/images` 404 is unverified/open. |
-| E05 / US-015–017 | CI definitions and regression checks are authored; execution is paused and no current-head pass is claimed. |
-| E06 / US-018–019 | Some responsive foundations exist; systematic accessibility and device acceptance remain open. |
-| E07 / US-020–022 | Performance/SEO/release readiness is incomplete; production deployment is not authorized. |
-| Hardening / US-023–026 | Asset checks, approved resume context, AI streaming/cancellation and release/snapshot validation utilities are implemented in source; verification remains pending. |
-| E08 / US-029–033 | Provenance, manifest/archive/customer verification, SBOM/signing and release disposition foundations exist; exact-head pipeline and operational acceptance remain pending. |
-
-### Status definitions
-
-- **IMPLEMENTED — NOT VERIFIED:** source exists; acceptance evidence is missing.
-- **PARTIALLY IMPLEMENTED — NOT VERIFIED:** some required behavior exists, but the story still has material implementation gaps.
-- **NOT IMPLEMENTED / NOT COMPLETE:** required capability is absent or materially incomplete.
-- **NOT VERIFIED:** implementation may exist, but there is no current evidence to claim acceptance.
-- No story is marked **VERIFIED** in this refresh.
+| US-001 Consistent shared experience | DONE — VERIFIED LOCALLY |
+| US-002 Correct identity and media | DONE — VERIFIED LOCALLY (owner content review pending) |
+| US-003 Cinematic presentation | DONE — VERIFIED LOCALLY |
+| US-004 Navigation | DONE — VERIFIED LOCALLY |
+| US-005 Project and section pages | DONE — VERIFIED LOCALLY |
+| US-006 Legacy routes | DONE — VERIFIED (automated) |
+| US-007 AI introduction | IMPLEMENTED — NEEDS TESTING |
+| US-008 Grounded chat | DONE — VERIFIED LOCALLY |
+| US-009 Secure AI requests | DONE — VERIFIED (automated) |
+| US-010 Voice/video intro | IMPLEMENTED — NEEDS TESTING |
+| US-011 Protected owner access | IMPLEMENTED — NEEDS TESTING |
+| US-012 Upload/review resumes | DONE — VERIFIED LOCALLY (persistent storage pending) |
+| US-013 Publish/roll back resumes | PARTIAL — NEEDS DEVELOPMENT |
+| US-014 Manage images | DONE — VERIFIED LOCALLY (persistent storage pending) |
+| US-015 Engineering checks | DONE — VERIFIED (automated); CI run pending |
+| US-016 Browser acceptance | DONE — VERIFIED LOCALLY (journeys partial) |
+| US-017 Regression coverage | PARTIAL — NEEDS DEVELOPMENT |
+| US-018 Keyboard/assistive tech | DONE — VERIFIED LOCALLY (screen reader pending) |
+| US-019 Responsive/reduced motion | DONE — VERIFIED LOCALLY |
+| US-020 Performance | IMPLEMENTED — NEEDS TESTING |
+| US-021 Search/social | DONE — VERIFIED (automated) |
+| US-022 Controlled production release | NOT STARTED |
+| US-023 Asset integrity | DONE — VERIFIED (automated) |
+| US-024 Approved resume context for AI | DONE — VERIFIED (automated) |
+| US-025 Streaming and cancellation | DONE — VERIFIED (automated) |
+| US-026 Release/snapshot input validation | DONE — VERIFIED (automated) |
+| US-029–032 DevOps provenance/integrity/SBOM | IMPLEMENTED — NEEDS TESTING (CI run) |
+| US-033 Gated promotion | PARTIAL — NEEDS DEVELOPMENT |
+| US-034 Chat uses the owner's JARVIS personal AI | DONE — VERIFIED LOCALLY |
 
 ## PORT-E01 — Shared Design System and Four-Profile UI
 
 ### PORT-US-001 — Consistent shared experience
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Shared layout and components exist; visual consistency across all four profiles has not been accepted.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — All four profiles share one template (`0b2308f`); Edge pass at 1440/390 px. Remaining differences: generic hero images for Ammu/Bava/Sai, two near-duplicate contact components.
 
 **As a visitor,** I want all four profiles to share a consistent design system, so that the portfolio feels like one cohesive product.
 
@@ -99,7 +67,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-002 — Correct profile identity and media
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Profile-specific data and media exist; a complete identity/fact/asset review across every page remains.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Person pages show only their own facts; each profile has its own monogram (Abhishek keeps the GA. logo); asset-integrity tests pass. Owner content review and Sai monogram decision (DR vs DS) pending.
 
 **As a visitor,** I want each profile to display the correct person's facts and images, so that identities and information are never mixed.
 
@@ -111,7 +79,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-003 — Cinematic page presentation
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Cinematic styling and section pages exist; motion, readability and responsive visual acceptance remain.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Chapter heroes, featured projects and Reveal motion on every profile; reduced motion honoured.
 
 **As a visitor,** I want portfolio sections to have the same polished visual quality as the home page, so that the experience remains engaging throughout.
 
@@ -125,7 +93,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-004 — Reliable profile and section navigation
 
-**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — 33-route dev-server matrix and a 20-route Edge pass (1440px/390px) succeeded on 2026-11-07; invalid profile/section/page paths return 404. Active-navigation behaviour and CI evidence remain.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — 33-route matrix and 43 sitemap routes return 200; unknown profile/section/page return 404; navbar tests pass.
 
 **As a visitor,** I want to navigate between profiles and their sections, so that I can find information without broken links.
 
@@ -137,7 +105,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-005 — Complete project and section pages
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Section/project content and published-resume precedence exist in selected paths; full profile-by-profile completeness remains.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Section and project pages render for all profiles with published-resume precedence; broken home project links fixed with 301s.
 
 **As a visitor,** I want project and portfolio detail pages to load complete information, so that I can understand each person's work.
 
@@ -151,7 +119,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-006 — Preserve legacy route behavior
 
-**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — `/portfolio` (removed in 65e7c7e) now returns 301 to `/`; `/people/abhishek` redirects to `/`; covered by a routing test and dev-server check.
+**Current implementation status:** **DONE — VERIFIED (automated)** — `/portfolio` → 301 `/`, `/people/abhishek` → `/`, `/people/darling` → `/people/sai`; routing test plus dev-server check.
 
 **As a returning visitor,** I want existing supported portfolio links to keep working, so that updates do not break bookmarks or shared URLs.
 
@@ -165,7 +133,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-007 — Profile-aware AI introduction
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Profile-aware AI introduction context and approved-resume enrichment exist; all-profile runtime behavior remains unverified.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Profile-aware intro context exists; test: open AI Intro on each profile in a real browser and confirm silent open and close.
 
 **As a visitor,** I want the introduction to describe the selected person accurately, so that I receive relevant information.
 
@@ -177,7 +145,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-008 — Grounded portfolio chat
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Grounded portfolio chat and profile-scoped approved context exist; factuality/privacy acceptance remains pending.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Live chain portfolio → JARVIS → llama3.2 returned answers grounded in Ammu’s and Sai’s data; offline fallback tests pass.
 
 **As a recruiter or visitor,** I want to ask questions about a profile, so that I can quickly understand skills and experience.
 
@@ -189,7 +157,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-009 — Secure and resilient AI requests
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Server-side key handling, request bounds and failure/cancellation safeguards exist; complete provider/security acceptance is pending.
+**Current implementation status:** **DONE — VERIFIED (automated)** — Keys server-side only; request bounds; provider 401/429 mapped to safe messages; idle-based timeouts.
 
 **As the owner,** I want AI provider credentials and requests handled securely, so that the integration cannot expose secrets or fail unsafely.
 
@@ -202,7 +170,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-010 — Accessible voice and video introduction
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Optional narration/video and voice control foundations exist; accessible browser/device behavior is not accepted.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Narration/video controls exist; test on a phone and desktop browser (play/pause/close, no autoplay).
 
 **As a visitor,** I want optional voice/video controls, so that I can choose how to experience the introduction.
 
@@ -213,11 +181,24 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Closing the introduction stops its own playback and cleans up resources.
 - Reduced-motion preferences are respected.
 
+### PORT-US-034 — Chat uses the owner's JARVIS personal AI
+
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — `/api/chat` resolves the provider server-side (`src/lib/ai-provider.ts`); live local chain answered with profile-grounded text; provider, request-shape and 401 tests pass. Production needs a Cloudflare Tunnel to JARVIS and deployment secrets.
+
+**As the owner,** I want the portfolio chat to use my JARVIS personal AI through an API key, so that my sites run on my own AI instead of a paid third-party API.
+
+**Acceptance criteria**
+- When `JARVIS_AI_URL` and a valid `JARVIS_AI_KEY` (`jrv_…`) are set, chat requests go to JARVIS `/v1/chat/completions` with the profile instructions as the system message.
+- JARVIS URLs must be https, except loopback for local development; keys stay in server-side environment only.
+- If JARVIS is not configured, OpenAI is used when `OPENAI_API_KEY` is set; otherwise the API returns 503 and the UI shows offline profile answers.
+- Only assistant text is streamed to the browser; provider errors map to safe messages without leaking keys.
+- Slow answers are not cut off: timeouts apply to silence (45 s, reset by keep-alives) with a 5-minute ceiling.
+
 ## PORT-E04 — Admin, Resume and Image Management
 
 ### PORT-US-011 — Protected owner access
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — PARTLY VERIFIED** — `/admin/images` renders (prior 404 not reproduced); cross-origin admin mutations are rejected. Verified with the local dev bypass only; authenticated production login/session expiry acceptance remains.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Server-side admin gate on `/admin` and every `/admin/*` + `/api/admin/*`; cross-origin mutations rejected; `/admin` hub added. Test: real login, logout and session expiry in a deployed environment (dev uses a local bypass).
 
 **As the owner,** I want admin routes and APIs protected by server-side authentication and authorization, so that only I can manage portfolio content.
 
@@ -229,7 +210,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-012 — Upload and review resumes
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — PARTLY VERIFIED** — Upload HTTP 500 root cause fixed; PDF upload (201), non-PDF/DOCX rejection (415) and text extraction verified locally. Review/approval lifecycle acceptance remains.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Upload HTTP 500 root cause fixed (body-limit helper, `f12ebb9`); false “Cannot read properties of null (reading reset)” error fixed (`9e9b761`); PDF upload, 415 for unsupported types and extraction verified. Persistent R2 storage not yet verified.
 
 **As the owner,** I want to upload a resume for a selected profile and review extracted information, so that profile updates are easier to maintain.
 
@@ -242,7 +223,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-013 — Publish and roll back resume content
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Published-resume context and publish workflow foundations exist; full unpublish/rollback/partial-failure acceptance remains.
+**Current implementation status:** **PARTIAL — NEEDS DEVELOPMENT** — Publish/unpublish exists; version history and rollback to a previous published resume, and partial-failure reconciliation, are not built.
 
 **As the owner,** I want to publish approved resume-derived sections and roll them back, so that public profile updates remain controlled.
 
@@ -255,7 +236,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-014 — Manage profile images
 
-**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — Upload → publish → public feed/identical bytes → unpublish (public URL 404) → delete verified on the dev server (local ephemeral storage). Persistent-bucket production acceptance remains.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Upload → publish → public feed/identical bytes → unpublish (public URL 404) → delete on the dev server (in-memory storage). Persistent bucket acceptance pending.
 
 **As the owner,** I want to upload, review, publish and unpublish profile images, so that galleries stay accurate and current.
 
@@ -270,7 +251,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-015 — Repeatable engineering checks
 
-**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — typecheck, lint, tests and build pass locally; lint/tests re-enabled and typecheck added to CI/Jenkins. Exact-head CI run pending.
+**Current implementation status:** **DONE — VERIFIED (automated)** — typecheck, lint, tests and build pass locally; CI/Jenkins re-enabled with a strict typecheck step. First CI run happens after push.
 
 **As a maintainer,** I want clean install, build, lint and test commands to pass, so that regressions are detected before release.
 
@@ -282,7 +263,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-016 — Browser-level acceptance
 
-**Current implementation status:** **PARTIALLY VERIFIED** — Edge headless pass over 20 routes at 1440px and 390px with no page errors or overflow. Chat/contact/admin journeys and keyboard checks remain.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Edge pass over all profiles/sections at 1440/390 px with no page errors; admin upload checked in the browser. Chat/contact journeys are not yet automated.
 
 **As a maintainer,** I want critical journeys tested in a real browser, so that issues missed by unit tests are detected.
 
@@ -294,7 +275,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-017 — Regression and failure-path coverage
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — PASSING LOCALLY** — 68 Vitest + 4 Node tests pass, including new archive-inventory, request-body and legacy-route regressions. Coverage gaps (parser failures, partial persistence) remain.
+**Current implementation status:** **PARTIAL — NEEDS DEVELOPMENT** — New regressions cover archive inventory, request-body limit, legacy routes, person templates, SEO and provider selection; parser-failure and partial-persistence cases still missing.
 
 **As a maintainer,** I want important error paths covered by tests, so that failures do not expose data or leave inconsistent state.
 
@@ -308,7 +289,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-018 — Keyboard and assistive-technology support
 
-**Current implementation status:** **NOT COMPLETE** — Systematic keyboard and assistive-technology acceptance is still outstanding.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — Skip link, visible focus, mobile-menu focus management, keyboard order checked; axe serious 62 → 2 (aria-hidden watermark false positives). Screen-reader pass pending.
 
 **As a visitor using a keyboard or assistive technology,** I want all essential controls to be accessible, so that I can use the portfolio independently.
 
@@ -321,7 +302,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-019 — Responsive and reduced-motion behavior
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Responsive and reduced-motion foundations exist; full device/breakpoint acceptance remains.
+**Current implementation status:** **DONE — VERIFIED LOCALLY** — No horizontal overflow at 390 px; reduced-motion CSS disables non-essential motion.
 
 **As a mobile or motion-sensitive visitor,** I want the site to adapt to my device and preferences, so that it remains comfortable to use.
 
@@ -336,7 +317,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-020 — Fast and reliable pages
 
-**Current implementation status:** **NOT COMPLETE** — Performance review and optimization evidence are not complete.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Profile photos 11.9 MB → 0.7 MB WebP (`bf23a66`). Test: Lighthouse/Web Vitals on the deployed site. Originals and 3 unused images await owner approval to remove.
 
 **As a visitor,** I want pages and images to load reliably, so that I can explore the portfolio without unnecessary delay.
 
@@ -348,7 +329,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-021 — Search and social presentation
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Metadata/SEO foundations may exist, but complete search/social preview/sitemap/canonical verification is outstanding.
+**Current implementation status:** **DONE — VERIFIED (automated)** — `sitemap.xml` (43 routes), `robots.txt`, canonical/OG/Twitter via shared `seoHead`, admin `noindex`. `VITE_SITE_URL` must be set in production.
 
 **As a visitor or recruiter,** I want portfolio pages to have accurate metadata and share previews, so that links are understandable when discovered or shared.
 
@@ -360,7 +341,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-022 — Controlled production release
 
-**Current implementation status:** **NOT IMPLEMENTED** — Production release acceptance and owner-approved deployment are not complete; deployment remains prohibited without approval.
+**Current implementation status:** **NOT STARTED** — Deployment is not authorized; needs production secrets, CI evidence and owner approval.
 
 **As the owner,** I want a documented release and recovery process, so that production changes are safe and reversible.
 
@@ -372,7 +353,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-023 — Profile image asset integrity
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Profile/avatar/gallery asset integrity checks and regression coverage are authored; exact-head execution and visual review remain.
+**Current implementation status:** **DONE — VERIFIED (automated)** — Every referenced avatar/portrait/gallery image resolves to a committed file.
 
 **As a maintainer,** I want every profile avatar, portrait and gallery reference to resolve to a committed public asset, so that broken images are caught before release.
 
@@ -386,7 +367,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-024 — Approved, profile-scoped resume context for AI
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — AI context is enriched from approved, matching profile resume data; runtime/privacy verification remains.
+**Current implementation status:** **DONE — VERIFIED (automated)** — Only the matching profile’s approved resume is attached server-side; tested in chat API tests.
 
 **As a visitor,** I want the portfolio assistant to use only the selected person's latest approved published resume information, so that answers are current without exposing private drafts or mixing profiles.
 
@@ -401,7 +382,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-025 — Reliable AI streaming and request cancellation
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Streaming decoder flush, final SSE handling, cancellation and stale-request safeguards are implemented; browser/runtime validation remains.
+**Current implementation status:** **DONE — VERIFIED (automated)** — Decoder flush, final SSE event, cancellation and idle timeouts covered by tests.
 
 **As a visitor,** I want streamed assistant responses to finish completely and respect cancellation, so that I do not see truncated text, stale answers or speech after stopping a request.
 
@@ -414,7 +395,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-026 — Validate release and snapshot integrity inputs
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Release provenance and snapshot input validation safeguards are implemented; tests and CI execution remain paused.
+**Current implementation status:** **DONE — VERIFIED (automated)** — Manifest and snapshot inventories validated; change-detection tests updated for the stricter schema.
 
 **As a portfolio maintainer,** I want release manifests and environment snapshot inventories validated before comparison, so that unsafe paths or malformed metadata cannot produce misleading integrity reports.
 
@@ -431,7 +412,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-029 — Generate traceable portfolio build provenance
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Portfolio build provenance and deterministic release identity are implemented; exact-head CI/artifact verification remains.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Provenance manifest and release identity exist; test: exact-head GitHub Actions/Jenkins run.
 
 **As a release maintainer,** I want every portfolio artifact to include a machine-readable provenance manifest, so that its project, source revision and CI origin can be identified.
 
@@ -444,7 +425,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-030 — Validate manifest inventory and artifact integrity
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Manifest/inventory validation and archive-backed SHA-256 verification are implemented; execution and artifact acceptance remain.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Archive-backed inventory verification works locally (verifier SyntaxError and Windows tar bug fixed; tests pass); CI run pending.
 
 **As a release maintainer,** I want manifest inventory metadata and SHA-256 values validated before artifact acceptance, so that malformed or tampered packages are rejected.
 
@@ -462,7 +443,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-031 — Verify customer packages and explain failures
 
-**Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Customer package verification sequence and structured failure reports are implemented; CI/operator acceptance remains.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Structured failure report verified by test; CI artifact retention unverified.
 
 **As a release operator,** I want a consistent customer-package verification sequence with a useful report, so that delivery failures can be diagnosed safely.
 
@@ -478,7 +459,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-032 — Produce SBOM-backed and signed CI artifacts
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — SBOM/signing and CI packaging foundations exist; exact-head signature/SBOM/artifact inspection remains.
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — SBOM/signing pipeline defined; needs a CI run with signing secrets.
 
 **As a release maintainer,** I want GitHub Actions and Jenkins to produce traceable artifacts with dependency SBOM and integrity metadata, so that releases can be independently reviewed.
 
@@ -492,7 +473,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-033 — Gate promotion and deployment on release evidence
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Operator quarantine/recovery records and manual approval boundaries exist; operational exercise and release evidence remain.
+**Current implementation status:** **PARTIAL — NEEDS DEVELOPMENT** — Quarantine/recovery records exist; promotion gating and rollback exercise not done; Nexus disabled.
 
 **As the portfolio owner,** I want promotion and deployment to remain controlled by explicit approval, so that unverified artifacts cannot be published.
 
