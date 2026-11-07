@@ -244,3 +244,16 @@ See [docs/EPICS.md](EPICS.md) and [docs/USER_STORIES.md](USER_STORIES.md) for th
 - Procedure: [Release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md).
 
 No tests, builds, CI/Jenkins executions or rollback actions were performed; validation remains paused.
+
+
+## PORT-E02 development increment — published resume content precedence (2026-11-07)
+
+**Branch:** `new`  
+**Status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING
+
+- Updated the shared `PublishedResumePanel` to receive the normalized resume from its page instead of issuing a duplicate request.
+- Abhishek's Skills, Projects, Experience, Education and Certifications pages now prefer the latest published resume section when valid entries exist. Curated portfolio content remains the fallback when no published section is available.
+- This avoids displaying a new published section alongside an outdated static list for the same section.
+- Amulya, Anjini and Sai continue to use the shared profile-aware `PersonContent` renderer, with profile matching and static fallback behavior.
+
+No tests, builds, lint, browser checks or route-matrix verification were performed; validation remains paused.
