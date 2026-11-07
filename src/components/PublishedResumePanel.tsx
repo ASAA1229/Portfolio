@@ -14,11 +14,9 @@ const sectionMeta = {
 } satisfies Record<ResumeSection, { title: string; icon: typeof Code2 }>;
 
 export function PublishedResumePanel({
-  profileId,
   section,
   resume,
 }: {
-  profileId: string;
   section: ResumeSection;
   resume: PublishedProfileResume | null;
 }) {
