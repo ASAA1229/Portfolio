@@ -55,7 +55,7 @@ function Projects() {
         <span className="chapter-hero-index">SELECTED WORK · 2023—PRESENT</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="projects" resume={publishedResume} />
+        <PublishedResumePanel section="projects" resume={publishedResume} />
         {!publishedResume?.structuredSections?.projects?.length && (
           <>
         <section className="featured-project">
