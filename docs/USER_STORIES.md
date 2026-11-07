@@ -56,6 +56,8 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Empty sections have an intentional empty state.
 - Internal and external links resolve to the intended destination.
 
+**Current implementation status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING. The shared published-resume panel is now fed from the page's profile-scoped normalized data. Abhishek's five content routes prefer valid published section data and use the curated static portfolio only when the matching published section is empty. Other profile routes retain the shared profile-aware renderer. Direct-load, refresh and cross-profile acceptance remain unverified while testing is paused.
+
 ### PORT-US-006 — Preserve legacy route behavior
 **As a returning visitor,** I want existing supported portfolio links to keep working, so that updates do not break bookmarks or shared URLs.
 
