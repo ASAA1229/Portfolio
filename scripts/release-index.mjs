@@ -19,6 +19,13 @@ async function describe(file) {
   return { name: path.basename(absolute), size: stat.size, sha256: await sha256(absolute) };
 }
 
+function parseChecksum(text, expectedName, expectedHash, label) {
+  const parts = text.trim().match(/^([a-f0-9]{64})\s+\*?(.+)$/);
+  if (!parts || parts[1] !== expectedHash || parts[2] !== expectedName) {
+    throw new Error(`${label} SHA-256 sidecar does not match its file.`);
+  }
+}
+
 async function main() {
   const [artifactPath, manifestPath, checksumPath, sbomPath, policyPath, policyChecksumPath, outputPath] = process.argv.slice(2);
   if (![artifactPath, manifestPath, checksumPath, sbomPath, policyPath, policyChecksumPath, outputPath].every(Boolean)) {
@@ -34,21 +41,28 @@ async function main() {
     manifestIgnorePolicyChecksum: await describe(policyChecksumPath),
   };
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  if (!manifest.artifact || manifest.artifact.name !== files.artifact.name ||
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest) ||
+      !manifest.artifact || manifest.artifact.name !== files.artifact.name ||
       manifest.artifact.size !== files.artifact.size || manifest.artifact.sha256 !== files.artifact.sha256) {
     throw new Error('Packaged artifact does not match the artifact manifest.');
   }
 
-  const checksum = (await readFile(checksumPath, 'utf8')).trim().match(/^([a-f0-9]{64})\\s+\\*?(.+)$/);
-  if (checksumParts.length !== 2 || checksumParts[0] !== files.artifact.sha256 || checksumParts[1] !== files.artifact.name) {
-    throw new Error('Artifact SHA-256 sidecar does not match the packaged artifact.');
-  }
-  const policyChecksum = (await readFile(policyChecksumPath, 'utf8')).trim().match(/^([a-f0-9]{64})\\s+\\*?(.+)$/);
-  if (policyChecksumParts.length !== 2 || policyChecksumParts[0] !== files.manifestIgnorePolicy.sha256 ||
-      policyChecksumParts[1] !== files.manifestIgnorePolicy.name) {
-    throw new Error('Manifest-ignore policy SHA-256 sidecar does not match the policy file.');
-  }
-  if (!manifest.source || !manifest.ci || !manifest.project) {
+  parseChecksum(
+    await readFile(checksumPath, 'utf8'),
+    files.artifact.name,
+    files.artifact.sha256,
+    'Artifact',
+  );
+  parseChecksum(
+    await readFile(policyChecksumPath, 'utf8'),
+    files.manifestIgnorePolicy.name,
+    files.manifestIgnorePolicy.sha256,
+    'Manifest-ignore policy',
+  );
+
+  if (typeof manifest.project !== 'string' || !manifest.project.trim() ||
+      !manifest.source || typeof manifest.source !== 'object' ||
+      !manifest.ci || typeof manifest.ci !== 'object') {
     throw new Error('Artifact manifest is missing project or build provenance metadata.');
   }
 
@@ -58,6 +72,7 @@ async function main() {
     project: manifest.project,
     source: manifest.source,
     ci: manifest.ci,
+    releaseIdentity: manifest.releaseIdentity || null,
     files,
   };
   const output = path.resolve(outputPath);
@@ -66,7 +81,7 @@ async function main() {
   if (inputPaths.includes(output)) {
     throw new Error('Release index output must be a separate file.');
   }
-  await writeFile(output, `${JSON.stringify(index, null, 2)}\\n`, { flag: 'wx' });
+  await writeFile(output, `${JSON.stringify(index, null, 2)}\n`, { flag: 'wx' });
   console.log(`Release index created: ${output}`);
 }
 
