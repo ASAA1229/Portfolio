@@ -46,9 +46,9 @@ The release root must contain the six files named by the index. Before writing a
 - artifact and manifest-ignore policy checksum sidecars match their files;
 - any supplied release identity agrees with the manifest provenance.
 
-A successful command writes a new JSON record with event `QUARANTINED`, operator, reason, release identity, evidence fingerprints and explicit false controls for promotion, deployment and Nexus publication. The record states `artifactMoved: false`: the evidence remains in place and must be retained under the team's controlled storage procedure.
+A successful command creates a new JSON record exclusively (it will not overwrite an existing path) with event `QUARANTINED`, operator, reason, release identity, evidence fingerprints and explicit false controls for promotion, deployment and Nexus publication. The record states `artifactMoved: false`: the evidence remains in place and must be retained under the team's controlled storage procedure.
 
-A failed validation exits non-zero and does not create a quarantine record.
+A failed validation exits non-zero and does not create a quarantine record. Records are protected with owner-only file permissions on supported systems, but are not cryptographically signed or tamper-proof; preserve them in controlled, access-restricted storage and retain their hashes.
 
 ## Record a recovery candidate
 
