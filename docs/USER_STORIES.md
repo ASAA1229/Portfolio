@@ -2,7 +2,7 @@
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`  
 **Branch:** `new`  
-**Updated:** 2026-11-07  
+**Updated:** 2026-11-07 (documentation reconciliation)  
 **Rule:** Every story remains OPEN until its acceptance criteria are evidenced on the exact branch revision.
 
 Epic mapping: [EPICS.md](EPICS.md)  
@@ -11,6 +11,53 @@ Project overview and implementation baseline: [POC.md](POC.md)
 ## Owner pause and evidence boundary — 2026-11-07
 
 Development is stopped and testing is paused. This file is a source-implementation inventory, not a test or acceptance report. Recent source increments include published-resume section precedence, navigation alignment with available published content, and improved multipart handling/diagnostics for admin resume and image uploads. None of these changes has been verified in a browser or against the current branch head. The previously reported `/admin/images` 404 remains open until explicitly reproduced and resolved through validation. All stories remain OPEN until their acceptance criteria are evidenced.
+
+## Authoritative implementation and verification snapshot — 2026-11-07
+
+This section supersedes older status wording below wherever it conflicts. It is an inventory of source implementation, not proof of acceptance.
+
+### Project in one paragraph
+
+This repository contains a cinematic, multi-profile portfolio for Abhishek, Amulya, Anjini and Sai. Visitors select a person and view profile-specific biography, skills, projects, experience, education, certifications and contact details. The application includes profile-aware AI introduction/chat foundations and an owner-facing admin workflow for resume/image management. It also contains portfolio CI and artifact-integrity utilities. The separate CMM configuration-tool project is outside this repository's product scope.
+
+### Epic-level delivery status
+
+| Epic | Developed in source | Not yet accepted / remaining |
+|---|---|---|
+| PORT-E01 — Shared design and four-profile UI | Shared cinematic layout, profile selector, reusable components, profile content/media foundations | Full identity/content/visual review for all four profiles; responsive and accessibility acceptance |
+| PORT-E02 — Routes and portfolio content | Profile/section route foundations; published-resume precedence for Abhishek's Skills, Projects, Experience, Education and Certifications; shared profile-aware renderer for other profiles | Full route/refresh/legacy-route matrix, all-profile content correctness and browser acceptance |
+| PORT-E03 — AI introduction/chat | Server-side AI integration foundations, approved profile-scoped resume context, streaming/cancellation safeguards and offline fallback | Exact runtime/provider/privacy acceptance; complete voice/video and device behavior |
+| PORT-E04 — Admin/resume/images | Admin/auth foundations, resume and image upload handlers/UI, published-resume workflow foundations; diagnostic error reporting | Latest upload 500 root cause, full authorization, storage reliability, review/publish/unpublish/rollback lifecycle |
+| PORT-E05 — Quality engineering | Test suites/regression checks, npm scripts and CI definitions are present | Execution is paused; no exact-head test/build/lint/browser/CI success is claimed |
+| PORT-E06 — Accessibility/responsive | Some responsive and accessibility foundations | Systematic keyboard/screen-reader, contrast, reduced-motion and device acceptance |
+| PORT-E07 — Performance/SEO/release | Some metadata and release documentation foundations | Performance optimization/audit, SEO completeness, production configuration and approved release |
+| PORT-E08 — Artifact integrity | Provenance, manifest, SHA-256, archive-backed verification, structured customer reports, SBOM/signing foundations, quarantine/recovery record tooling | Exact-head CI/Jenkins execution, artifact inspection, operational exercise; Nexus remains disabled |
+
+### Latest admin upload incident — unresolved
+
+The owner reported `POST /api/admin/images` and `POST /api/admin/resumes` returning HTTP 500.
+
+Source changes were committed on `new`:
+- `4b185ffa1e913472606685da8750d673e80d57c7`: multipart resume file validation and structured server-side diagnostics.
+- `d3f39d94f412f7e246d94cec0c3b23b786d52ae1`: image admin UI displays optional server diagnostic details.
+- `f9d3e58151cf4869cc9b9b9d3b20f268c2d9c456`: resume admin UI displays optional server diagnostic details.
+
+These are diagnostic/error-handling improvements, not proof that image/resume persistence works. The underlying storage or indexing failure is still unknown until the owner retries and provides the new diagnostic. PORT-US-012 and PORT-US-014 remain OPEN.
+
+### How to interpret the story statuses
+
+- **IMPLEMENTED — NOT VERIFIED:** source behavior exists, but its acceptance checks have not been run or evidenced.
+- **PARTIALLY IMPLEMENTED — NOT VERIFIED:** some implementation exists, with material capability gaps still open.
+- **NOT IMPLEMENTED / NOT COMPLETE:** the required capability is absent or incomplete.
+- **TEST-AUTHORED / EXECUTION PAUSED:** tests exist but have not been executed for the current branch head.
+- **VERIFIED:** only use when exact-commit evidence and the relevant acceptance criteria are recorded. No story is marked VERIFIED in this snapshot.
+
+### Current owner instructions
+
+- Feature development is stopped; documentation maintenance only.
+- Do not run tests, builds, lint, audits, browser checks, CI/Jenkins workflows or deployment while the pause remains.
+- Do not merge, create a PR, deploy or publish to Nexus without explicit owner approval.
+- Continue development only when the owner explicitly resumes it.
 
 ## Current story status — 2026-11-07
 
@@ -80,7 +127,7 @@ Development is stopped and testing is paused. This file is a source-implementati
 
 ### PORT-US-004 — Reliable profile and section navigation
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Profile and section routes exist, but full direct-load/refresh/navigation matrix is not verified; the admin-images 404 remains separately open.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Profile and section routes exist, but full direct-load/refresh/navigation matrix is not verified; the admin upload HTTP 500 failures remain separately open.
 
 **As a visitor,** I want to navigate between profiles and their sections, so that I can find information without broken links.
 
