@@ -21,6 +21,7 @@ import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SkillsRouteImport } from './routes/skills'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminImagesRouteImport } from './routes/admin.images'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminResumesRouteImport } from './routes/admin.resumes'
@@ -91,6 +92,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const SkillsRoute = SkillsRouteImport.update({
   id: '/skills',
   path: '/skills',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminImagesRoute = AdminImagesRouteImport.update({
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/people/$person': typeof PeoplePersonRouteWithChildren
   '/projects/$slug': typeof ProjectsSlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
   '/people/$person/education': typeof PeoplePersonEducationRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/admin/resumes': typeof AdminResumesRoute
   '/api/chat': typeof ApiChatRoute
   '/projects/$slug': typeof ProjectsSlugRoute
+  '/admin': typeof AdminIndexRoute
   '/projects': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
   '/people/$person/education': typeof PeoplePersonEducationRoute
@@ -218,6 +226,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/people/$person': typeof PeoplePersonRouteWithChildren
   '/projects/$slug': typeof ProjectsSlugRoute
+  '/admin/': typeof AdminIndexRoute
   '/projects/': typeof ProjectsIndexRoute
   '/people/$person/$section': typeof PeoplePersonSectionRoute
   '/people/$person/education': typeof PeoplePersonEducationRoute
@@ -245,6 +254,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/people/$person'
     | '/projects/$slug'
+    | '/admin/'
     | '/projects/'
     | '/people/$person/$section'
     | '/people/$person/education'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/resumes'
     | '/api/chat'
     | '/projects/$slug'
+    | '/admin'
     | '/projects'
     | '/people/$person/$section'
     | '/people/$person/education'
@@ -293,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/people/$person'
     | '/projects/$slug'
+    | '/admin/'
     | '/projects/'
     | '/people/$person/$section'
     | '/people/$person/education'
@@ -318,6 +330,7 @@ export interface RootRouteChildren {
   AdminResumesRoute: typeof AdminResumesRoute
   ApiChatRoute: typeof ApiChatRoute
   PeoplePersonRoute: typeof PeoplePersonRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -404,6 +417,13 @@ declare module '@tanstack/react-router' {
       path: '/skills'
       fullPath: '/skills'
       preLoaderRoute: typeof SkillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/images': {
@@ -536,6 +556,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminResumesRoute: AdminResumesRoute,
   ApiChatRoute: ApiChatRoute,
   PeoplePersonRoute: PeoplePersonRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

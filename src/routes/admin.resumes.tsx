@@ -215,6 +215,8 @@ function ResumeManager() {
 
   async function upload(event: ChangeEvent<HTMLFormElement>) {
     event.preventDefault();
+    // React clears event.currentTarget once the handler awaits; keep the form element.
+    const formElement = event.currentTarget;
     if (!selectedFile) return;
     const lowerName = selectedFile.name.toLowerCase();
     const isPdf =
@@ -256,7 +258,7 @@ function ResumeManager() {
           [payload.error, payload.detail].filter(Boolean).join(" — ") || "Upload failed.",
         );
       setSelectedFile(null);
-      event.currentTarget.reset();
+      formElement.reset();
       await loadResumes();
       setMessage(
         "Resume uploaded privately and assigned to the selected profile. Review the details before publishing.",
