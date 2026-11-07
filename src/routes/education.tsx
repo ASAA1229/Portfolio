@@ -34,7 +34,7 @@ function Education() {
               The academic foundation behind my journey in software engineering, information
               technology, and practical product development.
             </p>
-            <a className="chapter-scroll" href="#education-record">
+            <a className="chapter-scroll" href={publishedResume?.structuredSections?.education?.length ? "#education-published-resume" : "#education-record"}>
               <ArrowDown /> Explore education
             </a>
           </Reveal>
