@@ -39,6 +39,12 @@ jobs:
         run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
       - name: Build
         run: npm run build
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
       - name: Upload dependency SBOM
         uses: actions/upload-artifact@v4
         with:

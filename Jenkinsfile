@@ -37,9 +37,12 @@ pipeline {
         bat 'npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json'
       }
     }
-    stage('Build') {
+    stage('Build and test') {
       steps {
+        bat 'npm run typecheck'
+        bat 'npm run lint'
         bat 'npm run build'
+        bat 'npm test'
       }
     }
     stage('Package and verify integrity') {
