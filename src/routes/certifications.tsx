@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Award, BadgeCheck } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { CERTS } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/certifications")({
   component: Certifications,
 });
 function Certifications() {
+  const publishedResume = usePublishedProfileResume("abhishek");
   return (
     <>
       <section className="chapter-hero certs-hero">
@@ -39,7 +41,9 @@ function Certifications() {
         </span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="certifications" />
+        <PublishedResumePanel profileId="abhishek" section="certifications" resume={publishedResume} />
+        {!publishedResume?.structuredSections?.certifications?.length && (
+          <>
         <div className="certs-note">
           <BadgeCheck />
           <p>
@@ -81,6 +85,8 @@ function Certifications() {
             Explore the story <ArrowUpRight />
           </Link>
         </section>
+          </>
+        )}
       </PageBody>
     </>
   );
