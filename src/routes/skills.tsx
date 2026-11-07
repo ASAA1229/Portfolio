@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Braces, BrainCircuit, Cloud, Code2, Database, Server, Workflow } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { TechLogo } from "@/components/TechLogo";
 import { SKILLS } from "@/lib/portfolio-data";
@@ -45,6 +46,7 @@ const groups = [
   },
 ];
 function Skills() {
+  const publishedResume = usePublishedProfileResume("abhishek");
   return (
     <>
       <section className="chapter-hero skills-hero">
@@ -72,7 +74,9 @@ function Skills() {
         <span className="chapter-hero-index">TOOLS IN PRACTICE · NO SCORES, JUST WORK</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="skills" />
+        <PublishedResumePanel profileId="abhishek" section="skills" resume={publishedResume} />
+        {!publishedResume?.skills.length && (
+          <>
         <div className="skills-intro">
           <p className="chapter-kicker">DEVELOPER CONSTELLATION</p>
           <h2>
@@ -136,6 +140,8 @@ function Skills() {
             })}
           </div>
         </div>
+          </>
+        )}
       </PageBody>
     </>
   );
