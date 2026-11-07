@@ -63,13 +63,16 @@ export function PortfolioContact() {
     "w-full rounded-md border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground";
 
   return (
-    <section id="contact" className="scroll-mt-24 border-t border-border px-5 py-14 sm:px-12">
+    <section
+      id="contact"
+      className="scroll-mt-24 overflow-x-clip border-t border-border px-5 py-14 sm:px-12"
+    >
       <div className="mx-auto max-w-7xl">
         <Reveal>
           <p className="mb-2 text-xs text-primary">LET’S BUILD WHAT COMES NEXT</p>
           <h2 className="mb-8 text-4xl font-bold sm:text-5xl">Ready for the Next Episode?</h2>
         </Reveal>
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2 [&>*]:min-w-0">
           <Reveal direction="left" delay={0.1}>
             <div className="space-y-5 py-4 font-sans text-sm">
               <p className="text-accent">LET’S CONNECT</p>

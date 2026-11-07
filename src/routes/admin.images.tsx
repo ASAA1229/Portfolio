@@ -231,7 +231,7 @@ function ImageManager() {
         <h2 className="flex items-center gap-2 text-2xl">
           <ImagePlus className="size-5" /> Upload image
         </h2>
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <div className="mt-6 grid gap-5 md:grid-cols-2 [&>*]:min-w-0 [&_input]:min-w-0 [&_select]:min-w-0">
           <label className="grid gap-2 text-sm">
             Profile
             <select
