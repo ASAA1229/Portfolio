@@ -43,7 +43,7 @@ function Experience() {
         <span className="chapter-hero-index">WORK IN PROGRESS · WORK THAT SHIPS</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="experience" resume={publishedResume} />
+        <PublishedResumePanel section="experience" resume={publishedResume} />
         {!publishedResume?.structuredSections?.experience?.length && (
           <>
         <section className="experience-summary">
