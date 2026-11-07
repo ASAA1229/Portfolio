@@ -52,6 +52,17 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 - Route matrix passes direct load, refresh, in-app navigation, invalid route and mobile navigation scenarios.
 - No broken links, wrong-profile content or unintended cross-profile data exposure.
 
+### PORT-E02 implementation note — published-resume content precedence (2026-11-07)
+
+**Status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING
+
+- The shared published-resume section panel now receives the already-normalized, profile-scoped resume from its caller, avoiding a second fetch for the same page.
+- Abhishek's Skills, Projects, Experience, Education and Certifications routes now show the latest published section as the primary content when that section contains valid published data; static portfolio content remains the fallback when no corresponding published section exists.
+- The other three profile section routes continue to use the shared `PersonContent` renderer and the same profile-scoped resume normalizer, with static profile facts retained as fallback.
+- Published content is not mixed with stale static lists for the same section. The hero and page framing remain unchanged.
+
+No build, lint, unit test, browser check or route-matrix run was performed; testing remains paused. Exact-head route acceptance is pending.
+
 ## PORT-E03 — AI Introduction and Portfolio Chat
 **Goal:** Provide optional introductions and useful chat responses grounded in the selected profile's approved information.
 
