@@ -83,7 +83,7 @@ function AdminLogin() {
             <ShieldCheck className="size-4" /> {busy ? "Verifying…" : "Authenticate"}
           </button>
         </form>
-        <p className="mt-6 border-t border-white/10 pt-5 text-[11px] leading-5 text-white/40">
+        <p className="mt-6 border-t border-white/10 pt-5 text-[11px] leading-5 text-white/65">
           Eight-hour signed session · HttpOnly cookie · server-side authorization
         </p>
       </div>

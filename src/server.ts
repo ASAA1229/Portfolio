@@ -61,6 +61,17 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const MAX_TRACKED_LOGIN_CLIENTS = 4096;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
+// Private admin pages must never be indexed, even when a crawler reaches them.
+function withNoindex(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function privateNotFound(): Response {
   return new Response("Not Found", {
     status: 404,
@@ -1435,8 +1446,10 @@ export default {
 
     try {
       const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const response = await normalizeCatastrophicSsrResponse(
+        await handler.fetch(request, env, ctx),
+      );
+      return isAdmin ? withNoindex(response) : response;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

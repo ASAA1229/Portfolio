@@ -1,3 +1,4 @@
+import { seoHead } from "@/lib/seo-head";
 export const PEOPLE = [
   {
     id: "abhishek",
@@ -563,17 +564,5 @@ export function getPersonProject(person: string, slug: string) {
 export function personHead(person: string, page: string, description: string, path: string) {
   const name =
     getPersonPortfolio(person)?.name ?? (person === "bava" ? "Anjini (Bava)" : "Guda Abhishek");
-  const title = `${page} — ${name}`;
-  return {
-    meta: [
-      { title },
-      { name: "description", content: description },
-      { property: "og:title", content: title },
-      { property: "og:description", content: description },
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: path },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-    links: [{ rel: "canonical", href: path }],
-  };
+  return seoHead({ title: `${page} — ${name}`, description, path });
 }

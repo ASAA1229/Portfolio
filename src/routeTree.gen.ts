@@ -18,6 +18,8 @@ import { Route as ExperienceRouteImport } from './routes/experience'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as AdminImagesRouteImport } from './routes/admin.images'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -74,6 +76,16 @@ const ProfilesRoute = ProfilesRouteImport.update({
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SkillsRoute = SkillsRouteImport.update({
@@ -148,6 +160,8 @@ export interface FileRoutesByFullPath {
   '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -170,6 +184,8 @@ export interface FileRoutesByTo {
   '/experience': typeof ExperienceRoute
   '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -193,6 +209,8 @@ export interface FileRoutesById {
   '/portfolio': typeof PortfolioRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -218,6 +236,8 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/profiles'
     | '/projects'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/skills'
     | '/admin/images'
     | '/admin/login'
@@ -240,6 +260,8 @@ export interface FileRouteTypes {
     | '/experience'
     | '/portfolio'
     | '/profiles'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/skills'
     | '/admin/images'
     | '/admin/login'
@@ -262,6 +284,8 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/profiles'
     | '/projects'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/skills'
     | '/admin/images'
     | '/admin/login'
@@ -286,6 +310,8 @@ export interface RootRouteChildren {
   PortfolioRoute: typeof PortfolioRoute
   ProfilesRoute: typeof ProfilesRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SkillsRoute: typeof SkillsRoute
   AdminImagesRoute: typeof AdminImagesRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -357,6 +383,20 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/skills': {
@@ -488,6 +528,8 @@ const rootRouteChildren: RootRouteChildren = {
   PortfolioRoute: PortfolioRoute,
   ProfilesRoute: ProfilesRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SkillsRoute: SkillsRoute,
   AdminImagesRoute: AdminImagesRoute,
   AdminLoginRoute: AdminLoginRoute,

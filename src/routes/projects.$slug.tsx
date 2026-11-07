@@ -1,26 +1,34 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, Github } from "lucide-react";
 import { PageIntro } from "@/components/PageIntro";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
 import { Button } from "@/components/ui/button";
 import { getProject, PROJECT_PAGES } from "@/lib/project-pages";
+import { LEGACY_PROJECT_SLUGS } from "@/lib/site-data";
+import { seoHead } from "@/lib/seo-head";
 
 export const Route = createFileRoute("/projects/$slug")({
   beforeLoad: ({ params }) => {
+    const current = LEGACY_PROJECT_SLUGS[params.slug];
+    if (current) {
+      throw redirect({
+        to: "/projects/$slug",
+        params: { slug: current },
+        replace: true,
+        statusCode: 301,
+      });
+    }
     if (!getProject(params.slug)) throw notFound();
   },
   head: ({ params }) => {
     const project = getProject(params.slug);
-    return {
-      meta: [
-        { title: `${project?.title ?? "Project not found"} — Guda Abhishek` },
-        {
-          name: "description",
-          content: project?.overview ?? "Project overview, approach, and technology details.",
-        },
-      ],
-    };
+    return seoHead({
+      title: `${project?.title ?? "Project not found"} — Guda Abhishek`,
+      description: project?.overview ?? "Project overview, approach, and technology details.",
+      path: `/projects/${params.slug}`,
+      noindex: !project,
+    });
   },
   component: ProjectDetailPage,
 });
