@@ -184,7 +184,7 @@ Do not mark either increment TEST-PASSED or ACCEPTED until checks run against th
 - Complete customer verification stage reporting and failure diagnostics.
 - Document CI configuration, secret names, artifact retention and release/rollback handling without storing secrets.
 - Retain structured customer-verification failure reports and preserve verified release bundles with traceable build fingerprints.
-- Define operator rejection/quarantine and rollback/recovery steps; do not automatically promote or publish a failed release.
+- Add operator-invoked rejection/quarantine records and known-good recovery-candidate records; keep rollback manual and owner-approved.
 - Preserve project-specific workflow differences while keeping shared manifest and verifier contracts aligned with JARVIS.
 
 **Exit criteria**
@@ -201,3 +201,16 @@ The portfolio artifact-integrity implementation enforces explicit project identi
 **Latest implementation commits:** `636562c8`, `99632acb`, `ab7d56ce`, `4e5f4fcf`, `7e3ffeb1`, `5bf78bd7` (archive-backed verification and CI integration).
 
 The customer verifier now inspects `.tar.gz` member names and entry types before extraction, rejects unsafe paths and non-regular entries (including symbolic/hard links), extracts into an isolated temporary directory, and compares the resulting inventory with manifest file paths, sizes and SHA-256 values. GitHub Actions and Jenkins now pass the archive directly to the verifier. This implementation requires the system `tar` utility on the CI agent. Stage-specific failures now emit a machine-readable `CUSTOMER_RELEASE_REPORT` JSON record with status, stage, stable code and diagnostic message; archive inventory mismatches include a bounded discrepancy preview and total count. CI/rollback documentation and exact-head acceptance remain open; pipeline execution and artifact acceptance are pending because testing is paused.
+
+
+### PORT-E08 implementation note — release disposition and recovery controls
+
+**Status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING
+
+- Added `scripts/release-index.mjs` checksum-sidecar parsing and validation fixes. The index now records the manifest release identity when present and writes a real newline-terminated JSON document.
+- Added `scripts/release-disposition.mjs` with operator-invoked `quarantine` and `recover` commands. Both validate the required release evidence fingerprints before recording a disposition.
+- Quarantine records capture the reason, operator, project/release identity, source/CI metadata and evidence hashes. Promotion, deployment and Nexus publication are explicitly blocked; the artifact is not moved.
+- Recovery records require a different, same-project known-good release, verify its indexed evidence, link the quarantine record by SHA-256 and explicitly require owner approval. No rollback, branch change, deployment or publication is executed.
+- Added [release rejection, quarantine and recovery procedure](release-rejection-quarantine-recovery.md).
+
+Tests, builds, CI/Jenkins runs and operational rollback remain paused/not performed. Do not mark PORT-US-033 accepted until validation is explicitly resumed and evidence is recorded.
