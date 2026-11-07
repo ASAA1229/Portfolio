@@ -10,7 +10,7 @@ Project overview and implementation baseline: [POC.md](POC.md)
 
 ## Owner pause and evidence boundary — 2026-11-07
 
-Development is stopped and testing is paused. This file is a source-implementation inventory, not a test or acceptance report. Recent source increments include published-resume section precedence, navigation alignment with available published content, and improved multipart handling/diagnostics for admin resume and image uploads. None of these changes has been verified in a browser or against the current branch head. The previously reported `/admin/images` 404 remains open until explicitly reproduced and resolved through validation. All stories remain OPEN until their acceptance criteria are evidenced.
+Development and testing resumed on 2026-11-07 (see POC “Verification status”). This file is an implementation inventory, not a test or acceptance report. Recent source increments include published-resume section precedence, navigation alignment with available published content, and improved multipart handling/diagnostics for admin resume and image uploads. None of these changes has been verified in a browser or against the current branch head. The previously reported `/admin/images` 404 remains open until explicitly reproduced and resolved through validation. All stories remain OPEN until their acceptance criteria are evidenced.
 
 ## Authoritative implementation and verification snapshot — 2026-11-07
 
@@ -125,7 +125,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-004 — Reliable profile and section navigation
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Profile and section routes exist, but full direct-load/refresh/navigation matrix is not verified; the admin upload HTTP 500 failures remain separately open.
+**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — 33-route dev-server matrix and a 20-route Edge pass (1440px/390px) succeeded on 2026-11-07; invalid profile/section/page paths return 404. Active-navigation behaviour and CI evidence remain.
 
 **As a visitor,** I want to navigate between profiles and their sections, so that I can find information without broken links.
 
@@ -151,7 +151,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-006 — Preserve legacy route behavior
 
-**Current implementation status:** **NOT COMPLETE** — Legacy route compatibility and redirect behavior have not been fully implemented/evidenced.
+**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — `/portfolio` (removed in 65e7c7e) now returns 301 to `/`; `/people/abhishek` redirects to `/`; covered by a routing test and dev-server check.
 
 **As a returning visitor,** I want existing supported portfolio links to keep working, so that updates do not break bookmarks or shared URLs.
 
@@ -217,7 +217,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-011 — Protected owner access
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Admin authentication/route and upload diagnostic foundations exist; the previously reported /admin/images 404 remains unverified/open pending browser/API validation.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — PARTLY VERIFIED** — `/admin/images` renders (prior 404 not reproduced); cross-origin admin mutations are rejected. Verified with the local dev bypass only; authenticated production login/session expiry acceptance remains.
 
 **As the owner,** I want admin routes and APIs protected by server-side authentication and authorization, so that only I can manage portfolio content.
 
@@ -229,7 +229,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-012 — Upload and review resumes
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Resume upload/extraction/review foundations exist; complete format validation and profile-scoped lifecycle acceptance remains.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — PARTLY VERIFIED** — Upload HTTP 500 root cause fixed; PDF upload (201), non-PDF/DOCX rejection (415) and text extraction verified locally. Review/approval lifecycle acceptance remains.
 
 **As the owner,** I want to upload a resume for a selected profile and review extracted information, so that profile updates are easier to maintain.
 
@@ -255,7 +255,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-014 — Manage profile images
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Image upload/multipart handling and diagnostics have source-level improvements; full publish/unpublish lifecycle and verification of the admin-images route remain open.
+**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — Upload → publish → public feed/identical bytes → unpublish (public URL 404) → delete verified on the dev server (local ephemeral storage). Persistent-bucket production acceptance remains.
 
 **As the owner,** I want to upload, review, publish and unpublish profile images, so that galleries stay accurate and current.
 
@@ -270,7 +270,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-015 — Repeatable engineering checks
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — EXECUTION PAUSED** — CI definitions and regression checks exist, but clean install/build/lint/tests have not been run for current branch head.
+**Current implementation status:** **IMPLEMENTED — LOCALLY VERIFIED** — typecheck, lint, tests and build pass locally; lint/tests re-enabled and typecheck added to CI/Jenkins. Exact-head CI run pending.
 
 **As a maintainer,** I want clean install, build, lint and test commands to pass, so that regressions are detected before release.
 
@@ -282,7 +282,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-016 — Browser-level acceptance
 
-**Current implementation status:** **NOT VERIFIED** — Browser-level acceptance across all profiles and key journeys has not been executed.
+**Current implementation status:** **PARTIALLY VERIFIED** — Edge headless pass over 20 routes at 1440px and 390px with no page errors or overflow. Chat/contact/admin journeys and keyboard checks remain.
 
 **As a maintainer,** I want critical journeys tested in a real browser, so that issues missed by unit tests are detected.
 
@@ -294,7 +294,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 
 ### PORT-US-017 — Regression and failure-path coverage
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — EXECUTION PAUSED** — Some regression coverage is authored for profiles, assets, AI and integrity; it has not been run on the current branch head.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — PASSING LOCALLY** — 68 Vitest + 4 Node tests pass, including new archive-inventory, request-body and legacy-route regressions. Coverage gaps (parser failures, partial persistence) remain.
 
 **As a maintainer,** I want important error paths covered by tests, so that failures do not expose data or leave inconsistent state.
 

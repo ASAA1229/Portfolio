@@ -7,17 +7,17 @@
 
 ## Documentation status checkpoint — 2026-11-07 (authoritative)
 
-- **Development:** STOPPED by owner instruction. Only project documentation is being updated.
-- **Testing/validation:** PAUSED. No tests, build, lint, browser checks, CI/Jenkins runs, artifact verification or deployment were performed for this refresh.
+- **Development:** RESUMED 2026-11-07 by owner instruction; baseline defects fixed and remaining work started.
+- **Testing/validation:** RESUMED 2026-11-07. Local typecheck, lint, tests, build, route matrix, browser pass and admin upload lifecycle pass — see “Verification status”. CI/Jenkins exact-head runs are still pending.
 - **Implemented in source, not verified:** four-profile portfolio foundations; shared profile/section rendering; profile-aware AI context/chat and stream cancellation; published-resume normalization and selected section precedence; asset/profile integrity checks; admin resume/image upload foundations and improved multipart handling/diagnostics; provenance, SHA-256, archive/customer verification, SBOM/signing and release-disposition utilities.
 - **Partially implemented:** complete route/content consistency, admin security and resume/image lifecycle, AI provider/runtime behavior, responsive/accessibility behavior, and operational CI/artifact workflows.
-- **Known open issue:** the previously reported `/admin/images` 404 has not been confirmed resolved. Recent upload-related source fixes do not substitute for a browser/API check.
+- **Admin issues:** the upload HTTP 500s were reproduced and fixed (body-limit helper); the `/admin/images` 404 did not reproduce. Production-runtime confirmation remains pending.
 - **Not complete:** full route matrix and four-profile content acceptance, secure admin publish/unpublish/rollback lifecycle, complete accessibility/performance/SEO review, exact-head CI and artifact acceptance, and production release.
 - No story is accepted until its criteria are evidenced on the exact branch revision. Test files and source changes alone are not acceptance evidence.
 
 ## Current documentation and development control — 2026-11-07
 
-**Current activity: DOCUMENTATION ONLY.** Feature development is stopped at the owner's request. Do not start another epic or modify application behavior during this documentation phase.
+**Current activity: DEVELOPMENT AND TESTING RESUMED (2026-11-07).** See “Verification status” for evidence.
 
 ### What this product is
 
@@ -36,7 +36,7 @@ The repository additionally contains portfolio-focused CI/artifact-integrity too
 | AI introduction/chat | Server-side OpenAI integration, approved profile-scoped resume context, streaming/cancellation safeguards and offline fallback foundations | IMPLEMENTED IN SOURCE — NOT VERIFIED |
 | Voice/video introduction | Optional narration/video and interaction foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
 | Admin access and management | Admin route/auth, resume/image upload and management foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED; latest upload 500s remain open |
-| Automated quality checks | Test files, regression checks, build/lint/test scripts and CI definitions | AUTHORED / CONFIGURED; EXECUTION PAUSED |
+| Automated quality checks | Typecheck, lint, unit/integration tests, build and CI/Jenkins definitions | PASSING LOCALLY; CI re-enabled, exact-head CI run pending |
 | Artifact integrity | Provenance manifest, SHA-256 checks, archive-backed verification, customer reports, SBOM/signing foundations and quarantine/recovery records | IMPLEMENTED IN SOURCE — NOT VERIFIED |
 | Accessibility, performance and SEO | Some foundations and metadata exist | INCOMPLETE — systematic implementation/review remains |
 | Production release | Release controls and documentation foundations | NOT RELEASE-READY; no deployment authorization |
@@ -59,7 +59,7 @@ Related commits on `new`: `4b185ffa1e913472606685da8750d673e80d57c7`, `d3f39d94f
 
 **Not complete / not yet implemented as an accepted capability:** full end-to-end admin authorization and upload lifecycle; reliable image/resume storage and publish/unpublish/rollback; complete browser acceptance for every profile and route; full accessibility/performance/SEO acceptance; production release and deployment.
 
-**Testing state:** tests, builds, lint, browser checks, audits and CI/Jenkins runs remain paused by owner instruction. No current-head pass is claimed. Existing test files are evidence that checks were authored, not that they passed.
+**Testing state:** resumed 2026-11-07; local checks pass (see “Verification status”). CI/Jenkins evidence for the exact head is still required for acceptance.
 
 ## Read this first — what this project is
 
@@ -103,7 +103,7 @@ The DevOps implementation includes provenance and release identity, manifest and
 
 **No tests, build, lint, browser checks, route matrix, CI/Jenkins run, artifact acceptance or deployment were performed for this documentation refresh. Testing remains paused.**
 
-## Known issue intentionally paused
+## Known issue history (see Verification status for the 2026-11-07 resolution)
 
 Historical issue: the owner previously reported `GET /admin/images` returning HTTP 404. Later upload attempts produced `POST /api/admin/images` and `POST /api/admin/resumes` HTTP 500 responses. Diagnostic/error-handling changes were committed on `new` (see the current upload incident section above). These changes improve error visibility and address a possible multipart File validation issue; they do not prove the storage/persistence root cause is fixed. The upload issue remains OPEN pending a user retry and the resulting server diagnostic.
 
@@ -123,9 +123,30 @@ Historical issue: the owner previously reported `GET /admin/images` returning HT
 
 This repository is the portfolio product. CMM-specific shared pipeline configuration tooling, customer environment snapshot utilities and on-site change-detection products are separate DevOps workstreams, not portfolio application features. The portfolio's own artifact-integrity/CI implementation is included under PORT-E08.
 
-## Verification policy and current pause
+## Verification status — testing resumed 2026-11-07
 
-**Development is currently stopped at the owner's request while the POC and user-story documentation is refreshed. Testing remains paused.** Do not run tests, builds, lint, audits, browser checks, CI/Jenkins workflows, deployment or Nexus operations until explicitly resumed. Do not describe unexecuted checks as passed.
+Testing was resumed by the owner on 2026-11-07. Local results on branch `new` (Windows 11, Node 24.16, Edge headless):
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` (new; strict tsc) | PASS — 0 errors (≈120 were hidden behind a test-file parse error) |
+| `npm run lint` | PASS — 0 errors, 6 react-refresh warnings (1,832 formatting errors fixed) |
+| `npm test` | PASS — 68 Vitest + 4 Node tests (6 were failing) |
+| `npm run build` | PASS |
+| Route matrix (dev server) | PASS — 33 routes; unknown profile/section/page return 404; `/people/abhishek` → `/`; `/portfolio` → 301 `/` |
+| Browser pass (Edge, 20 routes × 1440px/390px) | PASS — no page errors; no horizontal overflow after fix |
+| Admin uploads (dev server) | PASS — image upload → publish → public feed/bytes → unpublish → delete; PDF resume upload + extraction |
+
+**Defects found and fixed in this pass**
+- **Admin upload HTTP 500 (open incident):** root cause found — `limitRequestBody` read request metadata after consuming the body; on the Node/srvx runtime that throws “Response body object should not be disturbed or locked”. Fixed with a regression test. The same path also broke `/api/chat` on Node.
+- **`/admin/images` 404:** not reproduced; the route renders and its API responds in the dev server.
+- `scripts/customer-release-verifier.mjs` had a SyntaxError, so the CI release verifier could not run; tar calls failed on Windows paths with GNU tar.
+- `PersonPortfolio.tsx` used `ResumeEntryCard` without importing it (render crash when published sections exist).
+- `vite.config.ts` passed a function to `defineConfig`, which silently ignores Lovable options; the local admin-auth bypass could also have been enabled by `vite build --mode development`.
+- `/portfolio` legacy links returned 404 (PORT-US-006) — now a 301 to `/`.
+- CI/Jenkins had lint and tests paused since 2026-11-05; they are re-enabled and a strict typecheck step is added.
+
+Production-runtime (Cloudflare) upload acceptance, CI/Jenkins exact-head runs and accessibility/performance/SEO reviews remain open. Deployment and Nexus publishing remain disabled.
 
 ## Branch and safety rules
 
