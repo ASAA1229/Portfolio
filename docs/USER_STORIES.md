@@ -339,3 +339,6 @@ Product baseline and remaining work: [POC.md](POC.md)
 - Rollback and recovery instructions are documented.
 - No merge to production, deployment or Nexus publication occurs without explicit owner approval.
 - Testing and pipeline acceptance remain pending while validation is paused.
+
+
+**Current implementation status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING. Operator-invoked quarantine and recovery-candidate record commands are available in `scripts/release-disposition.mjs`; they fail closed on inconsistent evidence and never perform promotion, deployment, rollback or Nexus publication. See [release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md). Acceptance remains pending while validation is paused.
