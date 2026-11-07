@@ -8,6 +8,10 @@
 Epic mapping: [EPICS.md](EPICS.md)  
 Project overview and implementation baseline: [POC.md](POC.md)
 
+## Owner pause and evidence boundary — 2026-11-07
+
+Development is stopped and testing is paused. This file is a source-implementation inventory, not a test or acceptance report. Recent source increments include published-resume section precedence, navigation alignment with available published content, and improved multipart handling/diagnostics for admin resume and image uploads. None of these changes has been verified in a browser or against the current branch head. The previously reported `/admin/images` 404 remains open until explicitly reproduced and resolved through validation. All stories remain OPEN until their acceptance criteria are evidenced.
+
 ## Current story status — 2026-11-07
 
 **Important:** This is an implementation inventory, not an acceptance report. All stories remain open until acceptance criteria are evidenced on the exact branch revision. No tests/build/lint/browser/CI checks were run for this documentation update.
@@ -17,7 +21,7 @@ Project overview and implementation baseline: [POC.md](POC.md)
 | E01 / US-001–003 | Shared design system and cinematic multi-profile page foundations exist; full four-profile visual/content consistency remains unverified. |
 | E02 / US-004–006 | Profile/section routes and published-resume precedence exist in part; complete route matrix, legacy compatibility and content review remain open. |
 | E03 / US-007–010, US-024–025 | Profile-aware AI context, chat, streaming and cancellation safeguards exist; runtime, privacy and voice/video acceptance remain open. |
-| E04 / US-011–014 | Admin/resume/image foundations exist; full secure lifecycle remains incomplete and the reported `/admin/images` 404 is intentionally paused. |
+| E04 / US-011–014 | Admin/resume/image foundations and recent multipart upload hardening exist in source; full secure lifecycle remains incomplete and the reported `/admin/images` 404 is unverified/open. |
 | E05 / US-015–017 | CI definitions and regression checks are authored; execution is paused and no current-head pass is claimed. |
 | E06 / US-018–019 | Some responsive foundations exist; systematic accessibility and device acceptance remain open. |
 | E07 / US-020–022 | Performance/SEO/release readiness is incomplete; production deployment is not authorized. |
@@ -168,7 +172,7 @@ Project overview and implementation baseline: [POC.md](POC.md)
 
 ### PORT-US-011 — Protected owner access
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Admin authentication/route foundations exist; the previously reported /admin/images 404 remains unresolved and paused.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Admin authentication/route and upload diagnostic foundations exist; the previously reported /admin/images 404 remains unverified/open pending browser/API validation.
 
 **As the owner,** I want admin routes and APIs protected by server-side authentication and authorization, so that only I can manage portfolio content.
 
@@ -206,7 +210,7 @@ Project overview and implementation baseline: [POC.md](POC.md)
 
 ### PORT-US-014 — Manage profile images
 
-**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Image management foundations exist; upload/publish/unpublish lifecycle and the paused admin-images route remain open.
+**Current implementation status:** **PARTIALLY IMPLEMENTED — NOT VERIFIED** — Image upload/multipart handling and diagnostics have source-level improvements; full publish/unpublish lifecycle and verification of the admin-images route remain open.
 
 **As the owner,** I want to upload, review, publish and unpublish profile images, so that galleries stay accurate and current.
 
