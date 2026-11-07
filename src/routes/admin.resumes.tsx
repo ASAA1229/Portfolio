@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { PublishHistoryPanel } from "@/components/PublishHistoryPanel";
 import {
   FileLock2,
   LogOut,
@@ -169,6 +170,8 @@ function ResumeManager() {
   const [uploadProfileId, setUploadProfileId] =
     useState<NonNullable<ResumeRecord["profileId"]>>("unassigned");
   const [busy, setBusy] = useState(false);
+  // Bumped after publish/unpublish/delete so the publish history reloads.
+  const [historyRefresh, setHistoryRefresh] = useState(0);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -286,9 +289,15 @@ function ResumeManager() {
       setMessage("");
       return;
     }
+    const replaces = resumes.find(
+      (item) =>
+        item.id !== record.id && item.profileId === record.profileId && item.status === "approved",
+    );
     if (
       !window.confirm(
-        "Publish these reviewed details to the selected public profile? The original resume file will remain private.",
+        replaces
+          ? `Publish these reviewed details? They REPLACE the currently published resume for this profile ("${replaces.displayName || replaces.filename}"), which stays stored privately and can be restored from Publish history.`
+          : "Publish these reviewed details to the selected public profile? The original resume file will remain private.",
       )
     )
       return;
@@ -316,12 +325,28 @@ function ResumeManager() {
           privateReviewNotes: record.privateReviewNotes ?? "",
         }),
       });
-      const payload = (await response.json()) as { resume?: ResumeRecord; error?: string };
+      const payload = (await response.json()) as {
+        resume?: ResumeRecord;
+        supersededIds?: string[];
+        error?: string;
+      };
       if (!response.ok) throw new Error(payload.error ?? "Could not approve the resume.");
+      const superseded = new Set(payload.supersededIds ?? []);
       setResumes((items) =>
-        items.map((item) => (item.id === record.id ? (payload.resume ?? record) : item)),
+        items.map((item) =>
+          item.id === record.id
+            ? (payload.resume ?? record)
+            : superseded.has(item.id)
+              ? { ...item, status: "pending" }
+              : item,
+        ),
       );
-      setMessage("Reviewed details approved and published to /api/published-resumes.");
+      setHistoryRefresh((value) => value + 1);
+      setMessage(
+        superseded.size
+          ? "Published. The previous version for this profile was replaced and kept in Publish history."
+          : "Reviewed details approved and published to /api/published-resumes.",
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not publish.");
     } finally {
@@ -476,6 +501,7 @@ function ResumeManager() {
           item.id === record.id ? (payload.resume ?? { ...record, status: "pending" }) : item,
         ),
       );
+      setHistoryRefresh((value) => value + 1);
       setMessage(
         "Resume removed from the public feed. The original file and reviewed details remain private.",
       );
@@ -498,6 +524,7 @@ function ResumeManager() {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Delete failed.");
       setResumes((items) => items.filter((item) => item.id !== record.id));
+      setHistoryRefresh((value) => value + 1);
       setMessage("Resume and its private file were deleted.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Delete failed.");
@@ -1100,6 +1127,16 @@ function ResumeManager() {
             </div>
           )}
         </div>
+
+        <PublishHistoryPanel
+          busy={busy}
+          refreshKey={historyRefresh}
+          onRolledBack={async (text) => {
+            setError("");
+            setMessage(text);
+            await loadResumes();
+          }}
+        />
 
         <div className="mt-8 flex items-start gap-3 border border-emerald-200/15 bg-emerald-100/[0.025] p-4">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-300" />

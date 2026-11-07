@@ -121,14 +121,31 @@ export function planRollback(
   currentlyPublishedResumeId: string | undefined,
 ): RollbackPlan {
   const entries = history.entries;
-  if (entries.length === 0) return { ok: false, reason: "There is no publish history for this profile yet." };
+  if (entries.length === 0)
+    return { ok: false, reason: "There is no publish history for this profile yet." };
   if (!currentlyPublishedResumeId) {
     const target = entries[entries.length - 1]!;
     return { ok: true, target, remaining: history };
   }
   const last = entries[entries.length - 1]!;
   const head = last.resumeId === currentlyPublishedResumeId ? entries.length - 1 : entries.length;
-  if (head === 0) return { ok: false, reason: "There is no earlier published version to roll back to." };
+  if (head === 0)
+    return { ok: false, reason: "There is no earlier published version to roll back to." };
   const target = entries[head - 1]!;
   return { ok: true, target, remaining: { ...history, entries: entries.slice(0, head) } };
+}
+
+/**
+ * Which entry a rollback restores, mirroring the server's planRollback():
+ * with a current publication, the version published before it; with nothing
+ * published (after an unpublish), the latest publication.
+ */
+export function rollbackTargetIndex(
+  entries: ReadonlyArray<{ resumeId: string }>,
+  currentResumeId: string | null,
+): number {
+  if (entries.length === 0) return -1;
+  if (!currentResumeId) return 0;
+  const head = entries[0]?.resumeId === currentResumeId ? 1 : 0;
+  return head < entries.length ? head : -1;
 }
