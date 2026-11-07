@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/projects")({
   component: Projects,
 });
 function Projects() {
+  const publishedResume = usePublishedProfileResume("abhishek");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   if (pathname !== "/projects" && pathname !== "/projects/") return <Outlet />;
   const featured = PROJECT_PAGES[0];
@@ -53,7 +55,9 @@ function Projects() {
         <span className="chapter-hero-index">SELECTED WORK · 2023—PRESENT</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="projects" />
+        <PublishedResumePanel profileId="abhishek" section="projects" resume={publishedResume} />
+        {!publishedResume?.structuredSections?.projects?.length && (
+          <>
         <section className="featured-project">
           <div className="featured-project-art">
             <ProjectVisual index={0} />
@@ -102,6 +106,8 @@ function Projects() {
           Project descriptions reflect documented scope and contributions. Repository, live demo,
           and implementation media appear when verified links or assets are available.
         </p>
+          </>
+        )}
       </PageBody>
     </>
   );
