@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, GraduationCap, MapPin, CalendarDays } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
 
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/education")({
 });
 
 function Education() {
+  const publishedResume = usePublishedProfileResume("abhishek");
   return (
     <>
       <section className="chapter-hero experience-hero">
@@ -40,7 +42,9 @@ function Education() {
         <span className="chapter-hero-index">KNOWLEDGE · PRACTICE · PROGRESS</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="education" />
+        <PublishedResumePanel profileId="abhishek" section="education" resume={publishedResume} />
+        {!publishedResume?.structuredSections?.education?.length && (
+          <>
         <section id="education-record" className="career-timeline">
           <Reveal>
             <article className="career-chapter">
@@ -66,6 +70,8 @@ function Education() {
             </article>
           </Reveal>
         </section>
+          </>
+        )}
       </PageBody>
     </>
   );
