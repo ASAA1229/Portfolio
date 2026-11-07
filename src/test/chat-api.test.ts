@@ -36,24 +36,28 @@ describe("POST /api/chat request flow", () => {
     expect(payload.error).toBe("Invalid request");
   });
 
-  it("returns 503 with a safe message when LOVABLE_API_KEY is missing", async () => {
-    vi.stubEnv("LOVABLE_API_KEY", "");
+  it("returns 503 with a safe message when OPENAI_API_KEY is missing", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
     const response = await post({
       person: "abhishek",
       messages: [{ role: "user", content: "What are your skills?" }],
     });
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ error: "AI not configured" });
+    const payload = (await response.json()) as { error?: string };
+    expect(Object.keys(payload)).toEqual(["error"]);
+    expect(payload.error).toMatch(/^AI is not configured\. Add OPENAI_API_KEY/);
   });
 
   it("never reports configuration errors for valid profiles without a key", async () => {
-    vi.stubEnv("LOVABLE_API_KEY", "");
+    vi.stubEnv("OPENAI_API_KEY", "");
     const response = await post({
       person: "ammu",
       messages: [{ role: "user", content: "Introduce this portfolio to a visitor." }],
     });
+    expect(response.status).toBe(503);
     const payload = (await response.json()) as { error?: string };
-    expect(payload.error).toBe("AI not configured");
+    expect(payload.error).toMatch(/^AI is not configured/);
+    // Lovable AI is paused; the response must not point operators at it.
     expect(payload.error?.toLowerCase()).not.toContain("lovable");
   });
 });

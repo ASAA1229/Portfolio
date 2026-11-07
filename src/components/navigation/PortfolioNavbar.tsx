@@ -44,6 +44,8 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
   const isPerson = Boolean(person);
   const personId = person?.id;
+  // Same string-typed route form as the section links below.
+  const projectsTo: string = isPerson && personId ? `/people/${personId}/projects` : "/projects";
 
   // Exact 8 items in required order: Home, About, Skills, Projects, Experience, Certifications, Education, Contact
   const links: NavItem[] = isPerson && personId
@@ -146,7 +148,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             title="Explore projects"
           >
             <Link
-              to={isPerson && personId ? `/people/${personId}/projects` : "/projects"}
+              to={projectsTo}
               aria-label={`Explore ${person?.displayName ?? "Abhishek"} projects`}
             >
               <Clapperboard className="size-4" aria-hidden="true" />
@@ -240,7 +242,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             className="min-h-11 justify-start gap-2 text-sm"
           >
             <Link
-              to={isPerson && personId ? `/people/${personId}/projects` : "/projects"}
+              to={projectsTo}
               onClick={() => setMenu(false)}
             >
               <Clapperboard className="size-4" aria-hidden="true" />

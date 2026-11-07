@@ -28,7 +28,7 @@ describe("Portfolio factual and contact rules", () => {
     }
 
     const missing = [...imagePaths].filter((assetPath) =>
-      !existsSync(resolve(process.cwd(), "public", assetPath.replace(/^\\/+/, ""))),
+      !existsSync(resolve(process.cwd(), "public", assetPath.replace(/^\/+/, ""))),
     );
 
     expect(missing).toEqual([]);

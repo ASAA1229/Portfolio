@@ -83,8 +83,6 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - **NOT VERIFIED:** implementation may exist, but there is no current evidence to claim acceptance.
 - No story is marked **VERIFIED** in this refresh.
 
-
-## PORT-E01 — Shared Design System and Four-Profile UI
 ## PORT-E01 — Shared Design System and Four-Profile UI
 
 ### PORT-US-001 — Consistent shared experience
@@ -149,7 +147,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Empty sections have an intentional empty state.
 - Internal and external links resolve to the intended destination.
 
-**Current implementation status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING. The shared published-resume panel is now fed from the page's profile-scoped normalized data. Abhishek's five content routes prefer valid published section data and use the curated static portfolio only when the matching published section is empty. Other profile routes retain the shared profile-aware renderer. Direct-load, refresh and cross-profile acceptance remain unverified while testing is paused.
+**Implementation notes:** The shared published-resume panel is now fed from the page's profile-scoped normalized data. Abhishek's five content routes prefer valid published section data and use the curated static portfolio only when the matching published section is empty. Other profile routes retain the shared profile-aware renderer. Direct-load, refresh and cross-profile acceptance remain unverified while testing is paused.
 
 ### PORT-US-006 — Preserve legacy route behavior
 
@@ -384,13 +382,11 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Missing image paths fail the automated test suite with the missing path listed.
 - The check covers all supported profile entries and does not rely on remote network access.
 
-
 ## Additional stories — current hardening increments
 
 ### PORT-US-024 — Approved, profile-scoped resume context for AI
 
 **Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — AI context is enriched from approved, matching profile resume data; runtime/privacy verification remains.
-
 
 **As a visitor,** I want the portfolio assistant to use only the selected person's latest approved published resume information, so that answers are current without exposing private drafts or mixing profiles.
 
@@ -403,12 +399,9 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Request-size limits remain enforced after context enrichment.
 - Missing or unavailable approved context falls back safely without inventing facts.
 
-**Current status:** IMPLEMENTED in source; runtime and regression verification pending.
-
 ### PORT-US-025 — Reliable AI streaming and request cancellation
 
 **Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Streaming decoder flush, final SSE handling, cancellation and stale-request safeguards are implemented; browser/runtime validation remains.
-
 
 **As a visitor,** I want streamed assistant responses to finish completely and respect cancellation, so that I do not see truncated text, stale answers or speech after stopping a request.
 
@@ -419,12 +412,9 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Cancelled requests do not continue speaking or overwrite a newer response.
 - Offline fallback content is shown in the conversation when the provider request fails.
 
-**Current status:** IMPLEMENTED in source; browser and automated verification pending.
-
 ### PORT-US-026 — Validate release and snapshot integrity inputs
 
 **Current implementation status:** **IMPLEMENTED — NOT VERIFIED** — Release provenance and snapshot input validation safeguards are implemented; tests and CI execution remain paused.
-
 
 **As a portfolio maintainer,** I want release manifests and environment snapshot inventories validated before comparison, so that unsafe paths or malformed metadata cannot produce misleading integrity reports.
 
@@ -435,7 +425,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - Baseline and snapshot ignore policies must be equivalent; policy entries are deduplicated and sorted before comparison.
 - Invalid inputs fail closed and do not produce a success report.
 
-**Current status:** IMPLEMENTED in source; automated execution remains paused. This story covers generic repository integrity utilities only, not the separate CMM/Nexus product.
+**Scope:** This story covers generic repository integrity utilities only, not the separate CMM/Nexus product.
 
 ## PORT-E08 — Shared DevOps Pipeline, Provenance & Artifact Integrity
 
@@ -468,7 +458,7 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - The authenticated policy's project, source commit and build number match the manifest.
 - Windows path separators are normalized before path validation.
 
-**Current development status:** strict manifest validation and archive-backed inventory comparison are implemented in `scripts/customer-release-verifier.mjs`. The verifier inspects `.tar.gz` member paths/types, rejects unsafe paths and links, extracts to an isolated temporary directory, then compares each file's path, size and SHA-256 with the manifest. GitHub Actions and Jenkins pass the archive directly. Policy creation also rejects a package whose filename, size or SHA-256 does not match the manifest. System `tar` is required; automated execution remains paused.
+**Implementation notes:** strict manifest validation and archive-backed inventory comparison are implemented in `scripts/customer-release-verifier.mjs`. The verifier inspects `.tar.gz` member paths/types, rejects unsafe paths and links, extracts to an isolated temporary directory, then compares each file's path, size and SHA-256 with the manifest. GitHub Actions and Jenkins pass the archive directly. Policy creation also rejects a package whose filename, size or SHA-256 does not match the manifest. System `tar` is required; automated execution remains paused.
 
 ### PORT-US-031 — Verify customer packages and explain failures
 
@@ -513,5 +503,4 @@ These are diagnostic/error-handling improvements, not proof that image/resume pe
 - No merge to production, deployment or Nexus publication occurs without explicit owner approval.
 - Testing and pipeline acceptance remain pending while validation is paused.
 
-
-**Current implementation status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING. Operator-invoked quarantine and recovery-candidate record commands are available in `scripts/release-disposition.mjs`; they fail closed on inconsistent evidence and never perform promotion, deployment, rollback or Nexus publication. See [release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md). Acceptance remains pending while validation is paused.
+**Implementation notes:** Operator-invoked quarantine and recovery-candidate record commands are available in `scripts/release-disposition.mjs`; they fail closed on inconsistent evidence and never perform promotion, deployment, rollback or Nexus publication. See [release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md). Acceptance remains pending while validation is paused.

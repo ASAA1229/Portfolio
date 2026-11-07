@@ -39,9 +39,10 @@ function StructuredEntryEditor({
       : section === "projects"
         ? [{ key: "title", label: "Project name" }, { key: "role", label: "Role" }, { key: "description", label: "Description", multiline: true }, { key: "technologies", label: "Technologies" }, { key: "url", label: "Project URL" }]
         : [{ key: "title", label: "Certification name" }, { key: "organization", label: "Issuing organization" }, { key: "startDate", label: "Issue date" }, { key: "credentialId", label: "Credential ID" }, { key: "url", label: "Verification URL" }, { key: "description", label: "Description", multiline: true }];
+  const structuredEntry: StructuredResumeEntry = entry;
   function change(key: keyof StructuredResumeEntry, value: string) {
     onChange({
-      ...entry,
+      ...structuredEntry,
       [key]: key === "technologies" ? value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 30) : value,
     });
   }
@@ -406,7 +407,7 @@ function ResumeManager() {
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="text-xs text-white/60">Public profile
-                  <select value={record.profileId ?? "unassigned"} onChange={(event) => update(record.id, { profileId: event.target.value as ResumeRecord["profileId"] })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white">
+                  <select value={record.profileId ?? "unassigned"} onChange={(event) => update(record.id, { profileId: event.target.value as NonNullable<ResumeRecord["profileId"]> })} className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white">
                     <option value="unassigned">Unassigned — cannot publish</option>
                     <option value="abhishek">Abhishek</option>
                     <option value="ammu">Amulya</option>

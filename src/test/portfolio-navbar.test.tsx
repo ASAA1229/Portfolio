@@ -137,7 +137,7 @@ describe("PortfolioNavbar standardization", () => {
     expect(movieBtn?.getAttribute("href")).toBe("/projects");
 
     // 3. Choose profile button
-    const chooseProfile = screen.getByRole("link", { name: /choose profile/i });
+    const chooseProfile = screen.getByRole("link", { name: /choose portfolio profile/i });
     expect(chooseProfile).toBeInTheDocument();
     expect(chooseProfile.getAttribute("href")).toBe("/profiles");
 
@@ -193,7 +193,7 @@ describe("PortfolioNavbar standardization", () => {
 
     const header = container.querySelector("header.site-nav");
     expect(header).toBeInTheDocument();
-    expect(header?.querySelector(".brand-monogram")?.textContent).toBe("GA.");
+    expect(header?.querySelector(".site-nav-logo")?.getAttribute("alt")).toBe("GA.");
     expect(header?.querySelector(".site-primary-nav")).toBeInTheDocument();
     expect(header?.querySelector(".site-nav-movie")).toBeInTheDocument();
     expect(header?.querySelector(".site-nav-ai")).toBeInTheDocument();

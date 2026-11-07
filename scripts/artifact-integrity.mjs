@@ -228,9 +228,14 @@ function validateFileInventory(files) {
   return expected;
 }
 
-function runTar(args, onStdout) {
+// Run tar from the archive's directory with a bare file name: GNU tar treats a
+// drive-letter path such as C:/release.tar.gz as a remote host:file archive.
+function runTar(archivePath, args, onStdout) {
   return new Promise((resolve, reject) => {
-    const child = spawn('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn('tar', [...args.slice(0, 1), path.basename(archivePath), ...args.slice(1)], {
+      cwd: path.dirname(archivePath),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     let stderr = '';
     let outputError = null;
     child.stdout.on('data', (chunk) => {
@@ -265,7 +270,7 @@ function normalizeArchiveMember(rawName) {
 async function archiveMemberDigest(archivePath, memberPath) {
   const hash = createHash(ALGORITHM);
   let size = 0;
-  await runTar(['-xOzf', archivePath, '--', './' + memberPath], (chunk) => {
+  await runTar(archivePath, ['-xOzf', '--', './' + memberPath], (chunk) => {
     size += chunk.length;
     if (!Number.isSafeInteger(size)) throw new Error('Archive member is too large: ' + memberPath);
     hash.update(chunk);
@@ -277,11 +282,11 @@ async function verifyArchiveInventory(archivePath, expected) {
   let listing = '';
   let verboseListing = '';
   const listingLimit = 64 * 1024 * 1024;
-  await runTar(['-tzf', archivePath], (chunk) => {
+  await runTar(archivePath, ['-tzf'], (chunk) => {
     listing += chunk.toString('utf8');
     if (listing.length > listingLimit) throw new Error('Archive member listing exceeds the 64 MiB safety limit.');
   });
-  await runTar(['-tvzf', archivePath], (chunk) => {
+  await runTar(archivePath, ['-tvzf'], (chunk) => {
     verboseListing += chunk.toString('utf8');
     if (verboseListing.length > listingLimit) throw new Error('Verbose archive listing exceeds the 64 MiB safety limit.');
   });

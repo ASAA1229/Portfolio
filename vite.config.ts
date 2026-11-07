@@ -5,21 +5,23 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { Plugin } from "vite";
 
-export default defineConfig(({ command, mode }) => ({
+// Marks code compiled by the local Vite dev server (`vite dev`) only. Builds —
+// including `vite build --mode development`, where import.meta.env.DEV is also
+// true — never define it, so they can never enable the local admin auth bypass.
+const devServerMarker: Plugin = {
+  name: "portfolio-dev-server-marker",
+  apply: (_config, { command, mode }) => command === "serve" && mode === "development",
+  config: () => ({ define: { __PORTFOLIO_VITE_DEV_SERVER__: "true" } }),
+};
+
+// defineConfig only reads Lovable options (tanstackStart, vite, …) from an object;
+// a function argument is treated as plain Vite config and these options are ignored.
+export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     server: { entry: "server" },
   },
-  // Only the Vite development server receives this bypass. Build and preview
-  // bundles never receive it, so production authentication remains enabled.
-  ...(command === "serve" && mode === "development" ? {
-    vite: {
-      define: {
-        "process.env.PORTFOLIO_ADMIN_AUTH_BYPASS": JSON.stringify("true"),
-        "process.env.ENVIRONMENT": JSON.stringify("development"),
-        "process.env.NODE_ENV": JSON.stringify("development"),
-      },
-    },
-  } : {}),
-}));
+  vite: { plugins: [devServerMarker] },
+});

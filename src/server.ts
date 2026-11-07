@@ -132,10 +132,13 @@ function adminAuthBypassed(env: unknown): boolean {
   const runtimeBypass = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
     bindings?.ENVIRONMENT === "development";
 
-  // Vite replaces import.meta.env.DEV/MODE at bundle time. This is more
-  // reliable than process.env in the Cloudflare/TanStack server runtime.
-  // The DEV flag is false in production builds and deployed Workers.
-  const localDevBypass = import.meta.env.DEV === true &&
+  // Vite replaces these at bundle time, which is more reliable than process.env
+  // in the Cloudflare/TanStack server runtime. import.meta.env.DEV alone is not
+  // enough: `vite build --mode development` also sets it. The marker is defined
+  // only by the local `vite dev` server (see vite.config.ts).
+  const localDevBypass = typeof __PORTFOLIO_VITE_DEV_SERVER__ !== "undefined" &&
+    __PORTFOLIO_VITE_DEV_SERVER__ === true &&
+    import.meta.env.DEV === true &&
     import.meta.env.MODE === "development";
 
   return runtimeBypass || localDevBypass;
@@ -224,18 +227,18 @@ type ResumeRecord = {
   size: number;
   uploadedAt: string;
   status: "pending" | "approved";
-  profileId?: "abhishek" | "ammu" | "bava" | "sai" | "unassigned";
+  profileId?: "abhishek" | "ammu" | "bava" | "sai" | "unassigned" | undefined;
   displayName: string;
   headline: string;
   summary: string;
   skills: string[];
-  contact?: { email?: string; phone?: string; linkedin?: string; github?: string };
-  structuredSections?: { experience: (string | StructuredResumeEntry)[]; education: (string | StructuredResumeEntry)[]; projects: (string | StructuredResumeEntry)[]; certifications: (string | StructuredResumeEntry)[] };
-  privateReviewNotes?: string;
+  contact?: { email?: string; phone?: string; linkedin?: string; github?: string } | undefined;
+  structuredSections?: { experience: (string | StructuredResumeEntry)[]; education: (string | StructuredResumeEntry)[]; projects: (string | StructuredResumeEntry)[]; certifications: (string | StructuredResumeEntry)[] } | undefined;
+  privateReviewNotes?: string | undefined;
 };
 
 type PrivateBucket = {
-  get(key: string): Promise<{ json<T>(): Promise<T>; arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string } } | null>;
+  get(key: string): Promise<{ json<T>(): Promise<T>; arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string | undefined } } | null>;
   put(key: string, value: ArrayBuffer | string | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
   delete(key: string): Promise<unknown>;
 };
@@ -255,7 +258,7 @@ function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
   if (configured) return configured;
   if (import.meta.env.DEV !== true) return undefined;
   if (!localDevelopmentBucket) {
-    const objects = new Map<string, { bytes: Uint8Array; contentType?: string }>();
+    const objects = new Map<string, { bytes: Uint8Array; contentType?: string | undefined }>();
     localDevelopmentBucket = {
       async get(key) {
         const stored = objects.get(key);
@@ -308,9 +311,9 @@ function isValidPublicContact(value: unknown): value is NonNullable<ResumeRecord
     if (item !== undefined && (typeof item !== "string" || item.length > 320)) return false;
     if (typeof item === "string" && (item.includes("\n") || item.includes("\r"))) return false;
   }
-  if (typeof contact.email === "string" && contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) return false;
-  if (typeof contact.linkedin === "string" && contact.linkedin && !/^https:\/\//i.test(contact.linkedin)) return false;
-  if (typeof contact.github === "string" && contact.github && !/^https:\/\//i.test(contact.github)) return false;
+  if (typeof contact["email"] === "string" && contact["email"] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact["email"])) return false;
+  if (typeof contact["linkedin"] === "string" && contact["linkedin"] && !/^https:\/\//i.test(contact["linkedin"])) return false;
+  if (typeof contact["github"] === "string" && contact["github"] && !/^https:\/\//i.test(contact["github"])) return false;
   return true;
 }
 
@@ -323,8 +326,8 @@ function isValidStructuredEntry(value: unknown): boolean {
   for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"]) {
     if (entry[key] !== undefined && (typeof entry[key] !== "string" || String(entry[key]).length > (key === "description" ? 2000 : 320))) return false;
   }
-  if (entry.technologies !== undefined && (!Array.isArray(entry.technologies) || entry.technologies.length > 30 || entry.technologies.some((item) => typeof item !== "string" || item.length > 80))) return false;
-  if (typeof entry.url === "string" && entry.url && !/^https:\/\//i.test(entry.url)) return false;
+  if (entry["technologies"] !== undefined && (!Array.isArray(entry["technologies"]) || entry["technologies"].length > 30 || entry["technologies"].some((item) => typeof item !== "string" || item.length > 80))) return false;
+  if (typeof entry["url"] === "string" && entry["url"] && !/^https:\/\//i.test(entry["url"])) return false;
   return true;
 }
 
@@ -464,7 +467,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
 
   if (path === "/api/admin/resumes" && request.method === "POST") {
     const form = await request.formData().catch(() => null);
-    const file = form?.get("file");
+    const file = form?.get("file") ?? null;
     const requestedProfile = form?.get("profileId");
     if (!isUploadedResumeFile(file)) return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
     if (typeof requestedProfile !== "string" || !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(requestedProfile)) {
@@ -532,6 +535,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const index = records.findIndex((record) => record.id === id);
     if (index < 0) return privateNotFound();
     const record = records[index];
+    if (!record) return privateNotFound();
     const fileKey = `private-admin/resumes/files/${id}`;
 
     if (action === "extract" && request.method === "POST") {
@@ -757,7 +761,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (boundedRequest instanceof Response) return boundedRequest;
     request = boundedRequest;
     const form = await request.formData().catch(() => null);
-    const file = form?.get("file");
+    const file = form?.get("file") ?? null;
     const profileId = form?.get("profileId");
     const alt = form?.get("alt");
     const requestedSlot = form?.get("slot");
@@ -826,7 +830,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
     const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
-    if (index < 0) return privateNotFound(); const record = records[index];
+    const record = index < 0 ? undefined : records[index]; if (!record) return privateNotFound();
     if (action === "publish" && request.method === "POST") {
       const object = await bucket.get(`private-admin/images/files/${id}`); if (!object) return privateNotFound();
       await bucket.put(`public/profile-images/${id}`, await object.arrayBuffer(), { httpMetadata: { contentType: record.contentType } });
@@ -892,7 +896,7 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
     return jsonResponse({ error: "Invalid request." }, 400);
   }
 
-  const profileId = typeof payload.person === "string" ? payload.person : "abhishek";
+  const profileId = typeof payload["person"] === "string" ? payload["person"] : "abhishek";
   if (!["abhishek", "ammu", "bava", "sai"].includes(profileId)) return boundedRequest;
 
   // Always overwrite the internal field: a browser cannot choose the resume
@@ -907,11 +911,12 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
         const candidates = Array.isArray(feed.resumes)
           ? feed.resumes.filter((item): item is Record<string, unknown> =>
               !!item && typeof item === "object" && !Array.isArray(item) &&
-              item.profileId === profileId)
+              (item as Record<string, unknown>)["profileId"] === profileId)
           : [];
         const timestamp = (record: Record<string, unknown>): number => {
-          if (typeof record.uploadedAt !== "string") return 0;
-          const parsed = Date.parse(record.uploadedAt);
+          const uploadedAt = record["uploadedAt"];
+          if (typeof uploadedAt !== "string") return 0;
+          const parsed = Date.parse(uploadedAt);
           return Number.isFinite(parsed) ? parsed : 0;
         };
         candidates.sort((a, b) => timestamp(b) - timestamp(a));
@@ -930,7 +935,7 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
 
   // Discard any client-supplied internal field before adding trusted data.
   const clientPayload = { ...payload };
-  delete clientPayload._publishedResume;
+  delete clientPayload["_publishedResume"];
   let body = JSON.stringify({ ...clientPayload, _publishedResume: publishedResume });
   const encoder = new TextEncoder();
   if (encoder.encode(body).byteLength > 70 * 1024) {

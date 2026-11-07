@@ -66,7 +66,7 @@ function ImageManager() {
     const response = await fetch("/api/admin/images", {
       credentials: "same-origin",
       cache: "no-store",
-      signal,
+      signal: signal ?? null,
     });
     const payload = await readApiResponse<ImageListPayload>(response);
     setImages(Array.isArray(payload.images) ? payload.images : []);

@@ -88,11 +88,15 @@ async function extractVerifiedArchive(archivePath) {
   const stat = await lstat(archivePath);
   if (!stat.isFile() || stat.isSymbolicLink()) fail('Package archive must be a regular file.');
 
+  // Run tar from the archive's directory with a bare file name: GNU tar treats a
+  // drive-letter path such as C:/release.tar.gz as a remote host:file archive.
+  const tarOptions = { cwd: path.dirname(archivePath), maxBuffer: 16 * 1024 * 1024, windowsHide: true };
+  const archiveName = path.basename(archivePath);
   let names, details;
   try {
     [{ stdout: names }, { stdout: details }] = await Promise.all([
-      execFileAsync('tar', ['-tzf', archivePath], { maxBuffer: 16 * 1024 * 1024, windowsHide: true }),
-      execFileAsync('tar', ['-tvzf', archivePath], { maxBuffer: 16 * 1024 * 1024, windowsHide: true }),
+      execFileAsync('tar', ['-tzf', archiveName], tarOptions),
+      execFileAsync('tar', ['-tvzf', archiveName], tarOptions),
     ]);
   } catch {
     fail('Package archive could not be listed safely by the system tar utility.');
@@ -131,9 +135,9 @@ async function extractVerifiedArchive(archivePath) {
   const destination = await mkdtemp(path.join(os.tmpdir(), 'portfolio-release-'));
   try {
     await execFileAsync('tar', [
-      '-xzf', archivePath, '-C', destination,
+      '-xzf', archiveName, '-C', destination,
       '--no-same-owner', '--no-same-permissions',
-    ], { maxBuffer: 16 * 1024 * 1024, windowsHide: true });
+    ], tarOptions);
     return { destination, cleanup: () => rm(destination, { recursive: true, force: true }) };
   } catch {
     await rm(destination, { recursive: true, force: true });
@@ -165,7 +169,7 @@ async function createPolicy(manifestPath, artifactPath, policyPath) {
 
 async function verify(policyPath, policySumPath, manifestPath, artifactPath, trustedHash, signaturePath, publicKeyPath) {
   // 1.
-  activeStage = 'POLICY_AUTHENTICATION'; Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
+  activeStage = 'POLICY_AUTHENTICATION'; // Authenticate the policy before parsing it. Use a trusted digest or an independently trusted Ed25519 public key.
   const trusted = String(trustedHash || '').trim().toLowerCase();
   const signedMode = Boolean(signaturePath || publicKeyPath);
   if (Boolean(signaturePath) !== Boolean(publicKeyPath)) fail('Both policy signature and trusted public-key paths are required.');

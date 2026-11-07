@@ -79,6 +79,7 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
   const match = cookie.match(/^([1-9]\d{9,15})\.([A-Za-z0-9_-]{43})$/);
   if (!match) return false;
   const [, payload, encodedSignature] = match;
+  if (!payload || !encodedSignature) return false;
   const signature = base64UrlToBytes(encodedSignature);
   const expiry = Number(payload);
   if (

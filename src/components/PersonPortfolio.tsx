@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/Reveal";
 import { TechnologyList } from "@/components/TechLogo";
 import { PersonPortfolioAssistant } from "@/components/PersonPortfolioAssistant";
+import { ResumeEntryCard } from "@/components/ResumeEntryCard";
 import {
   PERSON_SECTIONS,
   type PersonPortfolio,
@@ -419,7 +420,7 @@ export function PersonContent({
                 <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
                   {galleryPhotos.map((photo) => (
                     <img
-                      key={"id" in photo ? photo.id : photo.src}
+                      key={"id" in photo && typeof photo.id === "string" ? photo.id : photo.src}
                       src={photo.src}
                       alt={photo.alt}
                       loading="lazy"

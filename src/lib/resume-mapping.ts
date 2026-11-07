@@ -133,14 +133,16 @@ export type SuggestedResumeEntry = {
 function extractDateRange(text: string): { startDate?: string; endDate?: string; matched: string } {
   const match = text.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(19|20)\d{2}\s*(?:-|–|—|to)\s*(Present|Current|(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(?:19|20)\d{2})\b/i);
   if (!match) return { matched: "" };
-  return { startDate: match[0].split(/\s*(?:-|–|—|to)\s*/i)[0], endDate: match[3], matched: match[0] };
+  const startDate = match[0].split(/\s*(?:-|–|—|to)\s*/i)[0];
+  const endDate = match[3];
+  return { ...(startDate !== undefined ? { startDate } : {}), ...(endDate !== undefined ? { endDate } : {}), matched: match[0] };
 }
 
 function extractLabeledValue(lines: string[], labels: string[]): { value?: string; line?: string } {
   const pattern = new RegExp("^\\s*(?:" + labels.join("|") + ")\\s*[:\\-]\\s*(.+)$", "i");
   const line = lines.find((item) => pattern.test(item));
   const match = line?.match(pattern);
-  return match ? { value: match[1].trim(), line } : {};
+  return match?.[1] !== undefined && line !== undefined ? { value: match[1].trim(), line } : {};
 }
 
 /**
@@ -185,8 +187,8 @@ export function suggestStructuredResumeEntries(
       else {
         const at = first.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
         const split = first.split(/\s+[|•]\s+/);
-        if (at) { result.role = at[1].trim(); result.organization = at[2].trim(); }
-        else if (split.length === 2) { result.role = split[0].trim(); result.organization = split[1].trim(); }
+        if (at?.[1] !== undefined && at[2] !== undefined) { result.role = at[1].trim(); result.organization = at[2].trim(); }
+        else if (split.length === 2 && split[0] !== undefined && split[1] !== undefined) { result.role = split[0].trim(); result.organization = split[1].trim(); }
         else result.role = first;
       }
       if (!result.organization && issuer.value) result.organization = issuer.value;

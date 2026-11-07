@@ -27,6 +27,8 @@ function decodeXml(value: string): string {
 
 function normalizeExtractedText(value: string): string {
   return value
+    // Strip NUL bytes left by PDF/DOCX text extraction; matching them is intentional.
+    // eslint-disable-next-line no-control-regex
     .replace(/\u0000/g, "")
     .replace(/\r\n?/g, "\n")
     .replace(/[\t ]+\n/g, "\n")
@@ -47,7 +49,8 @@ async function decompress(
     throw new Error("The document contains an oversized compressed section.");
   }
 
-  const stream = new Blob([bytes])
+  // Blob accepts only ArrayBuffer-backed views; inputs here are never SharedArrayBuffer-backed.
+  const stream = new Blob([bytes as Uint8Array<ArrayBuffer>])
     .stream()
     .pipeThrough(new DecompressionStream(format));
   const reader = stream.getReader();
@@ -133,7 +136,7 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     const xml = decoder.decode(xmlBytes);
     const paragraphs: string[] = [];
     for (const paragraph of xml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g)) {
-      const body = paragraph[1];
+      const body = paragraph[1] ?? ""; // Capture group 1 always participates in a match.
       const style = body.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] ?? "";
       const isHeading = /^(?:title|subtitle|heading[1-6])$/i.test(style);
       const isList = /<w:numPr\b|<w:ilvl\b|<w:numId\b/.test(body);
@@ -163,7 +166,8 @@ function decodePdfString(token: string): string {
     if (bytes[0] === 0xfe && bytes[1] === 0xff) {
       const units: number[] = [];
       for (let index = 2; index + 1 < bytes.length; index += 2) {
-        units.push((bytes[index] << 8) | bytes[index + 1]);
+        // Loop bounds keep both indices within the array.
+        units.push(((bytes[index] ?? 0) << 8) | (bytes[index + 1] ?? 0));
       }
       let decoded = "";
       for (let offset = 0; offset < units.length; offset += 8192) {
@@ -191,9 +195,9 @@ function decodePdfString(token: string): string {
     else if (next === "\r") {
       if (token[index + 1] === "\n") index += 1;
     } else if (/[0-7]/.test(next ?? "")) {
-      let octal = next;
+      let octal = next ?? "";
       for (let count = 0; count < 2 && /[0-7]/.test(token[index + 1] ?? ""); count += 1) {
-        octal += token[++index];
+        octal += token[++index] ?? "";
       }
       output += String.fromCharCode(Number.parseInt(octal, 8));
     } else {
@@ -262,8 +266,9 @@ async function extractPdf(bytes: Uint8Array): Promise<{ text: string; skippedStr
   let skippedStreams = 0;
   const streamPattern = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   for (const match of binary.matchAll(streamPattern)) {
-    const dictionary = match[1];
-    const raw = match[2];
+    // Both capture groups always participate in a stream match.
+    const dictionary = match[1] ?? "";
+    const raw = match[2] ?? "";
     let content = raw;
 
     if (/\/FlateDecode\b/.test(dictionary)) {
