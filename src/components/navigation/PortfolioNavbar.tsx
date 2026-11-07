@@ -139,7 +139,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             <span>AI Intro</span>
           </Button>
 
-          {/* 2. Movie button (Clapperboard icon button to /portfolio) */}
+          {/* 2. Movie button (Clapperboard icon button to the projects page) */}
           <Button
             asChild
             variant="outline"
