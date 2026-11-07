@@ -115,9 +115,19 @@ export const Route = createFileRoute("/api/chat")({
           return Response.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 503 });
         }
         const abortController = new AbortController();
-        const timeout = setTimeout(() => abortController.abort(), 45_000);
+        // Time out on silence, not on total length: a slow local model (JARVIS on a
+        // laptop CPU) may stream a long answer. JARVIS sends keep-alives while it
+        // reads the prompt, and every chunk resets the idle timer.
+        const abort = () => abortController.abort();
+        let timeout = setTimeout(abort, 45_000);
+        const armIdleTimeout = () => {
+          clearTimeout(timeout);
+          timeout = setTimeout(abort, 45_000);
+        };
+        const maxDuration = setTimeout(abort, 300_000);
         const cleanupRequest = () => {
           clearTimeout(timeout);
+          clearTimeout(maxDuration);
           request.signal.removeEventListener("abort", onRequestAbort);
         };
         const onRequestAbort = () => {
@@ -174,6 +184,7 @@ export const Route = createFileRoute("/api/chat")({
           );
         }
 
+        armIdleTimeout();
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
@@ -215,6 +226,7 @@ export const Route = createFileRoute("/api/chat")({
         const stream = upstream.body.pipeThrough(
           new TransformStream<Uint8Array, Uint8Array>({
             transform(chunk, controller) {
+              armIdleTimeout();
               buffer += decoder.decode(chunk, { stream: true });
               const lines = buffer.split("\n");
               buffer = lines.pop() ?? "";
