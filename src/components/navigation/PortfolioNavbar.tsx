@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import logoImage from "../../../logo.png";
+import { monogramFor } from "@/lib/monogram";
 
 export interface PortfolioNavbarProps {
   person?: PersonPortfolio | null;
@@ -73,6 +74,8 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";
   const contactTo = isPerson && personId ? `/people/${personId}/contact` : "/contact";
+  // Each person gets their own monogram; the GA. logo image belongs to Abhishek only.
+  const personMonogram = person ? monogramFor(person.name) : null;
   const brandLabel =
     isPerson && person?.displayName ? `${person.displayName} portfolio home` : "Guda Abhishek home";
 
@@ -94,15 +97,22 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
           className="site-nav-brand flex shrink-0 items-center"
           aria-label={brandLabel}
         >
-          <img
-            src={logoImage}
-            alt="GA."
-            className="site-nav-logo h-10 w-auto max-w-[88px] object-contain sm:h-11"
-            width={88}
-            height={44}
-            fetchPriority="high"
-            decoding="async"
-          />
+          {personMonogram ? (
+            <span className="brand-monogram site-nav-monogram" aria-hidden="true">
+              {personMonogram}
+              <span className="text-primary">.</span>
+            </span>
+          ) : (
+            <img
+              src={logoImage}
+              alt="GA."
+              className="site-nav-logo h-10 w-auto max-w-[88px] object-contain sm:h-11"
+              width={88}
+              height={44}
+              fetchPriority="high"
+              decoding="async"
+            />
+          )}
         </Link>
 
         {/* Center section: Primary navigation (all 8 items in exact order) */}
