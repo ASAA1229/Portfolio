@@ -15,6 +15,52 @@
 - **Not complete:** full route matrix and four-profile content acceptance, secure admin publish/unpublish/rollback lifecycle, complete accessibility/performance/SEO review, exact-head CI and artifact acceptance, and production release.
 - No story is accepted until its criteria are evidenced on the exact branch revision. Test files and source changes alone are not acceptance evidence.
 
+## Current documentation and development control — 2026-11-07
+
+**Current activity: DOCUMENTATION ONLY.** Feature development is stopped at the owner's request. Do not start another epic or modify application behavior during this documentation phase.
+
+### What this product is
+
+A multi-profile personal portfolio website designed to present four people — Abhishek, Amulya, Anjini and Sai — through one shared cinematic interface. Visitors can select a profile and explore biography, skills, projects, experience, education, certifications and contact information. The product also contains profile-aware AI introduction/chat foundations and an owner-only admin area intended to manage resumes and profile images through controlled review and publishing.
+
+The repository additionally contains portfolio-focused CI/artifact-integrity tooling (provenance, manifests, SHA-256 verification, SBOM/signing foundations and release disposition records). This is not the separate CMM configuration-tool project.
+
+### Current source implementation inventory
+
+| Capability | What is present in source | Classification |
+|---|---|---|
+| Four-profile portfolio | Shared application, profile data, profile media and profile-specific content foundations for Abhishek, Amulya, Anjini and Sai | PARTIALLY IMPLEMENTED — NOT VERIFIED |
+| Shared visual experience | Cinematic layout, shared components, profile selection and responsive styling foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
+| Profile sections | About, Skills, Projects, Experience, Education, Certifications and Contact page/content foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
+| Published resume content | Shared profile-scoped normalization/rendering path; Abhishek's five section pages prefer valid published resume data and fall back to curated content; other profiles use the shared profile-aware renderer | IMPLEMENTED IN SOURCE — NOT VERIFIED |
+| AI introduction/chat | Server-side OpenAI integration, approved profile-scoped resume context, streaming/cancellation safeguards and offline fallback foundations | IMPLEMENTED IN SOURCE — NOT VERIFIED |
+| Voice/video introduction | Optional narration/video and interaction foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED |
+| Admin access and management | Admin route/auth, resume/image upload and management foundations | PARTIALLY IMPLEMENTED — NOT VERIFIED; latest upload 500s remain open |
+| Automated quality checks | Test files, regression checks, build/lint/test scripts and CI definitions | AUTHORED / CONFIGURED; EXECUTION PAUSED |
+| Artifact integrity | Provenance manifest, SHA-256 checks, archive-backed verification, customer reports, SBOM/signing foundations and quarantine/recovery records | IMPLEMENTED IN SOURCE — NOT VERIFIED |
+| Accessibility, performance and SEO | Some foundations and metadata exist | INCOMPLETE — systematic implementation/review remains |
+| Production release | Release controls and documentation foundations | NOT RELEASE-READY; no deployment authorization |
+
+### Latest admin upload incident
+
+Latest reported browser errors:
+- `POST /api/admin/images` — HTTP 500.
+- `POST /api/admin/resumes` — HTTP 500.
+
+Source changes now validate multipart resume files without relying solely on cross-runtime `instanceof File` and return structured server diagnostics. The admin image and resume screens display optional server diagnostic details. The underlying storage, bucket, database or indexing failure has not been identified from a successful retry. Both upload stories remain OPEN and must not be marked fixed.
+
+Related commits on `new`: `4b185ffa1e913472606685da8750d673e80d57c7`, `d3f39d94f412f7e246d94cec0c3b23b786d52ae1`, `f9d3e58151cf4869cc9b9b9d3b20f268c2d9c456`.
+
+### What is developed versus what is not
+
+**Implemented in source, but not tested/accepted:** profile-aware portfolio foundations; selected published-resume integration; AI context and streaming safeguards; asset-integrity checks; artifact provenance, manifest/checksum/archive verification and release-disposition tooling.
+
+**Partially implemented:** all-profile content/visual consistency; complete route/legacy compatibility; voice/video behavior; secure admin lifecycle; resume/image review and publishing; responsive/accessibility/SEO/performance work.
+
+**Not complete / not yet implemented as an accepted capability:** full end-to-end admin authorization and upload lifecycle; reliable image/resume storage and publish/unpublish/rollback; complete browser acceptance for every profile and route; full accessibility/performance/SEO acceptance; production release and deployment.
+
+**Testing state:** tests, builds, lint, browser checks, audits and CI/Jenkins runs remain paused by owner instruction. No current-head pass is claimed. Existing test files are evidence that checks were authored, not that they passed.
+
 ## Read this first — what this project is
 
 This project is a cinematic, Netflix-inspired multi-person portfolio website for four profiles: Abhishek, Amulya, Anjini and Sai. It provides a shared visual system with profile-specific identity, biography, skills, projects, experience, education, certifications and contact information.
@@ -42,7 +88,7 @@ A route/component or test file existing does not prove the page works in a brows
 | Design system and responsive UI | Cinematic shared layout, profile selector, section pages, reusable components and responsive styling foundations | Partially implemented; desktop/tablet/mobile and accessibility acceptance not run |
 | Routes and content | Profile/section routes, project content, shared profile renderer and published-resume section precedence | Partially implemented; route matrix, direct refresh, legacy links and all-profile correctness remain unverified |
 | AI introduction and chat | Server-side AI integration foundations, profile-scoped approved-resume context, streaming/cancellation handling and offline fallback | Implemented in source in key paths; provider, privacy and all-profile runtime behavior not verified |
-| Admin, resume and images | Admin route/auth foundations, resume/image management components and published-resume workflow foundations | Partially implemented; upload-to-publish lifecycle and authorization acceptance incomplete; `/admin/images` has a previously reported 404 and is intentionally paused |
+| Admin, resume and images | Admin route/auth foundations, resume/image management components, resume/image upload handlers and published-resume workflow foundations | Partially implemented; latest image and resume upload attempts returned HTTP 500. Diagnostic response handling was improved in source, but the underlying storage/persistence failure is not confirmed fixed; full authorization and upload-to-publish acceptance remain open |
 | Quality engineering | Regression tests and CI definitions exist; some asset, profile and AI checks are authored | Testing is paused; no current exact-head test/build/lint/browser/CI pass is claimed |
 | Accessibility, performance and SEO | Some responsive/accessibility and metadata foundations | Not fully implemented or accepted; systematic audits/reviews remain |
 | Shared DevOps and artifact integrity | Provenance manifest, SHA-256 checks, SBOM/signing foundations, archive-backed customer verification and release quarantine/recovery records | Source implementation present; exact-head workflow/package acceptance is pending; Nexus publishing disabled |
@@ -59,7 +105,7 @@ The DevOps implementation includes provenance and release identity, manifest and
 
 ## Known issue intentionally paused
 
-The owner previously reported `GET /admin/images` returning HTTP 404 in the local application even though an admin image route file was present. Earlier route/auth changes did not resolve the report. The owner explicitly paused that work to move to another epic. It remains an open issue and must not be described as fixed.
+Historical issue: the owner previously reported `GET /admin/images` returning HTTP 404. Later upload attempts produced `POST /api/admin/images` and `POST /api/admin/resumes` HTTP 500 responses. Diagnostic/error-handling changes were committed on `new` (see the current upload incident section above). These changes improve error visibility and address a possible multipart File validation issue; they do not prove the storage/persistence root cause is fixed. The upload issue remains OPEN pending a user retry and the resulting server diagnostic.
 
 ## Not yet developed or not complete
 
