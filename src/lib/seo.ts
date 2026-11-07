@@ -14,6 +14,7 @@ export function publicRoutes(): string[] {
     "/education",
     "/contact",
     "/profiles",
+    "/privacy",
   ];
   const rootProjects = projectSlugs.map((slug) => `/projects/${slug}`);
   const people = Object.values(PERSON_PORTFOLIOS).flatMap((profile) => [

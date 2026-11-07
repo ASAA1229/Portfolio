@@ -1,9 +1,11 @@
 /**
  * Publish history and rollback planning for admin-managed resumes (PORT-US-013).
  *
- * Every publication of a profile's resume appends an immutable snapshot of the
- * public fields to that profile's private history. Rolling back restores the
- * previous snapshot. Private review notes are never part of a snapshot.
+ * History is append-only (PORT-US-036): every publication appends an immutable
+ * snapshot of the public fields, and a rollback appends a "rollback" entry that
+ * carries the restored snapshot. Nothing is trimmed or rewritten except the oldest
+ * entries beyond the retention cap. The currently effective version is derived by
+ * replaying the log. Private review notes are never part of a snapshot.
  */
 
 export type ProfileId = "abhishek" | "ammu" | "bava" | "sai";
@@ -18,6 +20,10 @@ export interface PublishedResumeSnapshot {
   skills: string[];
   contact?: { email?: string; phone?: string; linkedin?: string; github?: string } | undefined;
   structuredSections?: unknown;
+  /** "publish" (default for legacy entries) or "rollback". */
+  kind?: "publish" | "rollback";
+  /** For rollback entries: publishedAt of the snapshot that was restored. */
+  restoredPublishedAt?: string;
 }
 
 export interface PublishHistory {
@@ -26,7 +32,8 @@ export interface PublishHistory {
   entries: PublishedResumeSnapshot[];
 }
 
-export const MAX_HISTORY_ENTRIES = 10;
+/** Retention cap: the oldest entries beyond this are dropped (never newer ones). */
+export const MAX_HISTORY_ENTRIES = 50;
 export const PUBLIC_PROFILE_IDS: readonly ProfileId[] = ["abhishek", "ammu", "bava", "sai"];
 
 export function historyKey(profileId: ProfileId): string {
@@ -58,7 +65,8 @@ export function isPublishHistory(value: unknown, profileId: ProfileId): value is
         typeof entry.displayName === "string" &&
         typeof entry.headline === "string" &&
         typeof entry.summary === "string" &&
-        Array.isArray(entry.skills),
+        Array.isArray(entry.skills) &&
+        (entry.kind === undefined || entry.kind === "publish" || entry.kind === "rollback"),
     )
   );
 }
@@ -95,57 +103,109 @@ export function snapshotOf(
   };
 }
 
-/** Append a publication, keeping only the newest MAX_HISTORY_ENTRIES. */
+/** Append an entry (publication or rollback); only the oldest entries beyond the cap are dropped. */
 export function appendHistory(
   history: PublishHistory,
   snapshot: PublishedResumeSnapshot,
 ): PublishHistory {
   if (snapshot.profileId !== history.profileId) throw new Error("Snapshot profile mismatch.");
+  const entry: PublishedResumeSnapshot = { ...snapshot, kind: snapshot.kind ?? "publish" };
   return {
     ...history,
-    entries: [...history.entries, snapshot].slice(-MAX_HISTORY_ENTRIES),
+    entries: [...history.entries, entry].slice(-MAX_HISTORY_ENTRIES),
   };
 }
 
+/**
+ * Replay the append-only log into the stack of effective versions (oldest first).
+ * A rollback entry pops back to the restored version; if that version was dropped
+ * by retention, the rollback entry's own snapshot becomes the base.
+ */
+export function effectiveStack(history: PublishHistory): PublishedResumeSnapshot[] {
+  const stack: PublishedResumeSnapshot[] = [];
+  for (const entry of history.entries) {
+    if (entry.kind === "rollback") {
+      const index = stack
+        .map((item) => item.publishedAt)
+        .lastIndexOf(entry.restoredPublishedAt ?? "");
+      if (index >= 0) stack.splice(index + 1);
+      else
+        stack.splice(0, stack.length, {
+          ...entry,
+          kind: "publish",
+          publishedAt: entry.restoredPublishedAt ?? entry.publishedAt,
+        });
+    } else {
+      stack.push(entry);
+    }
+  }
+  return stack;
+}
+
 export type RollbackPlan =
-  | { ok: true; target: PublishedResumeSnapshot; remaining: PublishHistory }
+  | { ok: true; target: PublishedResumeSnapshot; next: PublishHistory }
   | { ok: false; reason: string };
 
 /**
- * Decide what a rollback restores.
- * - Something is published: restore the entry before the current publication.
- * - Nothing is published (it was unpublished): restore the latest publication.
+ * Decide what a rollback restores and the history entry it appends.
+ * - Something is published: restore the effective version before the current one.
+ * - Nothing is published (after an unpublish): restore the latest effective version.
  */
 export function planRollback(
   history: PublishHistory,
   currentlyPublishedResumeId: string | undefined,
+  now: string = new Date().toISOString(),
 ): RollbackPlan {
-  const entries = history.entries;
-  if (entries.length === 0)
+  const stack = effectiveStack(history);
+  if (stack.length === 0)
     return { ok: false, reason: "There is no publish history for this profile yet." };
-  if (!currentlyPublishedResumeId) {
-    const target = entries[entries.length - 1]!;
-    return { ok: true, target, remaining: history };
+  const top = stack[stack.length - 1]!;
+  let target: PublishedResumeSnapshot;
+  if (!currentlyPublishedResumeId || top.resumeId !== currentlyPublishedResumeId) {
+    target = top;
+  } else {
+    if (stack.length < 2)
+      return { ok: false, reason: "There is no earlier published version to roll back to." };
+    target = stack[stack.length - 2]!;
   }
-  const last = entries[entries.length - 1]!;
-  const head = last.resumeId === currentlyPublishedResumeId ? entries.length - 1 : entries.length;
-  if (head === 0)
-    return { ok: false, reason: "There is no earlier published version to roll back to." };
-  const target = entries[head - 1]!;
-  return { ok: true, target, remaining: { ...history, entries: entries.slice(0, head) } };
+  const next = appendHistory(history, {
+    ...target,
+    kind: "rollback",
+    publishedAt: now,
+    restoredPublishedAt: target.publishedAt,
+  });
+  return { ok: true, target, next };
 }
 
-/**
- * Which entry a rollback restores, mirroring the server's planRollback():
- * with a current publication, the version published before it; with nothing
- * published (after an unpublish), the latest publication.
- */
-export function rollbackTargetIndex(
-  entries: ReadonlyArray<{ resumeId: string }>,
+/** publishedAt of the version a rollback would restore, for the admin list. */
+export function rollbackTargetPublishedAt(
+  history: PublishHistory,
   currentResumeId: string | null,
-): number {
-  if (entries.length === 0) return -1;
-  if (!currentResumeId) return 0;
-  const head = entries[0]?.resumeId === currentResumeId ? 1 : 0;
-  return head < entries.length ? head : -1;
+): string | null {
+  const plan = planRollback(history, currentResumeId ?? undefined);
+  return plan.ok ? plan.target.publishedAt : null;
+}
+
+/** Retention when a resume is deleted: its history entries keep only non-content metadata. */
+export function redactDeletedResume(history: PublishHistory, resumeId: string): PublishHistory {
+  return {
+    ...history,
+    entries: history.entries.map((entry) =>
+      entry.resumeId === resumeId
+        ? {
+            resumeId: entry.resumeId,
+            profileId: entry.profileId,
+            publishedAt: entry.publishedAt,
+            displayName: "[deleted resume]",
+            headline: "",
+            summary: "",
+            skills: [],
+            ...(entry.kind ? { kind: entry.kind } : {}),
+            ...(entry.restoredPublishedAt
+              ? { restoredPublishedAt: entry.restoredPublishedAt }
+              : {}),
+          }
+        : entry,
+    ),
+  };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ChatPrivacyNotice } from "@/components/ChatPrivacyNotice";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Minus, Send, X, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -360,6 +361,14 @@ export function PortfolioChat() {
               </div>
             ))}
           </div>
+          <ChatPrivacyNotice
+            onClear={() => {
+              abortRef.current?.abort();
+              abortRef.current = null;
+              setMessages([]);
+              setBusy(false);
+            }}
+          />
           <form
             className="flex items-end gap-2 border-t border-border p-3"
             onSubmit={(e) => {

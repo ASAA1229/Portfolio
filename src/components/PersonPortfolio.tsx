@@ -144,9 +144,12 @@ function PersonFooter({ profile }: { profile: PersonPortfolio }) {
         </div>
         <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
           <p>© 2026 {profile.name}. All rights reserved. Netflix-inspired portfolio concept.</p>
-          <PersonLink person={profile.id} section="projects">
-            Explore The Series <ArrowUpRight className="inline size-3" />
-          </PersonLink>
+          <span className="flex gap-4">
+            <Link to="/privacy">Privacy</Link>
+            <PersonLink person={profile.id} section="projects">
+              Explore The Series <ArrowUpRight className="inline size-3" />
+            </PersonLink>
+          </span>
         </div>
       </div>
     </footer>

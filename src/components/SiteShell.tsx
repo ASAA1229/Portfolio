@@ -53,9 +53,12 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
             <p>© 2026 Guda Abhishek. All rights reserved. Netflix-inspired portfolio concept.</p>
-            <Link to="/projects">
-              Explore The Series <ArrowUpRight className="inline size-3" />
-            </Link>
+            <span className="flex gap-4">
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/projects">
+                Explore The Series <ArrowUpRight className="inline size-3" />
+              </Link>
+            </span>
           </div>
         </div>
       </footer>

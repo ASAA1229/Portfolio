@@ -5,7 +5,9 @@ import {
   isPublishHistory,
   MAX_HISTORY_ENTRIES,
   planRollback,
-  rollbackTargetIndex,
+  effectiveStack,
+  redactDeletedResume,
+  rollbackTargetPublishedAt,
   snapshotOf,
 } from "@/lib/resume-publish-history";
 
@@ -40,15 +42,21 @@ describe("resume publish history", () => {
     expect(() => snapshotOf({ ...record("r1"), profileId: "unassigned" }, "t")).toThrow();
   });
 
-  it("plans a rollback to the version before the current publication", () => {
+  it("plans a rollback to the version before the current publication, appending to history", () => {
     const history = appendHistory(
       appendHistory(emptyHistory("ammu"), snapshotOf(record("v1"), "t1")),
       snapshotOf(record("v2"), "t2"),
     );
-    const plan = planRollback(history, "v2");
+    const plan = planRollback(history, "v2", "t3");
     expect(plan.ok && plan.target.resumeId).toBe("v1");
-    expect(plan.ok && plan.remaining.entries.map((entry) => entry.resumeId)).toEqual(["v1"]);
-    // After an unpublish nothing is current: the latest publication is restored.
+    // Append-only: the newer entry is kept and a rollback entry is added.
+    expect(plan.ok && plan.next.entries.map((entry) => [entry.resumeId, entry.kind])).toEqual([
+      ["v1", "publish"],
+      ["v2", "publish"],
+      ["v1", "rollback"],
+    ]);
+    expect(plan.ok && effectiveStack(plan.next).map((entry) => entry.resumeId)).toEqual(["v1"]);
+    // After an unpublish nothing is current: the latest effective version is restored.
     const afterUnpublish = planRollback(history, undefined);
     expect(afterUnpublish.ok && afterUnpublish.target.resumeId).toBe("v2");
     expect(planRollback(emptyHistory("ammu"), undefined).ok).toBe(false);
@@ -57,11 +65,31 @@ describe("resume publish history", () => {
     ).toBe(false);
   });
 
-  it("marks the same entry for rollback in the admin list (newest first)", () => {
-    const newestFirst = [{ resumeId: "v2" }, { resumeId: "v1" }];
-    expect(rollbackTargetIndex(newestFirst, "v2")).toBe(1);
-    expect(rollbackTargetIndex(newestFirst, null)).toBe(0);
-    expect(rollbackTargetIndex([{ resumeId: "v1" }], "v1")).toBe(-1);
-    expect(rollbackTargetIndex([], null)).toBe(-1);
+  it("repeated rollbacks walk further back without rewriting history", () => {
+    let history = emptyHistory("ammu");
+    for (const [id, at] of [
+      ["v1", "t1"],
+      ["v2", "t2"],
+      ["v3", "t3"],
+    ] as const) {
+      history = appendHistory(history, snapshotOf(record(id), at));
+    }
+    const first = planRollback(history, "v3", "t4");
+    expect(first.ok && first.target.resumeId).toBe("v2");
+    const second = first.ok ? planRollback(first.next, "v2", "t5") : first;
+    expect(second.ok && second.target.resumeId).toBe("v1");
+    expect(second.ok && second.next.entries).toHaveLength(5);
+    expect(rollbackTargetPublishedAt(history, "v3")).toBe("t2");
+  });
+
+  it("keeps only timestamps for a deleted resume's history entries", () => {
+    const history = appendHistory(emptyHistory("ammu"), snapshotOf(record("v1"), "t1"));
+    const redacted = redactDeletedResume(history, "v1");
+    expect(redacted.entries[0]).toMatchObject({
+      resumeId: "v1",
+      publishedAt: "t1",
+      summary: "",
+      skills: [],
+    });
   });
 });

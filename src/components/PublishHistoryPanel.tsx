@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { History, RotateCcw } from "lucide-react";
-import { rollbackTargetIndex } from "@/lib/resume-publish-history";
 
 type ProfileId = "abhishek" | "ammu" | "bava" | "sai";
 
@@ -16,13 +15,17 @@ interface HistoryEntry {
   publishedAt: string;
   displayName: string;
   headline: string;
+  kind: "publish" | "rollback";
+  restoredPublishedAt?: string;
   resumeStillStored: boolean;
 }
 
 interface HistoryResponse {
   profileId: ProfileId;
   currentResumeId: string | null;
-  entries: HistoryEntry[]; // newest first
+  /** publishedAt of the version the next rollback restores (server-computed). */
+  rollbackTarget: string | null;
+  entries: HistoryEntry[]; // newest first, append-only
   error?: string;
 }
 
@@ -98,7 +101,11 @@ export function PublishHistoryPanel({
   }
 
   const entries = history?.entries ?? [];
-  const target = rollbackTargetIndex(entries, history?.currentResumeId ?? null);
+  // History is append-only; the rollback button sits on the newest publication
+  // entry of the version the server would restore.
+  const target = entries.findIndex(
+    (entry) => entry.kind === "publish" && entry.publishedAt === history?.rollbackTarget,
+  );
 
   return (
     <section
@@ -114,8 +121,8 @@ export function PublishHistoryPanel({
             <History className="size-5" aria-hidden="true" /> Publish history
           </h2>
           <p className="mt-1 text-sm text-white/45">
-            Each publication is kept as a version. Public pages and the AI assistant use only the
-            current version.
+            Append-only: every publication and rollback is recorded and nothing is rewritten. Public
+            pages and the AI assistant use only the current version.
           </p>
         </div>
         <label className="text-xs text-white/55">
@@ -159,6 +166,11 @@ export function PublishHistoryPanel({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
+                    {entry.kind === "rollback" && (
+                      <span className="mr-2 border border-amber-300/25 px-2 py-0.5 text-xs text-amber-100">
+                        Rollback
+                      </span>
+                    )}
                     {entry.displayName || "Untitled"}
                     {isCurrent && (
                       <span className="ml-2 border border-emerald-300/25 px-2 py-0.5 text-xs text-emerald-200">
@@ -169,6 +181,9 @@ export function PublishHistoryPanel({
                   <p className="mt-1 text-xs text-white/45">
                     {new Date(entry.publishedAt).toLocaleString()}
                     {entry.headline ? ` · ${entry.headline}` : ""}
+                    {entry.kind === "rollback" && entry.restoredPublishedAt
+                      ? ` · restored the version from ${new Date(entry.restoredPublishedAt).toLocaleString()}`
+                      : ""}
                     {!entry.resumeStillStored && " · resume deleted — cannot be restored"}
                   </p>
                 </div>

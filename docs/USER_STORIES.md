@@ -508,6 +508,8 @@ The following stories capture the owner's answers to the 50-question development
 
 **Priority:** P1
 
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Publish history is append-only (publish and rollback entries; replayed to find the effective version), rollback never trims newer entries, public pages/AI context read only the current approved record, and deleting a resume drops its extracted draft with the index record and redacts its history entries to timestamps. To test: publish v1→v2→v3, roll back twice, unpublish/roll back, delete a resume and inspect history/public feed (`src/test/resume-publish-history.test.ts` written, not run).
+
 **As the owner,** I want original resumes and structured extracted profile data to be versioned and reviewed before publication, so that public content and AI answers remain accurate.
 
 **Acceptance criteria**
@@ -534,6 +536,8 @@ The following stories capture the owner's answers to the 50-question development
 
 **Priority:** P1
 
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — `/admin/personas` (linked from `/admin`) edits a per-profile persona (name, tone, style guidance, approved notes) with draft, live preview, publish, unpublish and append-only version history/restore in private storage. The Worker attaches only the selected profile's published persona (client values discarded) and `/api/chat` appends it after the fixed grounding/security rules. To test: publish personas for two profiles and confirm each chat uses only its own; forged `_persona` ignored; restore an older version (`src/lib/persona.test.ts` written, not run).
+
 **As the owner,** I want to configure each profile's AI persona, response style, instructions and approved knowledge, so that each assistant represents the correct person while sharing the same platform.
 
 **Acceptance criteria**
@@ -545,6 +549,8 @@ The following stories capture the owner's answers to the 50-question development
 ### PORT-US-039 — Privacy and visitor data controls
 
 **Priority:** P1
+
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — `/privacy` page (linked from both footers and the sitemap); both assistants show a consent notice with a “Clear my chat” control (chat lives only in the tab; no transcripts stored); no analytics; contact stays mailto-only. Export/deletion requests for stored visitor data are N/A because none is stored. To test: notice visible in both assistants, Clear my chat aborts and empties, /privacy renders and links resolve.
 
 **As a visitor,** I want clear consent and control over any personal data collected during my visit, so that I understand and can manage how my information is used.
 

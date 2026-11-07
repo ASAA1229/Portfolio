@@ -7,10 +7,27 @@ import {
   isPublicProfileId,
   isPublishHistory,
   planRollback,
+  redactDeletedResume,
+  rollbackTargetPublishedAt,
   snapshotOf,
   type ProfileId,
   type PublishHistory,
 } from "@/lib/resume-publish-history";
+import {
+  emptyPersonaDocument,
+  isPersonaDocument,
+  isPersonaProfileId,
+  personaKey,
+  publishDraft,
+  publishedPersona,
+  rollbackTo,
+  saveDraft,
+  unpublish,
+  validatePersonaConfig,
+  type PersonaConfig,
+  type PersonaDocument,
+  type PersonaProfileId,
+} from "@/lib/persona";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -843,17 +860,23 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
     const history = await readPublishHistory(bucket, profileId);
     const records = await readResumeIndex(bucket);
-    const current = records.find((item) => item.profileId === profileId && item.status === "approved");
+    const current = records.find(
+      (item) => item.profileId === profileId && item.status === "approved",
+    );
     return jsonResponse(
       {
         profileId,
         currentResumeId: current?.id ?? null,
+        // publishedAt of the version a rollback would restore (append-only history).
+        rollbackTarget: rollbackTargetPublishedAt(history, current?.id ?? null),
         entries: history.entries
-          .map(({ resumeId, publishedAt, displayName, headline }) => ({
+          .map(({ resumeId, publishedAt, displayName, headline, kind, restoredPublishedAt }) => ({
             resumeId,
             publishedAt,
             displayName,
             headline,
+            kind: kind ?? "publish",
+            ...(restoredPublishedAt ? { restoredPublishedAt } : {}),
             resumeStillStored: records.some((item) => item.id === resumeId),
           }))
           .reverse(),
@@ -866,14 +889,18 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   if (path === "/api/admin/resumes/rollback" && request.method === "POST") {
     const boundedRequest = await limitRequestBody(request, 4 * 1024);
     if (boundedRequest instanceof Response) return boundedRequest;
-    const payload = (await boundedRequest.json().catch(() => null)) as { profileId?: unknown } | null;
+    const payload = (await boundedRequest.json().catch(() => null)) as {
+      profileId?: unknown;
+    } | null;
     const profileId = payload?.profileId;
     if (!isPublicProfileId(profileId)) {
       return jsonResponse({ error: "Choose a public profile to roll back." }, 400);
     }
     const records = await readResumeIndex(bucket);
     const history = await readPublishHistory(bucket, profileId);
-    const current = records.find((item) => item.profileId === profileId && item.status === "approved");
+    const current = records.find(
+      (item) => item.profileId === profileId && item.status === "approved",
+    );
     const plan = planRollback(history, current?.id);
     if (!plan.ok) return jsonResponse({ error: plan.reason }, 409);
     const targetIndex = records.findIndex((item) => item.id === plan.target.resumeId);
@@ -906,7 +933,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       status: "approved",
     };
     try {
-      await commitResumeState(bucket, records, after, { before: history, after: plan.remaining });
+      await commitResumeState(bucket, records, after, { before: history, after: plan.next });
     } catch (error) {
       return storageFailure(error, "rollback");
     }
@@ -1180,9 +1207,25 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
 
     if (request.method === "DELETE" && !action) {
+      const deleted = records[index]!;
       records.splice(index, 1);
+      // Retention (PORT-US-036): the deleted resume's extracted draft lives only in its
+      // index record (removed here) and the public feed/AI context are rebuilt from the
+      // index; its history entries keep timestamps only, never its content.
+      let historyChange: { before: PublishHistory; after: PublishHistory } | undefined;
+      if (isPublicProfileId(deleted.profileId)) {
+        try {
+          const historyBefore = await readPublishHistory(bucket, deleted.profileId);
+          historyChange = {
+            before: historyBefore,
+            after: redactDeletedResume(historyBefore, deleted.id),
+          };
+        } catch (error) {
+          return storageFailure(error, "delete");
+        }
+      }
       try {
-        await commitResumeState(bucket, original, records);
+        await commitResumeState(bucket, original, records, historyChange);
       } catch (error) {
         return storageFailure(error, "delete");
       }
@@ -1634,15 +1677,23 @@ async function attachPublishedResumeContext(
     }
   }
 
-  // Discard any client-supplied internal field before adding trusted data.
+  // Only the selected profile's *published* persona is attached (PORT-US-038).
+  const persona = await loadPublishedPersona(env, profileId);
+
+  // Discard any client-supplied internal fields before adding trusted data.
   const clientPayload = { ...payload };
   delete clientPayload["_publishedResume"];
-  let body = JSON.stringify({ ...clientPayload, _publishedResume: publishedResume });
+  delete clientPayload["_persona"];
+  let body = JSON.stringify({
+    ...clientPayload,
+    _publishedResume: publishedResume,
+    _persona: persona,
+  });
   const encoder = new TextEncoder();
   if (encoder.encode(body).byteLength > 70 * 1024) {
     // Preserve a valid user request when its body leaves no room for resume
     // context; the chat route will then use its static verified profile data.
-    body = JSON.stringify({ ...clientPayload, _publishedResume: null });
+    body = JSON.stringify({ ...clientPayload, _publishedResume: null, _persona: persona });
   }
   if (encoder.encode(body).byteLength > 70 * 1024) {
     return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
@@ -1658,6 +1709,122 @@ async function attachPublishedResumeContext(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Owner-configured AI personas (PORT-US-038). Private storage, owner-only.
+// ---------------------------------------------------------------------------
+
+async function readPersonaDocument(
+  bucket: PrivateBucket,
+  profileId: PersonaProfileId,
+): Promise<PersonaDocument> {
+  const object = await bucket.get(personaKey(profileId));
+  if (!object) return emptyPersonaDocument(profileId);
+  const value = await object.json<unknown>();
+  if (!isPersonaDocument(value, profileId)) {
+    throw new Error("Stored persona failed integrity validation.");
+  }
+  return value;
+}
+
+async function writePersonaDocument(bucket: PrivateBucket, doc: PersonaDocument): Promise<void> {
+  await bucket.put(personaKey(doc.profileId), JSON.stringify(doc), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+}
+
+/** Published persona for one profile, or null. Never throws (chat must not break). */
+async function loadPublishedPersona(
+  env: unknown,
+  profileId: string,
+): Promise<(PersonaConfig & { profileId: PersonaProfileId }) | null> {
+  if (!isPersonaProfileId(profileId)) return null;
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return null;
+  try {
+    const config = publishedPersona(await readPersonaDocument(bucket, profileId));
+    return config ? { ...config, profileId } : null;
+  } catch (error) {
+    console.error("Could not load the published persona for portfolio chat.", error);
+    return null;
+  }
+}
+
+async function handlePersonaApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (path !== "/api/admin/personas" && !path.startsWith("/api/admin/personas/")) return null;
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+  if (request.method !== "GET") {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+  }
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return bucketNotConfigured();
+
+  if (path === "/api/admin/personas" && request.method === "GET") {
+    const profileId = new URL(request.url).searchParams.get("profileId");
+    if (!isPersonaProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
+    try {
+      return jsonResponse({ persona: await readPersonaDocument(bucket, profileId) }, 200);
+    } catch (error) {
+      return storageFailure(error, "read persona");
+    }
+  }
+
+  const action = path.match(/^\/api\/admin\/personas\/(draft|publish|rollback|unpublish)$/)?.[1];
+  if (!action || request.method !== "POST") return privateNotFound();
+  const bounded = await limitRequestBody(request, 16 * 1024);
+  if (bounded instanceof Response) return bounded;
+  const payload = (await bounded.json().catch(() => null)) as {
+    profileId?: unknown;
+    config?: unknown;
+    version?: unknown;
+  } | null;
+  const profileId = payload?.profileId;
+  if (!isPersonaProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
+
+  let doc: PersonaDocument;
+  try {
+    doc = await readPersonaDocument(bucket, profileId);
+  } catch (error) {
+    return storageFailure(error, "read persona");
+  }
+  const now = new Date().toISOString();
+  let next: PersonaDocument;
+  try {
+    if (action === "draft") {
+      const validated = validatePersonaConfig(payload?.config);
+      if (!validated.ok) return jsonResponse({ error: validated.errors.join(" ") }, 400);
+      next = saveDraft(doc, validated.config, now);
+    } else if (action === "publish") {
+      next = publishDraft(doc, now);
+    } else if (action === "rollback") {
+      if (typeof payload?.version !== "number") {
+        return jsonResponse({ error: "Choose a version to restore." }, 400);
+      }
+      next = rollbackTo(doc, payload.version, now);
+    } else {
+      next = unpublish(doc);
+    }
+  } catch (error) {
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : "Invalid request." },
+      409,
+    );
+  }
+  try {
+    await writePersonaDocument(bucket, next);
+  } catch (error) {
+    return storageFailure(error, `persona ${action}`);
+  }
+  // Operational log without persona text.
+  console.info("Portfolio persona updated.", {
+    profileId,
+    action,
+    publishedVersion: next.publishedVersion,
+  });
+  return jsonResponse({ persona: next }, 200);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const path = normalizedPath(request);
@@ -1666,6 +1833,8 @@ export default {
     if (authResponse) return authResponse;
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
+    const personaResponse = await handlePersonaApi(request, env);
+    if (personaResponse) return personaResponse;
     try {
       const imageResponse = await handlePortfolioImageApi(request, env);
       if (imageResponse) return imageResponse;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChatPrivacyNotice } from "@/components/ChatPrivacyNotice";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import { fallbackProfileAnswer } from "@/lib/profile-fallback";
 
@@ -229,6 +230,15 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
               </Button>
             )}
           </div>
+          <ChatPrivacyNotice
+            onClear={() => {
+              controller.current?.abort();
+              controller.current = null;
+              if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+              setMessages([]);
+              setBusy(false);
+            }}
+          />
           <form
             className="flex gap-2 border-t border-border p-3"
             onSubmit={(event) => {
