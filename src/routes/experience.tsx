@@ -35,7 +35,7 @@ function Experience() {
               Two teams, different challenges, and a shared focus on making software work for
               people.
             </p>
-            <a className="chapter-scroll" href="#timeline">
+            <a className="chapter-scroll" href={publishedResume?.structuredSections?.experience?.length ? "#experience-published-resume" : "#timeline"}>
               <ArrowDown /> Follow the timeline
             </a>
           </Reveal>
