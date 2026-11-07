@@ -35,7 +35,14 @@ function Experience() {
               Two teams, different challenges, and a shared focus on making software work for
               people.
             </p>
-            <a className="chapter-scroll" href={publishedResume?.structuredSections?.experience?.length ? "#experience-published-resume" : "#timeline"}>
+            <a
+              className="chapter-scroll"
+              href={
+                publishedResume?.structuredSections?.experience?.length
+                  ? "#experience-published-resume"
+                  : "#timeline"
+              }
+            >
               <ArrowDown /> Follow the timeline
             </a>
           </Reveal>
@@ -46,53 +53,53 @@ function Experience() {
         <PublishedResumePanel section="experience" resume={publishedResume} />
         {!publishedResume?.structuredSections?.experience?.length && (
           <>
-        <section className="experience-summary">
-          <p className="chapter-kicker">ON THE JOB</p>
-          <p>
-            Frontend engineering, API integration, AI product experiences, and close work with
-            design, backend, and QA teams.
-          </p>
-        </section>
-        <div id="timeline" className="career-timeline">
-          {MISSIONS.map((job, i) => (
-            <Reveal key={job.id} delay={i * 0.08}>
-              <article className="career-chapter">
-                <div className="career-rail">
-                  <span>EPISODE {job.id}</span>
-                  <i />
-                </div>
-                <div className="career-content">
-                  <header>
-                    <div>
-                      <p className="chapter-kicker">{job.period}</p>
-                      <h2>{job.company}</h2>
-                      <p className="career-role">
-                        <BriefcaseBusiness /> {job.role}
-                      </p>
+            <section className="experience-summary">
+              <p className="chapter-kicker">ON THE JOB</p>
+              <p>
+                Frontend engineering, API integration, AI product experiences, and close work with
+                design, backend, and QA teams.
+              </p>
+            </section>
+            <div id="timeline" className="career-timeline">
+              {MISSIONS.map((job, i) => (
+                <Reveal key={job.id} delay={i * 0.08}>
+                  <article className="career-chapter">
+                    <div className="career-rail">
+                      <span>EPISODE {job.id}</span>
+                      <i />
                     </div>
-                    {job.location && (
-                      <span className="career-location">
-                        <MapPin />
-                        {job.location}
-                      </span>
-                    )}
-                  </header>
-                  {job.projects.map((project) => (
-                    <section key={project.name} className="career-project">
-                      <h3>{project.name}</h3>
-                      <ul>
-                        {project.points.map((point) => (
-                          <li key={point}>{point}</li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                  <TechnologyList items={job.tags} />
-                </div>
-              </article>
-            </Reveal>
-          ))}
-        </div>
+                    <div className="career-content">
+                      <header>
+                        <div>
+                          <p className="chapter-kicker">{job.period}</p>
+                          <h2>{job.company}</h2>
+                          <p className="career-role">
+                            <BriefcaseBusiness /> {job.role}
+                          </p>
+                        </div>
+                        {job.location && (
+                          <span className="career-location">
+                            <MapPin />
+                            {job.location}
+                          </span>
+                        )}
+                      </header>
+                      {job.projects.map((project) => (
+                        <section key={project.name} className="career-project">
+                          <h3>{project.name}</h3>
+                          <ul>
+                            {project.points.map((point) => (
+                              <li key={point}>{point}</li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                      <TechnologyList items={job.tags} />
+                    </div>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
           </>
         )}
       </PageBody>

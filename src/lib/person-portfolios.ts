@@ -403,7 +403,8 @@ const bava: PersonPortfolio = {
     { src: "/images/profiles/anjini/anjini_2.jpg", alt: "Anjini Kumar, portrait photo" },
   ],
   headline: "Data Analyst | Excel, SQL, Power BI & Python",
-  story: "Turning business data into clear dashboards, reliable reporting, and actionable insights.",
+  story:
+    "Turning business data into clear dashboards, reliable reporting, and actionable insights.",
   summary:
     "Entry-level Data Analyst with a B.Tech in Information Technology and experience as a Data Analytics Intern and team lead. Skilled in data analysis, data validation, visualization, and KPI reporting using Microsoft Excel, SQL, Power BI, and Python. Focused on accuracy, consistency, structured problem-solving, and communicating useful findings from business data.",
   email: "anjinikumaretikala@gmail.com",
@@ -417,23 +418,69 @@ const bava: PersonPortfolio = {
   skills: [
     {
       category: "Data analysis & quality",
-      items: ["Data Analysis", "Data Validation", "Data Quality Checking", "KPI Tracking", "Structured Analysis", "Reporting"],
+      items: [
+        "Data Analysis",
+        "Data Validation",
+        "Data Quality Checking",
+        "KPI Tracking",
+        "Structured Analysis",
+        "Reporting",
+      ],
     },
     {
       category: "Visualization & business intelligence",
-      items: ["Power BI", "Interactive Dashboards", "Matplotlib", "Chart.js", "Plotly", "Microsoft Excel", "Pivot Tables", "VLOOKUP", "Formulas"],
+      items: [
+        "Power BI",
+        "Interactive Dashboards",
+        "Matplotlib",
+        "Chart.js",
+        "Plotly",
+        "Microsoft Excel",
+        "Pivot Tables",
+        "VLOOKUP",
+        "Formulas",
+      ],
     },
     {
       category: "Programming & databases",
-      items: ["Python", "pandas", "NumPy", "JavaScript", "SQL", "SQL Queries", "SQL Joins", "MongoDB"],
+      items: [
+        "Python",
+        "pandas",
+        "NumPy",
+        "JavaScript",
+        "SQL",
+        "SQL Queries",
+        "SQL Joins",
+        "MongoDB",
+      ],
     },
     {
       category: "AI & web application exposure",
-      items: ["Generative AI", "Prompt Engineering", "AI-Assisted Analysis", "AI Chatbot Concepts", "MERN Stack", "JWT", "bcrypt", "Helmet.js", "OAuth2"],
+      items: [
+        "Generative AI",
+        "Prompt Engineering",
+        "AI-Assisted Analysis",
+        "AI Chatbot Concepts",
+        "MERN Stack",
+        "JWT",
+        "bcrypt",
+        "Helmet.js",
+        "OAuth2",
+      ],
     },
     {
       category: "Productivity & professional",
-      items: ["MS Office", "Documentation", "Image/Video Auditing", "Attention to Detail", "Analytical Thinking", "Problem Solving", "Teamwork", "Communication", "Adaptability"],
+      items: [
+        "MS Office",
+        "Documentation",
+        "Image/Video Auditing",
+        "Attention to Detail",
+        "Analytical Thinking",
+        "Problem Solving",
+        "Teamwork",
+        "Communication",
+        "Adaptability",
+      ],
     },
   ],
   experience: [
@@ -464,7 +511,18 @@ const bava: PersonPortfolio = {
         "Included an AI chatbot concept to support learning about analytics and data visualization.",
         "Applied MERN Stack and application-security technologies including MongoDB, JWT, bcrypt, Helmet.js, and OAuth2.",
       ],
-      tech: ["Python", "MERN Stack", "MongoDB", "Power BI", "Chart.js", "Plotly", "JWT", "bcrypt", "Helmet.js", "OAuth2"],
+      tech: [
+        "Python",
+        "MERN Stack",
+        "MongoDB",
+        "Power BI",
+        "Chart.js",
+        "Plotly",
+        "JWT",
+        "bcrypt",
+        "Helmet.js",
+        "OAuth2",
+      ],
     },
   ],
   certifications: [
@@ -488,7 +546,11 @@ const bava: PersonPortfolio = {
   ],
   training: [],
 };
-export const PERSON_PORTFOLIOS: Record<"ammu" | "sai" | "bava", PersonPortfolio> = { ammu, bava, sai };
+export const PERSON_PORTFOLIOS: Record<"ammu" | "sai" | "bava", PersonPortfolio> = {
+  ammu,
+  bava,
+  sai,
+};
 export function getPersonPortfolio(id: string): PersonPortfolio | undefined {
   return id === "ammu" || id === "bava" || id === "sai" ? PERSON_PORTFOLIOS[id] : undefined;
 }

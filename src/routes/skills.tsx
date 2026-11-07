@@ -77,69 +77,69 @@ function Skills() {
         <PublishedResumePanel section="skills" resume={publishedResume} />
         {!publishedResume?.skills.length && (
           <>
-        <div className="skills-intro">
-          <p className="chapter-kicker">DEVELOPER CONSTELLATION</p>
-          <h2>
-            Every tool has a place
-            <br />
-            in the <span>system.</span>
-          </h2>
-          <p>
-            Technologies represented across academic, personal, and professional work. Select a
-            group to explore its parts.
-          </p>
-        </div>
-        <div className="skill-constellation">
-          <div className="constellation-art">
-            <img src={constellation} alt="" loading="lazy" />
-            <div className="constellation-core">
-              <Code2 />
-              <span>
-                BUILD
+            <div className="skills-intro">
+              <p className="chapter-kicker">DEVELOPER CONSTELLATION</p>
+              <h2>
+                Every tool has a place
                 <br />
-                WITH INTENT
-              </span>
+                in the <span>system.</span>
+              </h2>
+              <p>
+                Technologies represented across academic, personal, and professional work. Select a
+                group to explore its parts.
+              </p>
             </div>
-            <span className="orbit orbit-one" />
-            <span className="orbit orbit-two" />
-          </div>
-          <div className="skill-groups">
-            {groups.map(({ title, icon: Icon, cats, picks }, index) => {
-              const items = [
-                ...new Set(
-                  SKILLS.filter((g) => cats.includes(g.cat))
-                    .flatMap((g) => g.items)
-                    .filter((x) => !picks || picks.includes(x)),
-                ),
-              ];
-              return (
-                <Reveal key={title} delay={index * 0.04}>
-                  <details className="skill-group" open={index === 0}>
-                    <summary>
-                      <span className="skill-group-icon">
-                        <Icon />
-                      </span>
-                      <span>
-                        <small>SECTOR 0{index + 1}</small>
-                        <strong>{title}</strong>
-                        <em>{items.length} technologies</em>
-                      </span>
-                      <span className="skill-group-plus">+</span>
-                    </summary>
-                    <ul>
-                      {items.map((item) => (
-                        <li key={item}>
-                          <TechLogo name={item} />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
+            <div className="skill-constellation">
+              <div className="constellation-art">
+                <img src={constellation} alt="" loading="lazy" />
+                <div className="constellation-core">
+                  <Code2 />
+                  <span>
+                    BUILD
+                    <br />
+                    WITH INTENT
+                  </span>
+                </div>
+                <span className="orbit orbit-one" />
+                <span className="orbit orbit-two" />
+              </div>
+              <div className="skill-groups">
+                {groups.map(({ title, icon: Icon, cats, picks }, index) => {
+                  const items = [
+                    ...new Set(
+                      SKILLS.filter((g) => cats.includes(g.cat))
+                        .flatMap((g) => g.items)
+                        .filter((x) => !picks || picks.includes(x)),
+                    ),
+                  ];
+                  return (
+                    <Reveal key={title} delay={index * 0.04}>
+                      <details className="skill-group" open={index === 0}>
+                        <summary>
+                          <span className="skill-group-icon">
+                            <Icon />
+                          </span>
+                          <span>
+                            <small>SECTOR 0{index + 1}</small>
+                            <strong>{title}</strong>
+                            <em>{items.length} technologies</em>
+                          </span>
+                          <span className="skill-group-plus">+</span>
+                        </summary>
+                        <ul>
+                          {items.map((item) => (
+                            <li key={item}>
+                              <TechLogo name={item} />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    </Reveal>
+                  );
+                })}
+              </div>
+            </div>
           </>
         )}
       </PageBody>

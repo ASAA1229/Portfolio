@@ -48,8 +48,12 @@ function normalizedPath(request: Request): string {
 }
 
 function isAdminPath(pathname: string): boolean {
-  return pathname === "/admin" || pathname.startsWith("/admin/") ||
-    pathname === "/api/admin" || pathname.startsWith("/api/admin/");
+  return (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    pathname === "/api/admin" ||
+    pathname.startsWith("/api/admin/")
+  );
 }
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -72,7 +76,11 @@ function privateNotFound(): Response {
 function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Response {
   return Response.json(body, {
     status,
-    headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...Object.fromEntries(new Headers(headers)) },
+    headers: {
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      ...Object.fromEntries(new Headers(headers)),
+    },
   });
 }
 
@@ -124,19 +132,22 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
 function adminAuthBypassed(env: unknown): boolean {
   // Local Vite development is detected using Vite's compile-time DEV/MODE
   // flags below. Worker/preview requests use explicit runtime bindings.
-  const bindings = env as {
-    PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown;
-    ENVIRONMENT?: unknown;
-  } | undefined;
+  const bindings = env as
+    | {
+        PORTFOLIO_ADMIN_AUTH_BYPASS?: unknown;
+        ENVIRONMENT?: unknown;
+      }
+    | undefined;
 
-  const runtimeBypass = bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
-    bindings?.ENVIRONMENT === "development";
+  const runtimeBypass =
+    bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" && bindings?.ENVIRONMENT === "development";
 
   // Vite replaces these at bundle time, which is more reliable than process.env
   // in the Cloudflare/TanStack server runtime. import.meta.env.DEV alone is not
   // enough: `vite build --mode development` also sets it. The marker is defined
   // only by the local `vite dev` server (see vite.config.ts).
-  const localDevBypass = typeof __PORTFOLIO_VITE_DEV_SERVER__ !== "undefined" &&
+  const localDevBypass =
+    typeof __PORTFOLIO_VITE_DEV_SERVER__ !== "undefined" &&
     __PORTFOLIO_VITE_DEV_SERVER__ === true &&
     import.meta.env.DEV === true &&
     import.meta.env.MODE === "development";
@@ -145,7 +156,7 @@ function adminAuthBypassed(env: unknown): boolean {
 }
 
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
-  return adminAuthBypassed(env) || await isAdminRequest(request, env);
+  return adminAuthBypassed(env) || (await isAdminRequest(request, env));
 }
 
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
@@ -177,18 +188,22 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
       });
     }
 
-    const payload = await request.json().catch(() => null) as { password?: unknown } | null;
+    const payload = (await request.json().catch(() => null)) as { password?: unknown } | null;
     const password = typeof payload?.password === "string" ? payload.password : "";
-    const valid = password.length > 0 && password.length <= 1024 && await verifyAdminPassword(password, env);
+    const valid =
+      password.length > 0 && password.length <= 1024 && (await verifyAdminPassword(password, env));
     if (!valid) {
       if (!current && loginAttempts.size >= MAX_TRACKED_LOGIN_CLIENTS) {
         return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
           "retry-after": "60",
         });
       }
-      loginAttempts.set(clientKey, current && current.resetAt > now
-        ? { count: current.count + 1, resetAt: current.resetAt }
-        : { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+      loginAttempts.set(
+        clientKey,
+        current && current.resetAt > now
+          ? { count: current.count + 1, resetAt: current.resetAt }
+          : { count: 1, resetAt: now + LOGIN_WINDOW_MS },
+      );
       return jsonResponse({ error: "Invalid credentials." }, 401);
     }
 
@@ -217,8 +232,19 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
   return null;
 }
 
-
-type StructuredResumeEntry = { title?: string; organization?: string; role?: string; location?: string; startDate?: string; endDate?: string; description?: string; technologies?: string[]; url?: string; credentialId?: string; grade?: string };
+type StructuredResumeEntry = {
+  title?: string;
+  organization?: string;
+  role?: string;
+  location?: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string;
+  technologies?: string[];
+  url?: string;
+  credentialId?: string;
+  grade?: string;
+};
 
 type ResumeRecord = {
   id: string;
@@ -233,13 +259,28 @@ type ResumeRecord = {
   summary: string;
   skills: string[];
   contact?: { email?: string; phone?: string; linkedin?: string; github?: string } | undefined;
-  structuredSections?: { experience: (string | StructuredResumeEntry)[]; education: (string | StructuredResumeEntry)[]; projects: (string | StructuredResumeEntry)[]; certifications: (string | StructuredResumeEntry)[] } | undefined;
+  structuredSections?:
+    | {
+        experience: (string | StructuredResumeEntry)[];
+        education: (string | StructuredResumeEntry)[];
+        projects: (string | StructuredResumeEntry)[];
+        certifications: (string | StructuredResumeEntry)[];
+      }
+    | undefined;
   privateReviewNotes?: string | undefined;
 };
 
 type PrivateBucket = {
-  get(key: string): Promise<{ json<T>(): Promise<T>; arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string | undefined } } | null>;
-  put(key: string, value: ArrayBuffer | string | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  get(key: string): Promise<{
+    json<T>(): Promise<T>;
+    arrayBuffer(): Promise<ArrayBuffer>;
+    httpMetadata?: { contentType?: string | undefined };
+  } | null>;
+  put(
+    key: string,
+    value: ArrayBuffer | string | Uint8Array,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<unknown>;
   delete(key: string): Promise<unknown>;
 };
 
@@ -275,11 +316,12 @@ function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
         };
       },
       async put(key, value, options) {
-        const bytes = typeof value === "string"
-          ? new TextEncoder().encode(value)
-          : value instanceof Uint8Array
-            ? value.slice()
-            : new Uint8Array(value.slice(0));
+        const bytes =
+          typeof value === "string"
+            ? new TextEncoder().encode(value)
+            : value instanceof Uint8Array
+              ? value.slice()
+              : new Uint8Array(value.slice(0));
         objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType });
       },
       async delete(key) {
@@ -305,15 +347,31 @@ function isValidPublicContact(value: unknown): value is NonNullable<ResumeRecord
   if (value === undefined) return true;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const contact = value as Record<string, unknown>;
-  if (Object.keys(contact).some((key) => !["email", "phone", "linkedin", "github"].includes(key))) return false;
+  if (Object.keys(contact).some((key) => !["email", "phone", "linkedin", "github"].includes(key)))
+    return false;
   for (const key of ["email", "phone", "linkedin", "github"] as const) {
     const item = contact[key];
     if (item !== undefined && (typeof item !== "string" || item.length > 320)) return false;
     if (typeof item === "string" && (item.includes("\n") || item.includes("\r"))) return false;
   }
-  if (typeof contact["email"] === "string" && contact["email"] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact["email"])) return false;
-  if (typeof contact["linkedin"] === "string" && contact["linkedin"] && !/^https:\/\//i.test(contact["linkedin"])) return false;
-  if (typeof contact["github"] === "string" && contact["github"] && !/^https:\/\//i.test(contact["github"])) return false;
+  if (
+    typeof contact["email"] === "string" &&
+    contact["email"] &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact["email"])
+  )
+    return false;
+  if (
+    typeof contact["linkedin"] === "string" &&
+    contact["linkedin"] &&
+    !/^https:\/\//i.test(contact["linkedin"])
+  )
+    return false;
+  if (
+    typeof contact["github"] === "string" &&
+    contact["github"] &&
+    !/^https:\/\//i.test(contact["github"])
+  )
+    return false;
   return true;
 }
 
@@ -321,13 +379,48 @@ function isValidStructuredEntry(value: unknown): boolean {
   if (typeof value === "string") return value.length <= 2000;
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const entry = value as Record<string, unknown>;
-  const allowed = ["title", "organization", "role", "location", "startDate", "endDate", "description", "technologies", "url", "credentialId", "grade"];
+  const allowed = [
+    "title",
+    "organization",
+    "role",
+    "location",
+    "startDate",
+    "endDate",
+    "description",
+    "technologies",
+    "url",
+    "credentialId",
+    "grade",
+  ];
   if (Object.keys(entry).some((key) => !allowed.includes(key))) return false;
-  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"]) {
-    if (entry[key] !== undefined && (typeof entry[key] !== "string" || String(entry[key]).length > (key === "description" ? 2000 : 320))) return false;
+  for (const key of [
+    "title",
+    "organization",
+    "role",
+    "location",
+    "startDate",
+    "endDate",
+    "description",
+    "url",
+    "credentialId",
+    "grade",
+  ]) {
+    if (
+      entry[key] !== undefined &&
+      (typeof entry[key] !== "string" ||
+        String(entry[key]).length > (key === "description" ? 2000 : 320))
+    )
+      return false;
   }
-  if (entry["technologies"] !== undefined && (!Array.isArray(entry["technologies"]) || entry["technologies"].length > 30 || entry["technologies"].some((item) => typeof item !== "string" || item.length > 80))) return false;
-  if (typeof entry["url"] === "string" && entry["url"] && !/^https:\/\//i.test(entry["url"])) return false;
+  if (
+    entry["technologies"] !== undefined &&
+    (!Array.isArray(entry["technologies"]) ||
+      entry["technologies"].length > 30 ||
+      entry["technologies"].some((item) => typeof item !== "string" || item.length > 80))
+  )
+    return false;
+  if (typeof entry["url"] === "string" && entry["url"] && !/^https:\/\//i.test(entry["url"]))
+    return false;
   return true;
 }
 
@@ -336,20 +429,45 @@ function isValidStructuredSections(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const sections = value as Record<string, unknown>;
   const names = ["experience", "education", "projects", "certifications"];
-  return Object.keys(sections).every((key) => names.includes(key)) &&
-    names.every((name) => sections[name] === undefined ||
-      (Array.isArray(sections[name]) && (sections[name] as unknown[]).length <= 40 &&
-        (sections[name] as unknown[]).every(isValidStructuredEntry)));
+  return (
+    Object.keys(sections).every((key) => names.includes(key)) &&
+    names.every(
+      (name) =>
+        sections[name] === undefined ||
+        (Array.isArray(sections[name]) &&
+          (sections[name] as unknown[]).length <= 40 &&
+          (sections[name] as unknown[]).every(isValidStructuredEntry)),
+    )
+  );
 }
 
-function sanitizeStructuredEntry(value: string | StructuredResumeEntry, maxLength: number): string | StructuredResumeEntry {
+function sanitizeStructuredEntry(
+  value: string | StructuredResumeEntry,
+  maxLength: number,
+): string | StructuredResumeEntry {
   if (typeof value === "string") return value.trim().slice(0, maxLength);
   const result: StructuredResumeEntry = {};
-  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"] as const) {
+  for (const key of [
+    "title",
+    "organization",
+    "role",
+    "location",
+    "startDate",
+    "endDate",
+    "description",
+    "url",
+    "credentialId",
+    "grade",
+  ] as const) {
     const item = value[key];
-    if (typeof item === "string") result[key] = item.trim().slice(0, key === "description" ? 2000 : 320);
+    if (typeof item === "string")
+      result[key] = item.trim().slice(0, key === "description" ? 2000 : 320);
   }
-  if (Array.isArray(value.technologies)) result.technologies = value.technologies.slice(0, 30).filter((item) => typeof item === "string").map((item) => item.trim().slice(0, 80));
+  if (Array.isArray(value.technologies))
+    result.technologies = value.technologies
+      .slice(0, 30)
+      .filter((item) => typeof item === "string")
+      .map((item) => item.trim().slice(0, 80));
   if (result.url && !/^https:\/\//i.test(result.url)) delete result.url;
   return result;
 }
@@ -359,19 +477,29 @@ function isResumeRecord(value: unknown): value is ResumeRecord {
   const record = value as Partial<ResumeRecord>;
   const validProfiles = ["abhishek", "ammu", "bava", "sai", "unassigned"];
   const sections = record.structuredSections;
-  return typeof record.id === "string" &&
+  return (
+    typeof record.id === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
-    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    typeof record.filename === "string" &&
+    record.filename.length > 0 &&
+    record.filename.length <= 120 &&
     ALLOWED_RESUME_TYPES.has(String(record.contentType)) &&
-    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_RESUME_BYTES &&
-    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    Number.isSafeInteger(record.size) &&
+    Number(record.size) > 0 &&
+    Number(record.size) <= MAX_RESUME_BYTES &&
+    typeof record.uploadedAt === "string" &&
+    Number.isFinite(Date.parse(record.uploadedAt)) &&
     (record.status === "pending" || record.status === "approved") &&
     (record.profileId === undefined || validProfiles.includes(record.profileId)) &&
-    typeof record.displayName === "string" && typeof record.headline === "string" &&
-    typeof record.summary === "string" && Array.isArray(record.skills) && isValidPublicContact(record.contact) &&
+    typeof record.displayName === "string" &&
+    typeof record.headline === "string" &&
+    typeof record.summary === "string" &&
+    Array.isArray(record.skills) &&
+    isValidPublicContact(record.contact) &&
     record.skills.every((skill) => typeof skill === "string") &&
     (record.privateReviewNotes === undefined || typeof record.privateReviewNotes === "string") &&
-    isValidStructuredSections(sections);
+    isValidStructuredSections(sections)
+  );
 }
 
 async function readResumeIndex(bucket: PrivateBucket): Promise<ResumeRecord[]> {
@@ -394,41 +522,66 @@ async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]):
   });
 }
 
-async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
+async function writePublishedResumeFeed(
+  bucket: PrivateBucket,
+  records: ResumeRecord[],
+): Promise<void> {
   const publicResumes = records
-    .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
-     .map(({ id, profileId, displayName, headline, summary, skills, contact, structuredSections, uploadedAt }) => ({
-      id,
-      uploadedAt,
-      profileId,
-      displayName,
-      headline,
-      summary,
-      skills,
-      contact: contact ?? {},
-      structuredSections: structuredSections ?? {
-        experience: [],
-        education: [],
-        projects: [],
-        certifications: [],
-      },
-    }));
+    .filter(
+      (item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned",
+    )
+    .map(
+      ({
+        id,
+        profileId,
+        displayName,
+        headline,
+        summary,
+        skills,
+        contact,
+        structuredSections,
+        uploadedAt,
+      }) => ({
+        id,
+        uploadedAt,
+        profileId,
+        displayName,
+        headline,
+        summary,
+        skills,
+        contact: contact ?? {},
+        structuredSections: structuredSections ?? {
+          experience: [],
+          education: [],
+          projects: [],
+          certifications: [],
+        },
+      }),
+    );
 
-  await bucket.put("public/approved-resumes.json", JSON.stringify({
-    updatedAt: new Date().toISOString(),
-    resumes: publicResumes,
-  }), {
-    httpMetadata: {
-      contentType: "application/json; charset=utf-8",
-      cacheControl: "no-store",
-    },
-  } as { httpMetadata?: { contentType?: string; cacheControl?: string } });
+  await bucket.put(
+    "public/approved-resumes.json",
+    JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      resumes: publicResumes,
+    }),
+    {
+      httpMetadata: {
+        contentType: "application/json; charset=utf-8",
+        cacheControl: "no-store",
+      },
+    } as { httpMetadata?: { contentType?: string; cacheControl?: string } },
+  );
 }
 
 function bucketNotConfigured(): Response {
-  return jsonResponse({
-    error: "Private content storage is unavailable. Configure the RESUME_BUCKET binding for persistent storage.",
-  }, 503);
+  return jsonResponse(
+    {
+      error:
+        "Private content storage is unavailable. Configure the RESUME_BUCKET binding for persistent storage.",
+    },
+    503,
+  );
 }
 
 async function handleResumeApi(request: Request, env: unknown): Promise<Response | null> {
@@ -438,9 +591,15 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const publicBucket = resolvePrivateBucket(env);
     if (!publicBucket) return jsonResponse({ updatedAt: null, resumes: [] }, 200);
     const published = await publicBucket.get("public/approved-resumes.json");
-    return published ? new Response(await published.arrayBuffer(), {
-      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
-    }) : jsonResponse({ updatedAt: null, resumes: [] }, 200);
+    return published
+      ? new Response(await published.arrayBuffer(), {
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+          },
+        })
+      : jsonResponse({ updatedAt: null, resumes: [] }, 200);
   }
   if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (["POST", "DELETE", "PUT", "PATCH"].includes(request.method)) {
@@ -469,30 +628,57 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const form = await request.formData().catch(() => null);
     const file = form?.get("file") ?? null;
     const requestedProfile = form?.get("profileId");
-    if (!isUploadedResumeFile(file)) return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
-    if (typeof requestedProfile !== "string" || !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(requestedProfile)) {
+    if (!isUploadedResumeFile(file))
+      return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
+    if (
+      typeof requestedProfile !== "string" ||
+      !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(requestedProfile)
+    ) {
       return jsonResponse({ error: "Choose a valid profile assignment." }, 400);
     }
-    const type = file.type || (file.name.toLowerCase().endsWith(".pdf")
-      ? "application/pdf"
-      : file.name.toLowerCase().endsWith(".docx")
-        ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        : "");
-    if (!ALLOWED_RESUME_TYPES.has(type)) return jsonResponse({ error: "Only PDF and DOCX files are allowed." }, 415);
-    if (file.size <= 0 || file.size > MAX_RESUME_BYTES) return jsonResponse({ error: "File must be between 1 byte and 10 MB." }, 413);
+    const type =
+      file.type ||
+      (file.name.toLowerCase().endsWith(".pdf")
+        ? "application/pdf"
+        : file.name.toLowerCase().endsWith(".docx")
+          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          : "");
+    if (!ALLOWED_RESUME_TYPES.has(type))
+      return jsonResponse({ error: "Only PDF and DOCX files are allowed." }, 415);
+    if (file.size <= 0 || file.size > MAX_RESUME_BYTES)
+      return jsonResponse({ error: "File must be between 1 byte and 10 MB." }, 413);
 
     // Validate the extension and file signature rather than trusting client MIME metadata alone.
     const lowerName = file.name.toLowerCase();
     const isPdf = type === "application/pdf";
-    const isDocx = type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const isDocx =
+      type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     if ((isPdf && !lowerName.endsWith(".pdf")) || (isDocx && !lowerName.endsWith(".docx"))) {
-      return jsonResponse({ error: "The file extension must match its declared PDF or DOCX type." }, 415);
+      return jsonResponse(
+        { error: "The file extension must match its declared PDF or DOCX type." },
+        415,
+      );
     }
     const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
-    const hasPdfSignature = header.length >= 5 && header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46 && header[4] === 0x2d;
-    const hasZipSignature = header.length >= 4 && header[0] === 0x50 && header[1] === 0x4b && ((header[2] === 0x03 && header[3] === 0x04) || (header[2] === 0x05 && header[3] === 0x06) || (header[2] === 0x07 && header[3] === 0x08));
+    const hasPdfSignature =
+      header.length >= 5 &&
+      header[0] === 0x25 &&
+      header[1] === 0x50 &&
+      header[2] === 0x44 &&
+      header[3] === 0x46 &&
+      header[4] === 0x2d;
+    const hasZipSignature =
+      header.length >= 4 &&
+      header[0] === 0x50 &&
+      header[1] === 0x4b &&
+      ((header[2] === 0x03 && header[3] === 0x04) ||
+        (header[2] === 0x05 && header[3] === 0x06) ||
+        (header[2] === 0x07 && header[3] === 0x08));
     if ((isPdf && !hasPdfSignature) || (isDocx && !hasZipSignature)) {
-      return jsonResponse({ error: "The file content does not match a supported PDF or DOCX file." }, 415);
+      return jsonResponse(
+        { error: "The file content does not match a supported PDF or DOCX file." },
+        415,
+      );
     }
     const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || "resume";
     const id = crypto.randomUUID();
@@ -503,10 +689,17 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       storedFile = true;
       const records = await readResumeIndex(bucket);
       const record: ResumeRecord = {
-        id, filename: safeName, contentType: type, size: file.size,
-        uploadedAt: new Date().toISOString(), status: "pending", profileId: requestedProfile as ResumeRecord["profileId"],
+        id,
+        filename: safeName,
+        contentType: type,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        status: "pending",
+        profileId: requestedProfile as ResumeRecord["profileId"],
         displayName: safeName.replace(/\.(pdf|docx)$/i, ""),
-        headline: "", summary: "", skills: [],
+        headline: "",
+        summary: "",
+        skills: [],
         structuredSections: { experience: [], education: [], projects: [], certifications: [] },
       };
       records.push(record);
@@ -514,21 +707,30 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       return jsonResponse({ resume: record }, 201);
     } catch (error) {
       if (storedFile) {
-        try { await bucket.delete(key); }
-        catch (cleanupError) { console.error("Failed to clean up an incomplete resume upload.", cleanupError); }
+        try {
+          await bucket.delete(key);
+        } catch (cleanupError) {
+          console.error("Failed to clean up an incomplete resume upload.", cleanupError);
+        }
       }
       console.error("Portfolio resume upload failed while storing or indexing the resume.", error);
-      return jsonResponse({
-        error: "Resume upload failed while saving the file. Check the development server terminal for the detailed cause and retry.",
-        code: "RESUME_UPLOAD_STORAGE_FAILED",
-        ...(import.meta.env.DEV === true
-          ? { detail: error instanceof Error ? error.message : "Unknown resume storage error." }
-          : {}),
-      }, 500);
+      return jsonResponse(
+        {
+          error:
+            "Resume upload failed while saving the file. Check the development server terminal for the detailed cause and retry.",
+          code: "RESUME_UPLOAD_STORAGE_FAILED",
+          ...(import.meta.env.DEV === true
+            ? { detail: error instanceof Error ? error.message : "Unknown resume storage error." }
+            : {}),
+        },
+        500,
+      );
     }
   }
 
-  const match = path.match(/^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i);
+  const match = path.match(
+    /^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i,
+  );
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
@@ -542,16 +744,26 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       const object = await bucket.get(fileKey);
       if (!object) return privateNotFound();
       try {
-        const extracted = await extractResumeText(new Uint8Array(await object.arrayBuffer()), record.contentType);
-        return jsonResponse({
-          text: extracted.text,
-          method: extracted.method,
-          warning: extracted.warning ?? null,
-        }, 200);
+        const extracted = await extractResumeText(
+          new Uint8Array(await object.arrayBuffer()),
+          record.contentType,
+        );
+        return jsonResponse(
+          {
+            text: extracted.text,
+            method: extracted.method,
+            warning: extracted.warning ?? null,
+          },
+          200,
+        );
       } catch (error) {
-        return jsonResponse({
-          error: error instanceof Error ? error.message : "Could not extract text from this resume.",
-        }, 422);
+        return jsonResponse(
+          {
+            error:
+              error instanceof Error ? error.message : "Could not extract text from this resume.",
+          },
+          422,
+        );
       }
     }
 
@@ -559,27 +771,38 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       const object = await bucket.get(fileKey);
       if (!object) return privateNotFound();
       const bytes = await object.arrayBuffer();
-      return new Response(bytes, { headers: {
-        "content-type": record.contentType,
-        "content-disposition": `attachment; filename="${record.filename.replace(/["\\\\]/g, "_")}"`,
-        "cache-control": "private, no-store",
-        "x-content-type-options": "nosniff",
-      } });
+      return new Response(bytes, {
+        headers: {
+          "content-type": record.contentType,
+          "content-disposition": `attachment; filename="${record.filename.replace(/["\\\\]/g, "_")}"`,
+          "cache-control": "private, no-store",
+          "x-content-type-options": "nosniff",
+        },
+      });
     }
 
     if (action === "draft" && request.method === "POST") {
       const boundedRequest = await limitRequestBody(request, 32 * 1024);
       if (boundedRequest instanceof Response) return boundedRequest;
       request = boundedRequest;
-      const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
-      if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
-          typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
-          payload.skills.some((skill) => typeof skill !== "string") ||
-          !isValidPublicContact(payload.contact) ||
-          !isValidStructuredSections(payload.structuredSections) ||
-          (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
-          !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
-        return jsonResponse({ error: "Provide valid reviewed details and select the correct profile." }, 400);
+      const payload = (await request.json().catch(() => null)) as Partial<ResumeRecord> | null;
+      if (
+        !payload ||
+        typeof payload.displayName !== "string" ||
+        typeof payload.headline !== "string" ||
+        typeof payload.summary !== "string" ||
+        !Array.isArray(payload.skills) ||
+        payload.skills.some((skill) => typeof skill !== "string") ||
+        !isValidPublicContact(payload.contact) ||
+        !isValidStructuredSections(payload.structuredSections) ||
+        (payload.privateReviewNotes !== undefined &&
+          typeof payload.privateReviewNotes !== "string") ||
+        !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))
+      ) {
+        return jsonResponse(
+          { error: "Provide valid reviewed details and select the correct profile." },
+          400,
+        );
       }
       records[index] = {
         ...record,
@@ -591,16 +814,45 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         // Replace the public contact block on every draft save. Omitting a
         // previously supplied field must remove it rather than silently retaining
         // stale contact details from an older publication.
-        contact: payload.contact && Object.values(payload.contact).some((value) => typeof value === "string" && value.trim())
-          ? payload.contact
-          : undefined,
+        contact:
+          payload.contact &&
+          Object.values(payload.contact).some((value) => typeof value === "string" && value.trim())
+            ? payload.contact
+            : undefined,
         structuredSections: {
-          experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          projects: (payload.structuredSections?.projects ?? record.structuredSections?.projects ?? []).slice(0, 30).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          certifications: (payload.structuredSections?.certifications ?? record.structuredSections?.certifications ?? []).slice(0, 40).map((entry) => sanitizeStructuredEntry(entry, 500)),
+          experience: (
+            payload.structuredSections?.experience ??
+            record.structuredSections?.experience ??
+            []
+          )
+            .slice(0, 30)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          education: (
+            payload.structuredSections?.education ??
+            record.structuredSections?.education ??
+            []
+          )
+            .slice(0, 20)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          projects: (
+            payload.structuredSections?.projects ??
+            record.structuredSections?.projects ??
+            []
+          )
+            .slice(0, 30)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          certifications: (
+            payload.structuredSections?.certifications ??
+            record.structuredSections?.certifications ??
+            []
+          )
+            .slice(0, 40)
+            .map((entry) => sanitizeStructuredEntry(entry, 500)),
         },
-        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
+        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(
+          0,
+          12000,
+        ),
         status: "pending",
       };
       await writePublishedResumeFeed(bucket, records);
@@ -608,7 +860,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       return jsonResponse({ resume: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
-      if (record.status !== "approved") return jsonResponse({ error: "This resume is not currently published." }, 409);
+      if (record.status !== "approved")
+        return jsonResponse({ error: "This resume is not currently published." }, 409);
       records[index] = { ...record, status: "pending" };
       await writePublishedResumeFeed(bucket, records);
       await writeResumeIndex(bucket, records);
@@ -619,18 +872,30 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       const boundedRequest = await limitRequestBody(request, 32 * 1024);
       if (boundedRequest instanceof Response) return boundedRequest;
       request = boundedRequest;
-      const payload = await request.json().catch(() => null) as Partial<ResumeRecord> | null;
-      if (!payload || typeof payload.displayName !== "string" || typeof payload.headline !== "string" ||
-          typeof payload.summary !== "string" || !Array.isArray(payload.skills) ||
-          payload.skills.some((skill) => typeof skill !== "string") ||
-          !isValidPublicContact(payload.contact) ||
-          !isValidStructuredSections(payload.structuredSections) ||
-          (payload.privateReviewNotes !== undefined && typeof payload.privateReviewNotes !== "string") ||
-          !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))) {
-        return jsonResponse({ error: "Provide valid reviewed details and select the correct profile." }, 400);
+      const payload = (await request.json().catch(() => null)) as Partial<ResumeRecord> | null;
+      if (
+        !payload ||
+        typeof payload.displayName !== "string" ||
+        typeof payload.headline !== "string" ||
+        typeof payload.summary !== "string" ||
+        !Array.isArray(payload.skills) ||
+        payload.skills.some((skill) => typeof skill !== "string") ||
+        !isValidPublicContact(payload.contact) ||
+        !isValidStructuredSections(payload.structuredSections) ||
+        (payload.privateReviewNotes !== undefined &&
+          typeof payload.privateReviewNotes !== "string") ||
+        !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(String(payload.profileId))
+      ) {
+        return jsonResponse(
+          { error: "Provide valid reviewed details and select the correct profile." },
+          400,
+        );
       }
       if (!payload.profileId || payload.profileId === "unassigned") {
-        return jsonResponse({ error: "Assign this resume to a public profile before publishing." }, 400);
+        return jsonResponse(
+          { error: "Assign this resume to a public profile before publishing." },
+          400,
+        );
       }
       records[index] = {
         ...record,
@@ -639,16 +904,45 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         headline: payload.headline.slice(0, 180),
         summary: payload.summary.slice(0, 3000),
         skills: payload.skills.slice(0, 60).map((skill) => skill.slice(0, 80)),
-        contact: payload.contact && Object.values(payload.contact).some((value) => typeof value === "string" && value.trim())
-          ? payload.contact
-          : undefined,
+        contact:
+          payload.contact &&
+          Object.values(payload.contact).some((value) => typeof value === "string" && value.trim())
+            ? payload.contact
+            : undefined,
         structuredSections: {
-          experience: (payload.structuredSections?.experience ?? record.structuredSections?.experience ?? []).slice(0, 30).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          education: (payload.structuredSections?.education ?? record.structuredSections?.education ?? []).slice(0, 20).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          projects: (payload.structuredSections?.projects ?? record.structuredSections?.projects ?? []).slice(0, 30).map((entry) => sanitizeStructuredEntry(entry, 1200)),
-          certifications: (payload.structuredSections?.certifications ?? record.structuredSections?.certifications ?? []).slice(0, 40).map((entry) => sanitizeStructuredEntry(entry, 500)),
+          experience: (
+            payload.structuredSections?.experience ??
+            record.structuredSections?.experience ??
+            []
+          )
+            .slice(0, 30)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          education: (
+            payload.structuredSections?.education ??
+            record.structuredSections?.education ??
+            []
+          )
+            .slice(0, 20)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          projects: (
+            payload.structuredSections?.projects ??
+            record.structuredSections?.projects ??
+            []
+          )
+            .slice(0, 30)
+            .map((entry) => sanitizeStructuredEntry(entry, 1200)),
+          certifications: (
+            payload.structuredSections?.certifications ??
+            record.structuredSections?.certifications ??
+            []
+          )
+            .slice(0, 40)
+            .map((entry) => sanitizeStructuredEntry(entry, 500)),
         },
-        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(0, 12000),
+        privateReviewNotes: (payload.privateReviewNotes ?? record.privateReviewNotes ?? "").slice(
+          0,
+          12000,
+        ),
         status: "approved",
       };
       await writeResumeIndex(bucket, records);
@@ -668,24 +962,48 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   return privateNotFound();
 }
 
-type PortfolioImageRecord = { id: string; filename: string; contentType: string; size: number; uploadedAt: string; status: "pending" | "approved"; profileId: "abhishek" | "ammu" | "bava" | "sai"; alt: string; slot?: "gallery" | "portrait"; };
+type PortfolioImageRecord = {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+  status: "pending" | "approved";
+  profileId: "abhishek" | "ammu" | "bava" | "sai";
+  alt: string;
+  slot?: "gallery" | "portrait";
+};
 const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const IMAGE_TYPES = new Map([["image/jpeg", ".jpg"], ["image/png", ".png"], ["image/webp", ".webp"], ["image/avif", ".avif"]]);
+const IMAGE_TYPES = new Map([
+  ["image/jpeg", ".jpg"],
+  ["image/png", ".png"],
+  ["image/webp", ".webp"],
+  ["image/avif", ".avif"],
+]);
 
 function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Partial<PortfolioImageRecord>;
-  return typeof record.id === "string" &&
+  return (
+    typeof record.id === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.id) &&
-    typeof record.filename === "string" && record.filename.length > 0 && record.filename.length <= 120 &&
+    typeof record.filename === "string" &&
+    record.filename.length > 0 &&
+    record.filename.length <= 120 &&
     IMAGE_TYPES.has(String(record.contentType)) &&
-    Number.isSafeInteger(record.size) && Number(record.size) > 0 && Number(record.size) <= MAX_IMAGE_BYTES &&
-    typeof record.uploadedAt === "string" && Number.isFinite(Date.parse(record.uploadedAt)) &&
+    Number.isSafeInteger(record.size) &&
+    Number(record.size) > 0 &&
+    Number(record.size) <= MAX_IMAGE_BYTES &&
+    typeof record.uploadedAt === "string" &&
+    Number.isFinite(Date.parse(record.uploadedAt)) &&
     (record.status === "pending" || record.status === "approved") &&
     ["abhishek", "ammu", "bava", "sai"].includes(String(record.profileId)) &&
-    typeof record.alt === "string" && record.alt.trim().length > 0 && record.alt.length <= 300 &&
-    (record.slot === undefined || record.slot === "gallery" || record.slot === "portrait");
+    typeof record.alt === "string" &&
+    record.alt.trim().length > 0 &&
+    record.alt.length <= 300 &&
+    (record.slot === undefined || record.slot === "gallery" || record.slot === "portrait")
+  );
 }
 
 async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
@@ -701,8 +1019,13 @@ async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageReco
   }
   return records;
 }
-async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRecord[]): Promise<void> {
-  await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+async function writeImageIndex(
+  bucket: PrivateBucket,
+  records: PortfolioImageRecord[],
+): Promise<void> {
+  await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
 }
 
 function isUploadedResumeFile(value: FormDataEntryValue | null): value is File {
@@ -711,11 +1034,13 @@ function isUploadedResumeFile(value: FormDataEntryValue | null): value is File {
   // instead of relying on instanceof, which can reject otherwise valid uploads.
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<File>;
-  return typeof candidate.name === "string" &&
+  return (
+    typeof candidate.name === "string" &&
     typeof candidate.type === "string" &&
     typeof candidate.size === "number" &&
     typeof candidate.arrayBuffer === "function" &&
-    typeof candidate.slice === "function";
+    typeof candidate.slice === "function"
+  );
 }
 
 function isUploadedImageFile(value: FormDataEntryValue | null): value is File {
@@ -723,39 +1048,72 @@ function isUploadedImageFile(value: FormDataEntryValue | null): value is File {
   // expose multipart uploads as File objects without installing globalThis.File.
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<File>;
-  return typeof candidate.name === "string" &&
+  return (
+    typeof candidate.name === "string" &&
     typeof candidate.type === "string" &&
     typeof candidate.size === "number" &&
     typeof candidate.arrayBuffer === "function" &&
-    typeof candidate.slice === "function";
+    typeof candidate.slice === "function"
+  );
 }
 
 async function handlePortfolioImageApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
-  if (!path.startsWith("/api/admin/images") && path !== "/api/published-images" && !path.startsWith("/api/published-images/")) return null;
+  if (
+    !path.startsWith("/api/admin/images") &&
+    path !== "/api/published-images" &&
+    !path.startsWith("/api/published-images/")
+  )
+    return null;
   const bucket = resolvePrivateBucket(env);
   if (!bucket) {
-    if (path === "/api/published-images" && request.method === "GET") return jsonResponse({ images: [] }, 200);
+    if (path === "/api/published-images" && request.method === "GET")
+      return jsonResponse({ images: [] }, 200);
     return bucketNotConfigured();
   }
   if (path === "/api/published-images" && request.method === "GET") {
-    const images = (await readImageIndex(bucket)).filter((item) => item.status === "approved").map(({ id, profileId, alt, filename, contentType, slot }) => ({ id, profileId, alt, filename, contentType, slot: slot ?? "gallery", src: `/api/published-images/${id}` }));
+    const images = (await readImageIndex(bucket))
+      .filter((item) => item.status === "approved")
+      .map(({ id, profileId, alt, filename, contentType, slot }) => ({
+        id,
+        profileId,
+        alt,
+        filename,
+        contentType,
+        slot: slot ?? "gallery",
+        src: `/api/published-images/${id}`,
+      }));
     return jsonResponse({ images }, 200, { "cache-control": "no-store" });
   }
   const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
   if (publicImage && request.method === "GET") {
-    const record = (await readImageIndex(bucket)).find((item) => item.id === publicImage[1] && item.status === "approved");
+    const record = (await readImageIndex(bucket)).find(
+      (item) => item.id === publicImage[1] && item.status === "approved",
+    );
     if (!record) return privateNotFound();
     const object = await bucket.get(`public/profile-images/${record.id}`);
     if (!object) return privateNotFound();
-    return new Response(await object.arrayBuffer(), { headers: { "content-type": record.contentType, "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    return new Response(await object.arrayBuffer(), {
+      headers: {
+        "content-type": record.contentType,
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      },
+    });
   }
   if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (["POST", "DELETE"].includes(request.method)) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
   }
-  if (path === "/api/admin/images" && request.method === "GET") return jsonResponse({ images: await readImageIndex(bucket), storageMode: isLocalDevelopmentBucket(bucket) ? "local-ephemeral" : "persistent" }, 200);
+  if (path === "/api/admin/images" && request.method === "GET")
+    return jsonResponse(
+      {
+        images: await readImageIndex(bucket),
+        storageMode: isLocalDevelopmentBucket(bucket) ? "local-ephemeral" : "persistent",
+      },
+      200,
+    );
   if (path === "/api/admin/images" && request.method === "POST") {
     const boundedRequest = await limitRequestBody(request, MAX_IMAGE_BYTES + 1024 * 1024);
     if (boundedRequest instanceof Response) return boundedRequest;
@@ -765,31 +1123,83 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const profileId = form?.get("profileId");
     const alt = form?.get("alt");
     const requestedSlot = form?.get("slot");
-    const slot = requestedSlot === "portrait" ? "portrait" : requestedSlot === "gallery" ? "gallery" : null;
+    const slot =
+      requestedSlot === "portrait" ? "portrait" : requestedSlot === "gallery" ? "gallery" : null;
     const publishOnUpload = form?.get("publishOnUpload") === "true";
-    if (!isUploadedImageFile(file) || typeof profileId !== "string" || !["abhishek", "ammu", "bava", "sai"].includes(profileId) || typeof alt !== "string" || !alt.trim() || !slot) return jsonResponse({ error: "Choose an image, profile, image placement and descriptive alt text." }, 400);
-    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
+    if (
+      !isUploadedImageFile(file) ||
+      typeof profileId !== "string" ||
+      !["abhishek", "ammu", "bava", "sai"].includes(profileId) ||
+      typeof alt !== "string" ||
+      !alt.trim() ||
+      !slot
+    )
+      return jsonResponse(
+        { error: "Choose an image, profile, image placement and descriptive alt text." },
+        400,
+      );
+    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES)
+      return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
     const expectedExtension = IMAGE_TYPES.get(file.type);
-    if (!expectedExtension || !(file.type === "image/jpeg" ? /\.jpe?g$/i.test(file.name) : file.name.toLowerCase().endsWith(expectedExtension))) return jsonResponse({ error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." }, 415);
+    if (
+      !expectedExtension ||
+      !(file.type === "image/jpeg"
+        ? /\.jpe?g$/i.test(file.name)
+        : file.name.toLowerCase().endsWith(expectedExtension))
+    )
+      return jsonResponse(
+        { error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." },
+        415,
+      );
     const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-    const validSignature = file.type === "image/jpeg" ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff : file.type === "image/png" ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 : file.type === "image/webp" ? String.fromCharCode(...bytes.slice(0,4)) === "RIFF" && String.fromCharCode(...bytes.slice(8,12)) === "WEBP" : file.type === "image/avif" ? String.fromCharCode(...bytes.slice(4,12)).includes("ftypavif") || String.fromCharCode(...bytes.slice(4,12)).includes("ftypavis") : false;
-    if (!validSignature) return jsonResponse({ error: "The file signature does not match its declared image type." }, 415);
+    const validSignature =
+      file.type === "image/jpeg"
+        ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+        : file.type === "image/png"
+          ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+          : file.type === "image/webp"
+            ? String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+              String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+            : file.type === "image/avif"
+              ? String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavif") ||
+                String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavis")
+              : false;
+    if (!validSignature)
+      return jsonResponse(
+        { error: "The file signature does not match its declared image type." },
+        415,
+      );
     const id = crypto.randomUUID();
-    const filename = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
+    const filename =
+      file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
     const privateKey = `private-admin/images/files/${id}`;
     const publicKey = `public/profile-images/${id}`;
     let storedPrivate = false;
     let storedPublic = false;
     let indexed = false;
     try {
-      await bucket.put(privateKey, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+      await bucket.put(privateKey, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type },
+      });
       storedPrivate = true;
       const records = await readImageIndex(bucket);
-      const record: PortfolioImageRecord = { id, filename, contentType: file.type, size: file.size, uploadedAt: new Date().toISOString(), status: publishOnUpload ? "approved" : "pending", profileId: profileId as PortfolioImageRecord["profileId"], alt: alt.trim().slice(0, 300), slot };
+      const record: PortfolioImageRecord = {
+        id,
+        filename,
+        contentType: file.type,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        status: publishOnUpload ? "approved" : "pending",
+        profileId: profileId as PortfolioImageRecord["profileId"],
+        alt: alt.trim().slice(0, 300),
+        slot,
+      };
       if (publishOnUpload) {
         const privateObject = await bucket.get(privateKey);
         if (!privateObject) throw new Error("Stored image upload is missing.");
-        await bucket.put(publicKey, await privateObject.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+        await bucket.put(publicKey, await privateObject.arrayBuffer(), {
+          httpMetadata: { contentType: file.type },
+        });
         storedPublic = true;
       }
       records.push(record);
@@ -803,44 +1213,59 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       const cleanupFailures: string[] = [];
       if (!indexed) {
         if (storedPublic) {
-          try { await bucket.delete(publicKey); }
-          catch (cleanupError) {
+          try {
+            await bucket.delete(publicKey);
+          } catch (cleanupError) {
             cleanupFailures.push("public image cleanup failed");
             console.error("Failed to clean up an incomplete public image upload.", cleanupError);
           }
         }
         if (storedPrivate) {
-          try { await bucket.delete(privateKey); }
-          catch (cleanupError) {
+          try {
+            await bucket.delete(privateKey);
+          } catch (cleanupError) {
             cleanupFailures.push("private image cleanup failed");
             console.error("Failed to clean up an incomplete private image upload.", cleanupError);
           }
         }
       }
-      return jsonResponse({
-        error: "Image upload failed while saving the image. Check the development server terminal for the detailed cause and retry.",
-        code: "IMAGE_UPLOAD_STORAGE_FAILED",
-        ...(import.meta.env.DEV === true
-          ? { detail: error instanceof Error ? error.message : "Unknown image storage error." }
-          : {}),
-        cleanupWarning: cleanupFailures.length ? cleanupFailures.join("; ") : undefined,
-      }, 500);
+      return jsonResponse(
+        {
+          error:
+            "Image upload failed while saving the image. Check the development server terminal for the detailed cause and retry.",
+          code: "IMAGE_UPLOAD_STORAGE_FAILED",
+          ...(import.meta.env.DEV === true
+            ? { detail: error instanceof Error ? error.message : "Unknown image storage error." }
+            : {}),
+          cleanupWarning: cleanupFailures.length ? cleanupFailures.join("; ") : undefined,
+        },
+        500,
+      );
     }
   }
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
-    const [, id, action] = match; const records = await readImageIndex(bucket); const index = records.findIndex((item) => item.id === id);
-    const record = index < 0 ? undefined : records[index]; if (!record) return privateNotFound();
+    const [, id, action] = match;
+    const records = await readImageIndex(bucket);
+    const index = records.findIndex((item) => item.id === id);
+    const record = index < 0 ? undefined : records[index];
+    if (!record) return privateNotFound();
     if (action === "publish" && request.method === "POST") {
-      const object = await bucket.get(`private-admin/images/files/${id}`); if (!object) return privateNotFound();
-      await bucket.put(`public/profile-images/${id}`, await object.arrayBuffer(), { httpMetadata: { contentType: record.contentType } });
-      records[index] = { ...record, status: "approved" }; await writeImageIndex(bucket, records);
+      const object = await bucket.get(`private-admin/images/files/${id}`);
+      if (!object) return privateNotFound();
+      await bucket.put(`public/profile-images/${id}`, await object.arrayBuffer(), {
+        httpMetadata: { contentType: record.contentType },
+      });
+      records[index] = { ...record, status: "approved" };
+      await writeImageIndex(bucket, records);
       return jsonResponse({ image: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
-      if (record.status !== "approved") return jsonResponse({ error: "This image is not currently published." }, 409);
+      if (record.status !== "approved")
+        return jsonResponse({ error: "This image is not currently published." }, 409);
       await bucket.delete(`public/profile-images/${id}`);
-      records[index] = { ...record, status: "pending" }; await writeImageIndex(bucket, records);
+      records[index] = { ...record, status: "pending" };
+      await writeImageIndex(bucket, records);
       return jsonResponse({ image: records[index] }, 200);
     }
     if (!action && request.method === "DELETE") {
@@ -853,7 +1278,8 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       await bucket.delete(`private-admin/images/files/${id}`);
       return jsonResponse({ ok: true }, 200);
     }
-  }  return privateNotFound();
+  }
+  return privateNotFound();
 }
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
@@ -881,7 +1307,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
-async function attachPublishedResumeContext(request: Request, env: unknown): Promise<Request | Response> {
+async function attachPublishedResumeContext(
+  request: Request,
+  env: unknown,
+): Promise<Request | Response> {
   const boundedRequest = await limitRequestBody(request, 70 * 1024);
   if (boundedRequest instanceof Response) return boundedRequest;
 
@@ -909,9 +1338,13 @@ async function attachPublishedResumeContext(request: Request, env: unknown): Pro
       if (object) {
         const feed = await object.json<{ resumes?: unknown[] }>();
         const candidates = Array.isArray(feed.resumes)
-          ? feed.resumes.filter((item): item is Record<string, unknown> =>
-              !!item && typeof item === "object" && !Array.isArray(item) &&
-              (item as Record<string, unknown>)["profileId"] === profileId)
+          ? feed.resumes.filter(
+              (item): item is Record<string, unknown> =>
+                !!item &&
+                typeof item === "object" &&
+                !Array.isArray(item) &&
+                (item as Record<string, unknown>)["profileId"] === profileId,
+            )
           : [];
         const timestamp = (record: Record<string, unknown>): number => {
           const uploadedAt = record["uploadedAt"];
@@ -973,10 +1406,13 @@ export default {
       // a JSON response instead of an opaque framework-generated HTTP 500.
       console.error("Portfolio image API request failed.", error);
       const message = error instanceof Error ? error.message : "Unknown image storage error.";
-      return jsonResponse({
-        error: "The image operation failed on the server.",
-        ...(import.meta.env.DEV === true ? { detail: message } : {}),
-      }, 500);
+      return jsonResponse(
+        {
+          error: "The image operation failed on the server.",
+          ...(import.meta.env.DEV === true ? { detail: message } : {}),
+        },
+        500,
+      );
     }
 
     // Admin routes remain protected by default. For local testing only, set

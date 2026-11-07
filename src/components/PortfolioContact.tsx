@@ -76,10 +76,7 @@ export function PortfolioContact() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="min-w-0 break-all">
                   <span className="text-muted-foreground">email:</span>{" "}
-                  <a
-                    href={`mailto:${email}`}
-                    className="transition-colors hover:text-accent"
-                  >
+                  <a href={`mailto:${email}`} className="transition-colors hover:text-accent">
                     {email}
                   </a>
                 </span>

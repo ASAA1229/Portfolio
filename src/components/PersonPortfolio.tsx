@@ -135,8 +135,20 @@ function ContactActions({ profile }: { profile: PersonPortfolio }) {
   const phone = published ? published.contact?.phone : profile.phone;
   return (
     <>
-      {email && <Button asChild className="min-h-11"><a href={"mailto:" + email}><Mail /> Email {profile.displayName}</a></Button>}
-      {phone && <Button asChild variant="outline" className="min-h-11"><a href={"tel:" + phone.replace(/[^+0-9]/g, "")}><Phone /> Call {profile.displayName}</a></Button>}
+      {email && (
+        <Button asChild className="min-h-11">
+          <a href={"mailto:" + email}>
+            <Mail /> Email {profile.displayName}
+          </a>
+        </Button>
+      )}
+      {phone && (
+        <Button asChild variant="outline" className="min-h-11">
+          <a href={"tel:" + phone.replace(/[^+0-9]/g, "")}>
+            <Phone /> Call {profile.displayName}
+          </a>
+        </Button>
+      )}
     </>
   );
 }
@@ -198,10 +210,21 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
       <article className="rounded-lg border border-border bg-card p-6">
         <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
         {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
-        {resume.summary && <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>}
-        {resume.skills.length > 0 && <div className="mt-5 flex flex-wrap gap-2">
-          {resume.skills.slice(0, 20).map((skill, index) => <span key={skill + index} className="rounded-full border border-border px-3 py-1 text-xs">{skill}</span>)}
-        </div>}
+        {resume.summary && (
+          <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>
+        )}
+        {resume.skills.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {resume.skills.slice(0, 20).map((skill, index) => (
+              <span
+                key={skill + index}
+                className="rounded-full border border-border px-3 py-1 text-xs"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
       </article>
     </section>
   );
@@ -291,7 +314,9 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         <div className="site-container grid gap-6 py-12 md:grid-cols-[1fr_2fr]">
           <h2 className="text-4xl">Beyond the work.</h2>
           <div>
-            <p className="text-sm leading-8 text-muted-foreground">{publishedResume?.summary || profile.summary}</p>
+            <p className="text-sm leading-8 text-muted-foreground">
+              {publishedResume?.summary || profile.summary}
+            </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <PersonLink person={profile.id} section="experience">
                 Explore my experience <ArrowRight />
@@ -360,17 +385,29 @@ export function PersonContent({
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : { images: [] })
-      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[] }) => {
-        if (active) setPublishedImagesState({
-          profileId: profile.id,
-          images: (payload.images ?? []).filter((image) => image.profileId === profile.id && image.slot !== "portrait"),
-        });
-      })
-      .catch(() => { if (active) setPublishedImagesState({ profileId: profile.id, images: [] }); });
-    return () => { active = false; };
+      .then((response) => (response.ok ? response.json() : { images: [] }))
+      .then(
+        (payload: {
+          images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
+        }) => {
+          if (active)
+            setPublishedImagesState({
+              profileId: profile.id,
+              images: (payload.images ?? []).filter(
+                (image) => image.profileId === profile.id && image.slot !== "portrait",
+              ),
+            });
+        },
+      )
+      .catch(() => {
+        if (active) setPublishedImagesState({ profileId: profile.id, images: [] });
+      });
+    return () => {
+      active = false;
+    };
   }, [profile.id]);
-  const publishedImages = publishedImagesState.profileId === profile.id ? publishedImagesState.images : [];
+  const publishedImages =
+    publishedImagesState.profileId === profile.id ? publishedImagesState.images : [];
   const galleryPhotos = [
     ...profile.gallery,
     ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
@@ -392,9 +429,7 @@ export function PersonContent({
         <div className="person-section-heading-copy">
           <p className="site-page-kicker">{profile.name.toUpperCase()} / THE SERIES</p>
           <h1 className="site-page-title mt-4">{title}</h1>
-          <p className="site-page-description mt-5">
-            {descriptions[section]}
-          </p>
+          <p className="site-page-description mt-5">{descriptions[section]}</p>
         </div>
       </header>
       {section === "about" && (
@@ -415,9 +450,14 @@ export function PersonContent({
               </div>
             </div>
             <div>
-              <p className="text-sm leading-8 text-muted-foreground">{publishedResume?.summary || profile.summary}</p>
+              <p className="text-sm leading-8 text-muted-foreground">
+                {publishedResume?.summary || profile.summary}
+              </p>
               {galleryPhotos.length > 0 && (
-                <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
+                <div
+                  className="mt-8 grid grid-cols-2 gap-3"
+                  aria-label={`${profile.name} photo gallery`}
+                >
                   {galleryPhotos.map((photo) => (
                     <img
                       key={"id" in photo && typeof photo.id === "string" ? photo.id : photo.src}
@@ -441,7 +481,9 @@ export function PersonContent({
                   <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
                 ))}
               </div>
-            ) : <Education profile={profile} />}
+            ) : (
+              <Education profile={profile} />
+            )}
           </div>
           {profile.leadership.length > 0 && (
             <section className="mt-12">
@@ -470,25 +512,32 @@ export function PersonContent({
               <h2 className="mt-3 text-3xl">Skills & capabilities</h2>
               <TechnologyList items={publishedResume.skills} />
             </section>
-          ) : profile.skills.map((group, index) => (
-            <section key={group.category} className="border-t border-border pt-6">
-              <p className="font-mono text-xs text-primary">0{index + 1}</p>
-              <h2 className="mt-3 text-3xl">{group.category}</h2>
-              <TechnologyList items={group.items} />
-            </section>
-          ))}
+          ) : (
+            profile.skills.map((group, index) => (
+              <section key={group.category} className="border-t border-border pt-6">
+                <p className="font-mono text-xs text-primary">0{index + 1}</p>
+                <h2 className="mt-3 text-3xl">{group.category}</h2>
+                <TechnologyList items={group.items} />
+              </section>
+            ))
+          )}
         </div>
       )}
       {section === "projects" && (
         <>
           <div className="grid gap-6 md:grid-cols-2">
-            {publishedResume?.structuredSections?.projects?.length ? (
-              publishedResume.structuredSections.projects.map((entry, index) => (
-                <ResumeEntryCard key={index} entry={entry} section="projects" index={index} />
-              ))
-            ) : profile.projects.map((project, index) => (
-              <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
-            ))}
+            {publishedResume?.structuredSections?.projects?.length
+              ? publishedResume.structuredSections.projects.map((entry, index) => (
+                  <ResumeEntryCard key={index} entry={entry} section="projects" index={index} />
+                ))
+              : profile.projects.map((project, index) => (
+                  <ProjectTile
+                    key={project.slug}
+                    profile={profile}
+                    project={project}
+                    index={index}
+                  />
+                ))}
           </div>
         </>
       )}
@@ -501,57 +550,63 @@ export function PersonContent({
               ))}
             </div>
           ) : (
-          <div className="person-timeline">
-            {profile.experience.map((job, index) => (
-              <section
-                key={job.role}
-                className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
-              >
-                <div>
-                  <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
-                  <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
-                  <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
-                  {job.company && <p className="mt-3 text-sm">{job.role}</p>}
-                  {!job.company && (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Employer not specified in the resume.
-                    </p>
-                  )}
-                  {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
-                </div>
-                <div>
-                  <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
-                    {job.points.map((point) => (
-                      <li key={point} className="flex gap-3">
-                        <span className="text-primary" aria-hidden="true">
-                          —
-                        </span>
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <TechnologyList items={job.tech} />
-                </div>
-              </section>
-            ))}
-          </div>
+            <div className="person-timeline">
+              {profile.experience.map((job, index) => (
+                <section
+                  key={job.role}
+                  className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
+                >
+                  <div>
+                    <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
+                    <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
+                    <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
+                    {job.company && <p className="mt-3 text-sm">{job.role}</p>}
+                    {!job.company && (
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        Employer not specified in the resume.
+                      </p>
+                    )}
+                    {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
+                  </div>
+                  <div>
+                    <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
+                      {job.points.map((point) => (
+                        <li key={point} className="flex gap-3">
+                          <span className="text-primary" aria-hidden="true">
+                            —
+                          </span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <TechnologyList items={job.tech} />
+                  </div>
+                </section>
+              ))}
+            </div>
           )}
         </>
       )}
       {section === "certifications" && (
         <>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {publishedResume?.structuredSections?.certifications?.length ? (
-              publishedResume.structuredSections.certifications.map((entry, index) => (
-                <ResumeEntryCard key={index} entry={entry} section="certifications" index={index} compact />
-              ))
-            ) : profile.certifications.map((cert) => (
-              <article key={cert.title} className="cert-card">
-                <Award className="size-7 text-gold" />
-                <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
-                <h2 className="mt-3 text-3xl leading-tight">{cert.title}</h2>
-              </article>
-            ))}
+            {publishedResume?.structuredSections?.certifications?.length
+              ? publishedResume.structuredSections.certifications.map((entry, index) => (
+                  <ResumeEntryCard
+                    key={index}
+                    entry={entry}
+                    section="certifications"
+                    index={index}
+                    compact
+                  />
+                ))
+              : profile.certifications.map((cert) => (
+                  <article key={cert.title} className="cert-card">
+                    <Award className="size-7 text-gold" />
+                    <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
+                    <h2 className="mt-3 text-3xl leading-tight">{cert.title}</h2>
+                  </article>
+                ))}
           </div>
           <Training profile={profile} />
         </>
@@ -564,7 +619,9 @@ export function PersonContent({
                 <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
               ))}
             </div>
-          ) : <Education profile={profile} />}
+          ) : (
+            <Education profile={profile} />
+          )}
           <Training profile={profile} />
         </>
       )}
@@ -580,7 +637,10 @@ export function PersonContent({
                 </a>
               )}
               {publishedPhone && (
-                <a className="person-contact-detail" href={"tel:" + publishedPhone?.replace(/[^+0-9]/g, "")}>
+                <a
+                  className="person-contact-detail"
+                  href={"tel:" + publishedPhone?.replace(/[^+0-9]/g, "")}
+                >
                   <Phone />
                   <span>{publishedPhone}</span>
                 </a>
@@ -601,7 +661,21 @@ export function PersonContent({
           <section className="border-t border-border pt-6">
             <h2 className="text-3xl">Elsewhere</h2>
             <div className="mt-6 space-y-5">
-              {[{ platform: "LinkedIn", handle: profile.socialLabels.find((item) => item.platform === "LinkedIn")?.handle ?? null, url: publishedLinkedIn }, { platform: "GitHub", handle: profile.socialLabels.find((item) => item.platform === "GitHub")?.handle ?? null, url: publishedGitHub }].map((social) => (
+              {[
+                {
+                  platform: "LinkedIn",
+                  handle:
+                    profile.socialLabels.find((item) => item.platform === "LinkedIn")?.handle ??
+                    null,
+                  url: publishedLinkedIn,
+                },
+                {
+                  platform: "GitHub",
+                  handle:
+                    profile.socialLabels.find((item) => item.platform === "GitHub")?.handle ?? null,
+                  url: publishedGitHub,
+                },
+              ].map((social) => (
                 <div key={social.platform} className="flex items-start gap-3 text-muted-foreground">
                   {social.platform === "GitHub" ? (
                     <Github className="size-5" />
@@ -613,7 +687,18 @@ export function PersonContent({
                     {social.handle && (
                       <p className="mt-2 break-all font-mono text-xs">{social.handle}</p>
                     )}
-                    {social.url ? <a className="mt-2 block break-all text-xs text-primary underline" href={social.url} target="_blank" rel="noreferrer">{social.url}</a> : <p className="mt-2 text-xs">URL not provided</p>}
+                    {social.url ? (
+                      <a
+                        className="mt-2 block break-all text-xs text-primary underline"
+                        href={social.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {social.url}
+                      </a>
+                    ) : (
+                      <p className="mt-2 text-xs">URL not provided</p>
+                    )}
                   </div>
                 </div>
               ))}

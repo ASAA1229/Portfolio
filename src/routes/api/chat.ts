@@ -67,9 +67,10 @@ export const Route = createFileRoute("/api/chat")({
         const parsed = body.safeParse(requestPayload);
         if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
-        const profile = parsed.data.person && parsed.data.person !== "abhishek"
-          ? getPersonPortfolio(parsed.data.person)
-          : undefined;
+        const profile =
+          parsed.data.person && parsed.data.person !== "abhishek"
+            ? getPersonPortfolio(parsed.data.person)
+            : undefined;
         if (parsed.data.person && parsed.data.person !== "abhishek" && !profile) {
           return Response.json({ error: "Unknown portfolio" }, { status: 400 });
         }
@@ -84,7 +85,8 @@ export const Route = createFileRoute("/api/chat")({
               "CURRENT VERIFIED PORTFOLIO DATA (generated from the profile source of truth on every request):",
               buildRelevantProfileKnowledge(
                 profile,
-                parsed.data.messages.filter((message) => message.role === "user").at(-1)?.content ?? "",
+                parsed.data.messages.filter((message) => message.role === "user").at(-1)?.content ??
+                  "",
                 parsed.data.mode === "intro" ? "intro" : "chat",
               ),
             ].join("\n")
@@ -94,8 +96,11 @@ export const Route = createFileRoute("/api/chat")({
 
         const rawPublishedResume = parsed.data._publishedResume;
         const publishedResumeContext =
-          rawPublishedResume && typeof rawPublishedResume === "object" && !Array.isArray(rawPublishedResume) &&
-          "profileId" in rawPublishedResume && rawPublishedResume.profileId === (parsed.data.person ?? "abhishek")
+          rawPublishedResume &&
+          typeof rawPublishedResume === "object" &&
+          !Array.isArray(rawPublishedResume) &&
+          "profileId" in rawPublishedResume &&
+          rawPublishedResume.profileId === (parsed.data.person ?? "abhishek")
             ? JSON.stringify(rawPublishedResume).slice(0, 20 * 1024)
             : "";
         const instructions = publishedResumeContext
@@ -106,7 +111,10 @@ export const Route = createFileRoute("/api/chat")({
         const openAiKey = process.env["OPENAI_API_KEY"];
         if (!openAiKey) {
           return Response.json(
-            { error: "AI is not configured. Add OPENAI_API_KEY to .env.local for local development or to the deployment's server-side environment secrets, then restart or redeploy." },
+            {
+              error:
+                "AI is not configured. Add OPENAI_API_KEY to .env.local for local development or to the deployment's server-side environment secrets, then restart or redeploy.",
+            },
             { status: 503 },
           );
         }
@@ -149,9 +157,10 @@ export const Route = createFileRoute("/api/chat")({
           });
         } catch (error) {
           cleanupRequest();
-          const message = error instanceof Error && error.name === "AbortError"
-            ? "The AI request timed out. Please try again."
-            : "Could not connect to the AI service. Please try again shortly.";
+          const message =
+            error instanceof Error && error.name === "AbortError"
+              ? "The AI request timed out. Please try again."
+              : "Could not connect to the AI service. Please try again shortly.";
           return Response.json({ error: message }, { status: 502 });
         }
 
@@ -160,19 +169,30 @@ export const Route = createFileRoute("/api/chat")({
           const status = upstream.status || 502;
           const upstreamText = await upstream.text().catch(() => "");
           // Avoid returning raw provider errors that may contain implementation details.
-          const message = status === 401 || status === 403
-            ? "The AI provider rejected its server API key. Check the deployment secret and provider access."
-            : status === 429
-              ? "The AI service is rate-limited or out of available quota. Check the API billing and usage limits."
-              : "The AI service could not complete the request. Please try again.";
-          console.error("Portfolio chat provider error", { provider: "openai", status, detail: upstreamText.slice(0, 500) });
-          return Response.json({ error: message }, { status: status >= 400 && status < 600 ? status : 502 });
+          const message =
+            status === 401 || status === 403
+              ? "The AI provider rejected its server API key. Check the deployment secret and provider access."
+              : status === 429
+                ? "The AI service is rate-limited or out of available quota. Check the API billing and usage limits."
+                : "The AI service could not complete the request. Please try again.";
+          console.error("Portfolio chat provider error", {
+            provider: "openai",
+            status,
+            detail: upstreamText.slice(0, 500),
+          });
+          return Response.json(
+            { error: message },
+            { status: status >= 400 && status < 600 ? status : 502 },
+          );
         }
 
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
-        const processLine = (line: string, controller: TransformStreamDefaultController<Uint8Array>) => {
+        const processLine = (
+          line: string,
+          controller: TransformStreamDefaultController<Uint8Array>,
+        ) => {
           if (!line.startsWith("data:")) return;
           const data = line.slice(5).trim();
           if (!data || data === "[DONE]") return;
@@ -190,11 +210,12 @@ export const Route = createFileRoute("/api/chat")({
               });
               // A 200 SSE response can still fail after streaming starts. Surface a
               // useful message instead of returning an empty body that looks successful.
-              const friendlyError = code === "credit_balance_exhausted" || code === "insufficient_quota"
-                ? "Live AI is unavailable because the OpenAI API project has no credits remaining. Add API credits in the OpenAI Platform billing settings, then try again. Your portfolio's offline answers are still available."
-                : code === "rate_limit_exceeded"
-                  ? "Live AI is temporarily rate-limited. Please wait a moment and try again."
-                  : "Live AI could not complete this response. Please try again later.";
+              const friendlyError =
+                code === "credit_balance_exhausted" || code === "insufficient_quota"
+                  ? "Live AI is unavailable because the OpenAI API project has no credits remaining. Add API credits in the OpenAI Platform billing settings, then try again. Your portfolio's offline answers are still available."
+                  : code === "rate_limit_exceeded"
+                    ? "Live AI is temporarily rate-limited. Please wait a moment and try again."
+                    : "Live AI could not complete this response. Please try again later.";
               controller.enqueue(encoder.encode("\n\n" + friendlyError));
               controller.terminate();
             }

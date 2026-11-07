@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { ResumeSectionEntry, StructuredResumeEntry, StructuredResumeSections } from "@/lib/resume-types";
+import type {
+  ResumeSectionEntry,
+  StructuredResumeEntry,
+  StructuredResumeSections,
+} from "@/lib/resume-types";
 
 export type PublishedProfileResume = {
   id: string;
@@ -31,7 +35,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizeSkills(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
-    .filter((skill): skill is string => typeof skill === "string" && skill.trim().length > 0 && skill.trim().length <= 80)
+    .filter(
+      (skill): skill is string =>
+        typeof skill === "string" && skill.trim().length > 0 && skill.trim().length <= 80,
+    )
     .slice(0, 20)
     .map((skill) => skill.trim());
 }
@@ -42,20 +49,47 @@ function normalizeStructuredEntry(value: unknown): ResumeSectionEntry | null {
     return text ? text : null;
   }
   if (!isRecord(value)) return null;
-  const allowed = ["title", "organization", "role", "location", "startDate", "endDate", "description", "technologies", "url", "credentialId", "grade"];
+  const allowed = [
+    "title",
+    "organization",
+    "role",
+    "location",
+    "startDate",
+    "endDate",
+    "description",
+    "technologies",
+    "url",
+    "credentialId",
+    "grade",
+  ];
   if (Object.keys(value).some((key) => !allowed.includes(key))) return null;
   const entry: StructuredResumeEntry = {};
-  for (const key of ["title", "organization", "role", "location", "startDate", "endDate", "description", "url", "credentialId", "grade"] as const) {
+  for (const key of [
+    "title",
+    "organization",
+    "role",
+    "location",
+    "startDate",
+    "endDate",
+    "description",
+    "url",
+    "credentialId",
+    "grade",
+  ] as const) {
     const field = value[key];
-    if (typeof field === "string") entry[key] = field.trim().slice(0, key === "description" ? 2000 : 320);
+    if (typeof field === "string")
+      entry[key] = field.trim().slice(0, key === "description" ? 2000 : 320);
   }
   if (Array.isArray(value["technologies"])) {
     entry.technologies = value["technologies"]
       .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-      .slice(0, 30).map((item) => item.trim().slice(0, 80));
+      .slice(0, 30)
+      .map((item) => item.trim().slice(0, 80));
   }
   if (entry.url && !/^https:\/\//i.test(entry.url)) delete entry.url;
-  return Object.values(entry).some((field) => Array.isArray(field) ? field.length > 0 : !!field) ? entry : null;
+  return Object.values(entry).some((field) => (Array.isArray(field) ? field.length > 0 : !!field))
+    ? entry
+    : null;
 }
 
 function normalizeSections(value: unknown): Partial<StructuredResumeSections> | undefined {
@@ -64,7 +98,10 @@ function normalizeSections(value: unknown): Partial<StructuredResumeSections> | 
   for (const name of ["experience", "education", "projects", "certifications"] as const) {
     const entries = value[name];
     if (Array.isArray(entries)) {
-      sections[name] = entries.map(normalizeStructuredEntry).filter((entry): entry is ResumeSectionEntry => entry !== null).slice(0, 40);
+      sections[name] = entries
+        .map(normalizeStructuredEntry)
+        .filter((entry): entry is ResumeSectionEntry => entry !== null)
+        .slice(0, 40);
     }
   }
   return Object.keys(sections).length ? sections : undefined;
@@ -72,20 +109,34 @@ function normalizeSections(value: unknown): Partial<StructuredResumeSections> | 
 
 function normalizeRecord(value: unknown, profileId: string): PublishedProfileResume | null {
   if (!isRecord(value) || value["profileId"] !== profileId) return null;
-  if (typeof value["id"] !== "string" || !value["id"].trim() || value["id"].length > 160) return null;
-  if (typeof value["displayName"] !== "string" || !value["displayName"].trim() || value["displayName"].length > 120) return null;
+  if (typeof value["id"] !== "string" || !value["id"].trim() || value["id"].length > 160)
+    return null;
+  if (
+    typeof value["displayName"] !== "string" ||
+    !value["displayName"].trim() ||
+    value["displayName"].length > 120
+  )
+    return null;
   if (typeof value["headline"] !== "string" || value["headline"].length > 240) return null;
   if (typeof value["summary"] !== "string" || value["summary"].length > 6000) return null;
 
   const rawContact = isRecord(value["contact"]) ? value["contact"] : undefined;
-  const contact = rawContact ? Object.fromEntries(
-    (["email", "phone", "linkedin", "github"] as const)
-      .filter((key) => typeof rawContact[key] === "string" && (key !== "linkedin" && key !== "github" || /^https:\/\//i.test(String(rawContact[key]).trim())))
-      .map((key) => [key, String(rawContact[key]).trim().slice(0, 320)]),
-  ) as NonNullable<PublishedProfileResume["contact"]> : undefined;
-  const uploadedAt = typeof value["uploadedAt"] === "string" && Number.isFinite(Date.parse(value["uploadedAt"]))
-    ? value["uploadedAt"]
+  const contact = rawContact
+    ? (Object.fromEntries(
+        (["email", "phone", "linkedin", "github"] as const)
+          .filter(
+            (key) =>
+              typeof rawContact[key] === "string" &&
+              ((key !== "linkedin" && key !== "github") ||
+                /^https:\/\//i.test(String(rawContact[key]).trim())),
+          )
+          .map((key) => [key, String(rawContact[key]).trim().slice(0, 320)]),
+      ) as NonNullable<PublishedProfileResume["contact"]>)
     : undefined;
+  const uploadedAt =
+    typeof value["uploadedAt"] === "string" && Number.isFinite(Date.parse(value["uploadedAt"]))
+      ? value["uploadedAt"]
+      : undefined;
   const structuredSections = normalizeSections(value["structuredSections"]);
   return {
     id: value["id"],
@@ -101,7 +152,10 @@ function normalizeRecord(value: unknown, profileId: string): PublishedProfileRes
 }
 
 /** Validate untrusted API data before it is rendered in a public profile. */
-export function normalizePublishedProfileResume(payload: unknown, profileId: string): PublishedProfileResume | null {
+export function normalizePublishedProfileResume(
+  payload: unknown,
+  profileId: string,
+): PublishedProfileResume | null {
   if (!isRecord(payload) || !Array.isArray(payload["resumes"])) return null;
   const candidates = payload["resumes"]
     .map((item) => normalizeRecord(item, profileId))
@@ -119,7 +173,10 @@ export function normalizePublishedProfileResume(payload: unknown, profileId: str
 }
 
 /** Normalize the compact resume list used by portfolio rules and lightweight views. */
-export function normalizePublishedResumeHighlights(payload: unknown, profileId: string): PublishedResumeRecord[] {
+export function normalizePublishedResumeHighlights(
+  payload: unknown,
+  profileId: string,
+): PublishedResumeRecord[] {
   if (!isRecord(payload) || !Array.isArray(payload["resumes"])) return [];
   return payload["resumes"]
     .map((item) => normalizeRecord(item, profileId))
@@ -137,32 +194,46 @@ export function normalizePublishedResumeHighlights(payload: unknown, profileId: 
 /** Accept only the same-origin published-image endpoint emitted by the server. */
 export function normalizePublishedPortrait(payload: unknown, profileId: string): string | null {
   if (!isRecord(payload) || !Array.isArray(payload["images"])) return null;
-  const candidates = payload["images"].filter((image): image is Record<string, unknown> =>
-    isRecord(image) && image["profileId"] === profileId && image["slot"] === "portrait" &&
-    typeof image["src"] === "string" && /^\/api\/published-images\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(image["src"]),
+  const candidates = payload["images"].filter(
+    (image): image is Record<string, unknown> =>
+      isRecord(image) &&
+      image["profileId"] === profileId &&
+      image["slot"] === "portrait" &&
+      typeof image["src"] === "string" &&
+      /^\/api\/published-images\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        image["src"],
+      ),
   );
-  return typeof candidates.at(-1)?.["src"] === "string" ? candidates.at(-1)!["src"] as string : null;
+  return typeof candidates.at(-1)?.["src"] === "string"
+    ? (candidates.at(-1)!["src"] as string)
+    : null;
 }
-
 
 /** Shared client hook: every profile consumes the same validated, latest-published resume feed. */
 export function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
-  const [state, setState] = useState<{ profileId: string; resume: PublishedProfileResume | null }>(() => ({
-    profileId,
-    resume: null,
-  }));
+  const [state, setState] = useState<{ profileId: string; resume: PublishedProfileResume | null }>(
+    () => ({
+      profileId,
+      resume: null,
+    }),
+  );
   useEffect(() => {
     let active = true;
     fetch("/api/published-resumes", {
       headers: { accept: "application/json" },
       cache: "no-store",
     })
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then((payload: unknown) => {
-        if (active) setState({ profileId, resume: normalizePublishedProfileResume(payload, profileId) });
+        if (active)
+          setState({ profileId, resume: normalizePublishedProfileResume(payload, profileId) });
       })
-      .catch(() => { if (active) setState({ profileId, resume: null }); });
-    return () => { active = false; };
+      .catch(() => {
+        if (active) setState({ profileId, resume: null });
+      });
+    return () => {
+      active = false;
+    };
   }, [profileId]);
   return state.profileId === profileId ? state.resume : null;
 }
@@ -179,12 +250,17 @@ export function usePublishedProfilePortrait(profileId: string): string | null {
       headers: { accept: "application/json" },
       cache: "no-store",
     })
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then((payload: unknown) => {
-        if (active) setState({ profileId, portrait: normalizePublishedPortrait(payload, profileId) });
+        if (active)
+          setState({ profileId, portrait: normalizePublishedPortrait(payload, profileId) });
       })
-      .catch(() => { if (active) setState({ profileId, portrait: null }); });
-    return () => { active = false; };
+      .catch(() => {
+        if (active) setState({ profileId, portrait: null });
+      });
+    return () => {
+      active = false;
+    };
   }, [profileId]);
   return state.profileId === profileId ? state.portrait : null;
 }

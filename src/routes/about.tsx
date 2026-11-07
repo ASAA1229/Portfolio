@@ -100,7 +100,7 @@ function About() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
             {[
               {
-               src:"/images/profiles/abhishek/abhishek_main.jpeg",
+                src: "/images/profiles/abhishek/abhishek_main.jpeg",
                 alt: "Abhishek at his graduation celebration",
               },
               {

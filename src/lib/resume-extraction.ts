@@ -26,18 +26,20 @@ function decodeXml(value: string): string {
 }
 
 function normalizeExtractedText(value: string): string {
-  return value
-    // Strip NUL bytes left by PDF/DOCX text extraction; matching them is intentional.
-    // eslint-disable-next-line no-control-regex
-    .replace(/\u0000/g, "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[\t ]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/([a-z])-[ \t]*\n([a-z])/g, "$1$2")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim()
-    .slice(0, MAX_EXTRACTED_CHARS);
+  return (
+    value
+      // Strip NUL bytes left by PDF/DOCX text extraction; matching them is intentional.
+      // eslint-disable-next-line no-control-regex
+      .replace(/\u0000/g, "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/[\t ]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/([a-z])-[ \t]*\n([a-z])/g, "$1$2")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim()
+      .slice(0, MAX_EXTRACTED_CHARS)
+  );
 }
 
 async function decompress(
@@ -118,7 +120,10 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     if (expandedSize > MAX_EXPANDED_BYTES || compressedSize > MAX_DOCUMENT_BYTES) {
       throw new Error("The DOCX document body exceeds the extraction limit.");
     }
-    if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) {
+    if (
+      localHeaderOffset + 30 > bytes.length ||
+      view.getUint32(localHeaderOffset, true) !== 0x04034b50
+    ) {
       throw new Error("The DOCX document body has an invalid archive header.");
     }
 
@@ -126,7 +131,8 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
     const dataOffset = localHeaderOffset + 30 + localNameLength + localExtraLength;
     const compressed = bytes.slice(dataOffset, dataOffset + compressedSize);
-    if (compressed.length !== compressedSize) throw new Error("The DOCX document body is incomplete.");
+    if (compressed.length !== compressedSize)
+      throw new Error("The DOCX document body is incomplete.");
 
     let xmlBytes: Uint8Array;
     if (method === 0) xmlBytes = compressed;
@@ -146,7 +152,9 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
         .replace(/<w:cr\b[^>]*\/>/g, "\n")
         .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, "")
         .replace(/<[^>]+>/g, "");
-      const decoded = decodeXml(content).replace(/[ \t]+/g, " ").trim();
+      const decoded = decodeXml(content)
+        .replace(/[ \t]+/g, " ")
+        .trim();
       if (!decoded) continue;
       paragraphs.push(isList ? "• " + decoded : decoded);
       if (isHeading) paragraphs.push("");
@@ -162,7 +170,9 @@ function decodePdfString(token: string): string {
   if (token.startsWith("<")) {
     const hex = token.slice(1, -1).replace(/\s/g, "");
     const normalized = hex.length % 2 ? `${hex}0` : hex;
-    const bytes = new Uint8Array(normalized.match(/.{2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? []);
+    const bytes = new Uint8Array(
+      normalized.match(/.{2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? [],
+    );
     if (bytes[0] === 0xfe && bytes[1] === 0xff) {
       const units: number[] = [];
       for (let index = 2; index + 1 < bytes.length; index += 2) {
@@ -213,29 +223,75 @@ function extractPdfTextFromContent(content: string): string[] {
   const blocks = content.match(/BT[\s\S]*?ET/g) ?? [];
   const n = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)";
   const tokenPattern = new RegExp(
-    "(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+(" + n + ")\\s+Tm|(" + n + ")\\s+(" + n + ")\\s+Td|(" + n + ")\\s+(" + n + ")\\s+TD|(" + n + ")\\s+TL|(" + n + ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|T(\\*)",
+    "(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+Tm|(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+Td|(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+TD|(" +
+      n +
+      ")\\s+TL|(" +
+      n +
+      ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|T(\\*)",
     "gi",
   );
   let order = 0;
   for (const block of blocks) {
-    let x = 0, y = 0, lineX = 0, lineY = 0, leading = 0, fontSize = 10;
+    let x = 0,
+      y = 0,
+      lineX = 0,
+      lineY = 0,
+      leading = 0,
+      fontSize = 10;
     for (const match of block.matchAll(tokenPattern)) {
-      if (match[1] !== undefined) { lineX = x = Number(match[5]); lineY = y = Number(match[6]); }
-      else if (match[7] !== undefined) { lineX += Number(match[7]); lineY += Number(match[8]); x = lineX; y = lineY; }
-      else if (match[9] !== undefined) { const tx = Number(match[9]), ty = Number(match[10]); leading = -ty; lineX += tx; lineY += ty; x = lineX; y = lineY; }
-      else if (match[11] !== undefined) leading = Number(match[11]);
+      if (match[1] !== undefined) {
+        lineX = x = Number(match[5]);
+        lineY = y = Number(match[6]);
+      } else if (match[7] !== undefined) {
+        lineX += Number(match[7]);
+        lineY += Number(match[8]);
+        x = lineX;
+        y = lineY;
+      } else if (match[9] !== undefined) {
+        const tx = Number(match[9]),
+          ty = Number(match[10]);
+        leading = -ty;
+        lineX += tx;
+        lineY += ty;
+        x = lineX;
+        y = lineY;
+      } else if (match[11] !== undefined) leading = Number(match[11]);
       else if (match[12] !== undefined) fontSize = Math.abs(Number(match[12])) || fontSize;
       else if (match[13] !== undefined) {
         const text = decodePdfString(match[13]);
         if (text.trim()) positioned.push({ text, x, y, order: order++ });
         x += text.length * fontSize * 0.48;
       } else if (match[14] !== undefined) {
-        const tokens = match[14].match(/\((?:\\.|[^\\)])*\)|<[\da-f\s]*>|[-+]?(?:\d+\.?\d*|\.\d+)/gi) ?? [];
+        const tokens =
+          match[14].match(/\((?:\\.|[^\\)])*\)|<[\da-f\s]*>|[-+]?(?:\d+\.?\d*|\.\d+)/gi) ?? [];
         let combined = "";
         const startX = x;
         for (const token of tokens) {
-          if (/^(?:\(|<)/.test(token)) { const decoded = decodePdfString(token); combined += decoded; x += decoded.length * fontSize * 0.48; }
-          else x -= Number(token) / 1000 * fontSize;
+          if (/^(?:\(|<)/.test(token)) {
+            const decoded = decodePdfString(token);
+            combined += decoded;
+            x += decoded.length * fontSize * 0.48;
+          } else x -= (Number(token) / 1000) * fontSize;
         }
         if (combined.trim()) positioned.push({ text: combined, x: startX, y, order: order++ });
       } else if (match[15] !== undefined) {
@@ -249,11 +305,21 @@ function extractPdfTextFromContent(content: string): string[] {
   const lines: { y: number; fragments: PositionedText[] }[] = [];
   for (const fragment of positioned.sort((a, b) => b.y - a.y || a.x - b.x || a.order - b.order)) {
     let line = lines.find((candidate) => Math.abs(candidate.y - fragment.y) <= 2.5);
-    if (!line) { line = { y: fragment.y, fragments: [] }; lines.push(line); }
+    if (!line) {
+      line = { y: fragment.y, fragments: [] };
+      lines.push(line);
+    }
     line.fragments.push(fragment);
   }
-  return lines.sort((a, b) => b.y - a.y).map((line) => line.fragments
-    .sort((a, b) => a.x - b.x || a.order - b.order).map((fragment) => fragment.text).join(" ").trim())
+  return lines
+    .sort((a, b) => b.y - a.y)
+    .map((line) =>
+      line.fragments
+        .sort((a, b) => a.x - b.x || a.order - b.order)
+        .map((fragment) => fragment.text)
+        .join(" ")
+        .trim(),
+    )
     .filter(Boolean);
 }
 
@@ -316,7 +382,9 @@ export async function extractResumeText(
     const extraction = await extractPdf(bytes);
     const text = extraction.text;
     if (!text) {
-      throw new Error("No extractable text was found. This PDF may be scanned, image-only, or use unsupported font encoding; OCR is not available in this local extractor.");
+      throw new Error(
+        "No extractable text was found. This PDF may be scanned, image-only, or use unsupported font encoding; OCR is not available in this local extractor.",
+      );
     }
     return {
       text,
@@ -326,7 +394,9 @@ export async function extractResumeText(
         extraction.skippedStreams > 0
           ? `${extraction.skippedStreams} PDF stream(s) used unsupported filters or could not be decompressed; content from those streams may be missing.`
           : "",
-      ].filter(Boolean).join(" "),
+      ]
+        .filter(Boolean)
+        .join(" "),
     };
   }
 

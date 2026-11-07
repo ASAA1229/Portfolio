@@ -3,7 +3,8 @@ import { Route } from "@/routes/api/chat";
 
 type Handler = (input: { request: Request }) => Promise<Response>;
 
-const POST = (Route.options as { server?: { handlers?: { POST?: Handler } } }).server?.handlers?.POST;
+const POST = (Route.options as { server?: { handlers?: { POST?: Handler } } }).server?.handlers
+  ?.POST;
 
 function post(body: unknown): Promise<Response> {
   return POST!({

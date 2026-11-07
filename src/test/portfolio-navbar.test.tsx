@@ -30,12 +30,7 @@ vi.mock("@tanstack/react-router", () => ({
     search?: unknown;
     [key: string]: unknown;
   }) => (
-    <a
-      href={to}
-      className={className}
-      aria-label={ariaLabel ?? ariaLabelProp}
-      {...props}
-    >
+    <a href={to} className={className} aria-label={ariaLabel ?? ariaLabelProp} {...props}>
       {children}
     </a>
   ),
@@ -172,7 +167,7 @@ describe("PortfolioNavbar standardization", () => {
     const { container } = render(
       <SiteShell>
         <div>Page Content</div>
-      </SiteShell>
+      </SiteShell>,
     );
 
     const header = container.querySelector("header.site-nav");
@@ -188,7 +183,7 @@ describe("PortfolioNavbar standardization", () => {
     const { container } = render(
       <PersonShell profile={PERSON_PORTFOLIOS.ammu}>
         <div>Ammu Experience Content</div>
-      </PersonShell>
+      </PersonShell>,
     );
 
     const header = container.querySelector("header.site-nav");

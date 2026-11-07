@@ -36,11 +36,14 @@ export const Route = createFileRoute("/admin/images")({
   component: ImageManager,
 });
 
-async function readApiResponse<T extends { error?: string; detail?: string }>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => null) as T | null;
+async function readApiResponse<T extends { error?: string; detail?: string }>(
+  response: Response,
+): Promise<T> {
+  const payload = (await response.json().catch(() => null)) as T | null;
   if (!response.ok) {
     throw new Error(
-      [payload?.error, payload?.detail].filter(Boolean).join(" — ") || `Image service request failed (HTTP ${response.status}).`,
+      [payload?.error, payload?.detail].filter(Boolean).join(" — ") ||
+        `Image service request failed (HTTP ${response.status}).`,
     );
   }
   if (!payload || typeof payload !== "object") {
@@ -153,8 +156,16 @@ function ImageManager() {
   }
 
   async function action(id: string, operation: "publish" | "unpublish" | "delete") {
-    if (operation === "delete" && !window.confirm("Delete this image from private and public storage?")) return;
-    if (operation === "unpublish" && !window.confirm("Remove this image from public galleries but keep the private original?")) return;
+    if (
+      operation === "delete" &&
+      !window.confirm("Delete this image from private and public storage?")
+    )
+      return;
+    if (
+      operation === "unpublish" &&
+      !window.confirm("Remove this image from public galleries but keep the private original?")
+    )
+      return;
 
     setBusy(true);
     setError("");
@@ -194,8 +205,9 @@ function ImageManager() {
           <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
           <h1 className="mt-3 text-4xl font-semibold">Portfolio Image Manager</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-            Upload image updates without changing source code. Images can be reviewed before publication,
-            unpublished without deleting the private original, or removed when no longer needed.
+            Upload image updates without changing source code. Images can be reviewed before
+            publication, unpublished without deleting the private original, or removed when no
+            longer needed.
           </p>
         </div>
         <button
@@ -228,7 +240,9 @@ function ImageManager() {
               onChange={(event) => setProfileId(event.target.value as ImageRecord["profileId"])}
             >
               {profiles.map((profile) => (
-                <option key={profile.id} value={profile.id}>{profile.label}</option>
+                <option key={profile.id} value={profile.id}>
+                  {profile.label}
+                </option>
               ))}
             </select>
           </label>
@@ -288,12 +302,21 @@ function ImageManager() {
           disabled={busy}
           onClick={() => void upload()}
         >
-          <UploadCloud className="size-4" /> {publishOnUpload ? "Upload & publish" : "Upload privately"}
+          <UploadCloud className="size-4" />{" "}
+          {publishOnUpload ? "Upload & publish" : "Upload privately"}
         </button>
       </section>
 
-      {error && <p role="alert" className="mb-5 rounded border border-destructive p-4 text-sm">{error}</p>}
-      {message && <p role="status" className="mb-5 rounded border border-border p-4 text-sm">{message}</p>}
+      {error && (
+        <p role="alert" className="mb-5 rounded border border-destructive p-4 text-sm">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="mb-5 rounded border border-border p-4 text-sm">
+          {message}
+        </p>
+      )}
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl">Uploaded images</h2>
@@ -355,8 +378,8 @@ function ImageManager() {
       )}
 
       <p className="mt-8 text-xs leading-6 text-muted-foreground">
-        Publishing makes the image publicly retrievable through an approved-image endpoint. Do not upload
-        confidential images or images you do not have permission to publish.
+        Publishing makes the image publicly retrievable through an approved-image endpoint. Do not
+        upload confidential images or images you do not have permission to publish.
       </p>
     </main>
   );

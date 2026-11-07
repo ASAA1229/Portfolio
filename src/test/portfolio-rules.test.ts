@@ -27,8 +27,8 @@ describe("Portfolio factual and contact rules", () => {
       for (const image of profile.gallery) imagePaths.add(image.src);
     }
 
-    const missing = [...imagePaths].filter((assetPath) =>
-      !existsSync(resolve(process.cwd(), "public", assetPath.replace(/^\/+/, ""))),
+    const missing = [...imagePaths].filter(
+      (assetPath) => !existsSync(resolve(process.cwd(), "public", assetPath.replace(/^\/+/, ""))),
     );
 
     expect(missing).toEqual([]);
@@ -90,66 +90,113 @@ describe("Portfolio factual and contact rules", () => {
     expect(contactSchema.safeParse({ ...valid, message: "x".repeat(2001) }).success).toBe(false);
   });
   it("normalizes published resume highlights and rejects malformed or cross-profile records", () => {
-    const normalized = normalizePublishedResumeHighlights({
-      resumes: [
-        { id: "resume-1", profileId: "ammu", displayName: "Amulya", headline: "Analyst", summary: "Profile summary", skills: ["SQL", 42, "Python", "", "x".repeat(81)] },
-        { id: "resume-2", profileId: "sai", displayName: "Sai", headline: "Developer", summary: "Other profile", skills: ["Java"] },
-        { id: "resume-3", profileId: "ammu", displayName: {}, headline: "Invalid", summary: "Invalid display name", skills: ["Java"] },
-        null,
-      ],
-    }, "ammu");
+    const normalized = normalizePublishedResumeHighlights(
+      {
+        resumes: [
+          {
+            id: "resume-1",
+            profileId: "ammu",
+            displayName: "Amulya",
+            headline: "Analyst",
+            summary: "Profile summary",
+            skills: ["SQL", 42, "Python", "", "x".repeat(81)],
+          },
+          {
+            id: "resume-2",
+            profileId: "sai",
+            displayName: "Sai",
+            headline: "Developer",
+            summary: "Other profile",
+            skills: ["Java"],
+          },
+          {
+            id: "resume-3",
+            profileId: "ammu",
+            displayName: {},
+            headline: "Invalid",
+            summary: "Invalid display name",
+            skills: ["Java"],
+          },
+          null,
+        ],
+      },
+      "ammu",
+    );
 
-    expect(normalized).toEqual([{
-      id: "resume-1",
-      profileId: "ammu",
-      displayName: "Amulya",
-      headline: "Analyst",
-      summary: "Profile summary",
-      skills: ["SQL", "Python"],
-    }]);
+    expect(normalized).toEqual([
+      {
+        id: "resume-1",
+        profileId: "ammu",
+        displayName: "Amulya",
+        headline: "Analyst",
+        summary: "Profile summary",
+        skills: ["SQL", "Python"],
+      },
+    ]);
   });
 
   it("bounds published resume skills and safely handles unexpected API payloads", () => {
     const skills = Array.from({ length: 25 }, (_, index) => `Skill ${index}`);
-    const normalized = normalizePublishedResumeHighlights({
-      resumes: [{ id: "resume-1", profileId: "bava", displayName: "Anjini", headline: "", summary: "", skills }],
-    }, "bava");
+    const normalized = normalizePublishedResumeHighlights(
+      {
+        resumes: [
+          {
+            id: "resume-1",
+            profileId: "bava",
+            displayName: "Anjini",
+            headline: "",
+            summary: "",
+            skills,
+          },
+        ],
+      },
+      "bava",
+    );
 
     expect(normalized[0]?.skills).toHaveLength(20);
     expect(normalizePublishedResumeHighlights(null, "bava")).toEqual([]);
     expect(normalizePublishedResumeHighlights({ resumes: "not-an-array" }, "bava")).toEqual([]);
   });
 
-
   it("validates published profile resume details and bounds structured sections", async () => {
     const { normalizePublishedProfileResume } = await import("@/lib/published-resume");
-    const normalized = normalizePublishedProfileResume({
-      resumes: [
-        {
-          id: "newer",
-          profileId: "ammu",
-          displayName: "Amulya",
-          headline: "Data Analyst",
-          summary: "Profile summary",
-          skills: ["SQL", 12, "Python", "x".repeat(81)],
-          uploadedAt: "not-a-date",
-          structuredSections: {
-            experience: ["Analyst role", 42, " "],
-            education: ["B.Tech"],
-            ignored: ["must not be surfaced"],
+    const normalized = normalizePublishedProfileResume(
+      {
+        resumes: [
+          {
+            id: "newer",
+            profileId: "ammu",
+            displayName: "Amulya",
+            headline: "Data Analyst",
+            summary: "Profile summary",
+            skills: ["SQL", 12, "Python", "x".repeat(81)],
+            uploadedAt: "not-a-date",
+            structuredSections: {
+              experience: ["Analyst role", 42, " "],
+              education: ["B.Tech"],
+              ignored: ["must not be surfaced"],
+            },
           },
-        },
-        {
-          id: "other-profile",
-          profileId: "sai",
-          displayName: "Sai",
-          headline: "Developer",
-          summary: "Private to another profile",
-          skills: ["Java"],
-        },
-        { id: "invalid", profileId: "ammu", displayName: " ", headline: "Bad", summary: "Bad", skills: [] },
-      ],
-    }, "ammu");
+          {
+            id: "other-profile",
+            profileId: "sai",
+            displayName: "Sai",
+            headline: "Developer",
+            summary: "Private to another profile",
+            skills: ["Java"],
+          },
+          {
+            id: "invalid",
+            profileId: "ammu",
+            displayName: " ",
+            headline: "Bad",
+            summary: "Bad",
+            skills: [],
+          },
+        ],
+      },
+      "ammu",
+    );
 
     expect(normalized).toEqual({
       id: "newer",
@@ -167,21 +214,73 @@ describe("Portfolio factual and contact rules", () => {
 
   it("accepts only same-origin published portrait paths for the matching profile", async () => {
     const { normalizePublishedPortrait } = await import("@/lib/published-resume");
-    expect(normalizePublishedPortrait({ images: [
-      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000" },
-      { profileId: "sai", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001" },
-    ] }, "ammu")).toBe("/api/published-images/123e4567-e89b-12d3-a456-426614174000");
-    expect(normalizePublishedPortrait({ images: [
-      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-02d3-a456-426614174000" },
-      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567-e89b-12d3-c456-426614174000" },
-      { profileId: "ammu", slot: "portrait", src: "/api/published-images/123e4567e89b12d3a456426614174000" },
-    ] }, "ammu")).toBeNull();
-    expect(normalizePublishedPortrait({ images: [
-      { profileId: "ammu", slot: "portrait", src: "https://attacker.example/image.png" },
-    ] }, "ammu")).toBeNull();
-    expect(normalizePublishedPortrait({ images: [
-      { profileId: "ammu", slot: "gallery", src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000" },
-    ] }, "ammu")).toBeNull();
+    expect(
+      normalizePublishedPortrait(
+        {
+          images: [
+            {
+              profileId: "ammu",
+              slot: "portrait",
+              src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000",
+            },
+            {
+              profileId: "sai",
+              slot: "portrait",
+              src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001",
+            },
+          ],
+        },
+        "ammu",
+      ),
+    ).toBe("/api/published-images/123e4567-e89b-12d3-a456-426614174000");
+    expect(
+      normalizePublishedPortrait(
+        {
+          images: [
+            {
+              profileId: "ammu",
+              slot: "portrait",
+              src: "/api/published-images/123e4567-e89b-02d3-a456-426614174000",
+            },
+            {
+              profileId: "ammu",
+              slot: "portrait",
+              src: "/api/published-images/123e4567-e89b-12d3-c456-426614174000",
+            },
+            {
+              profileId: "ammu",
+              slot: "portrait",
+              src: "/api/published-images/123e4567e89b12d3a456426614174000",
+            },
+          ],
+        },
+        "ammu",
+      ),
+    ).toBeNull();
+    expect(
+      normalizePublishedPortrait(
+        {
+          images: [
+            { profileId: "ammu", slot: "portrait", src: "https://attacker.example/image.png" },
+          ],
+        },
+        "ammu",
+      ),
+    ).toBeNull();
+    expect(
+      normalizePublishedPortrait(
+        {
+          images: [
+            {
+              profileId: "ammu",
+              slot: "gallery",
+              src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000",
+            },
+          ],
+        },
+        "ammu",
+      ),
+    ).toBeNull();
     expect(normalizePublishedPortrait(null, "ammu")).toBeNull();
   });
 
@@ -189,20 +288,51 @@ describe("Portfolio factual and contact rules", () => {
     const { normalizePublishedProfileResume } = await import("@/lib/published-resume");
     const payload = {
       resumes: [
-        { id: "old", profileId: "bava", displayName: "Anjini", headline: "Old", summary: "Old", skills: [], uploadedAt: "2025-01-01" },
-        { id: "new", profileId: "bava", displayName: "Anjini", headline: "New", summary: "New", skills: [], uploadedAt: "2026-01-01" },
+        {
+          id: "old",
+          profileId: "bava",
+          displayName: "Anjini",
+          headline: "Old",
+          summary: "Old",
+          skills: [],
+          uploadedAt: "2025-01-01",
+        },
+        {
+          id: "new",
+          profileId: "bava",
+          displayName: "Anjini",
+          headline: "New",
+          summary: "New",
+          skills: [],
+          uploadedAt: "2026-01-01",
+        },
       ],
     };
     expect(normalizePublishedProfileResume(payload, "bava")?.id).toBe("new");
     const undatedFirst = {
       resumes: [
-        { id: "undated", profileId: "bava", displayName: "Anjini", headline: "Undated", summary: "No valid timestamp", skills: [], uploadedAt: "not-a-date" },
-        { id: "dated", profileId: "bava", displayName: "Anjini", headline: "Dated", summary: "Valid timestamp", skills: [], uploadedAt: "2026-01-01" },
+        {
+          id: "undated",
+          profileId: "bava",
+          displayName: "Anjini",
+          headline: "Undated",
+          summary: "No valid timestamp",
+          skills: [],
+          uploadedAt: "not-a-date",
+        },
+        {
+          id: "dated",
+          profileId: "bava",
+          displayName: "Anjini",
+          headline: "Dated",
+          summary: "Valid timestamp",
+          skills: [],
+          uploadedAt: "2026-01-01",
+        },
       ],
     };
     expect(normalizePublishedProfileResume(undatedFirst, "bava")?.id).toBe("dated");
     expect(normalizePublishedProfileResume([], "bava")).toBeNull();
     expect(normalizePublishedProfileResume({ resumes: "invalid" }, "bava")).toBeNull();
   });
-
 });

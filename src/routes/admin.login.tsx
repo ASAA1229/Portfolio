@@ -28,7 +28,7 @@ function AdminLogin() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const payload = await response.json().catch(() => ({})) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
         setError(payload.error ?? "Unable to sign in.");
         return;
@@ -47,13 +47,18 @@ function AdminLogin() {
         <div className="mb-8 flex size-12 items-center justify-center border border-violet-400/30 bg-violet-400/10 text-violet-200">
           <LockKeyhole className="size-5" />
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-300">Restricted workspace</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-300">
+          Restricted workspace
+        </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Private admin access</h1>
         <p className="mt-3 text-sm leading-6 text-white/60">
-          Sign in to manage private resume records. This area is not linked from the public portfolio.
+          Sign in to manage private resume records. This area is not linked from the public
+          portfolio.
         </p>
         <form onSubmit={submit} className="mt-8 space-y-4">
-          <label htmlFor="admin-password" className="block text-xs font-medium text-white/75">Admin password</label>
+          <label htmlFor="admin-password" className="block text-xs font-medium text-white/75">
+            Admin password
+          </label>
           <input
             id="admin-password"
             type="password"
@@ -65,7 +70,11 @@ function AdminLogin() {
             className="min-h-12 w-full border border-white/15 bg-black/30 px-4 text-sm outline-none transition focus:border-violet-300"
             placeholder="Enter your admin password"
           />
-          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red-300">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={busy || password.length === 0}

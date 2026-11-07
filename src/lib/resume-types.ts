@@ -30,20 +30,44 @@ export const RESUME_SECTION_NAMES: ResumeSectionName[] = [
 export function createEmptyResumeEntry(section: ResumeSectionName): StructuredResumeEntry {
   switch (section) {
     case "experience":
-      return { role: "", organization: "", location: "", startDate: "", endDate: "", description: "", technologies: [] };
+      return {
+        role: "",
+        organization: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        description: "",
+        technologies: [],
+      };
     case "education":
-      return { title: "", organization: "", location: "", startDate: "", endDate: "", grade: "", description: "" };
+      return {
+        title: "",
+        organization: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        grade: "",
+        description: "",
+      };
     case "projects":
       return { title: "", role: "", description: "", technologies: [], url: "" };
     case "certifications":
-      return { title: "", organization: "", startDate: "", credentialId: "", url: "", description: "" };
+      return {
+        title: "",
+        organization: "",
+        startDate: "",
+        credentialId: "",
+        url: "",
+        description: "",
+      };
   }
 }
 
 export function resumeEntryHasContent(entry: ResumeSectionEntry): boolean {
   if (typeof entry === "string") return entry.trim().length > 0;
   return Object.entries(entry).some(([key, value]) =>
-    Array.isArray(value) ? value.some((item) => item.trim()) :
-      typeof value === "string" && value.trim().length > 0,
+    Array.isArray(value)
+      ? value.some((item) => item.trim())
+      : typeof value === "string" && value.trim().length > 0,
   );
 }

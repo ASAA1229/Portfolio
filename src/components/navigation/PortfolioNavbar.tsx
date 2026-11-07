@@ -48,33 +48,33 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   const projectsTo: string = isPerson && personId ? `/people/${personId}/projects` : "/projects";
 
   // Exact 8 items in required order: Home, About, Skills, Projects, Experience, Certifications, Education, Contact
-  const links: NavItem[] = isPerson && personId
-    ? [
-        { to: `/people/${personId}`, label: "Home", exact: true },
-        { to: `/people/${personId}/about`, label: "About" },
-        { to: `/people/${personId}/skills`, label: "Skills" },
-        { to: `/people/${personId}/projects`, label: "Projects" },
-        { to: `/people/${personId}/experience`, label: "Experience" },
-        { to: `/people/${personId}/certifications`, label: "Certifications" },
-        { to: `/people/${personId}/education`, label: "Education" },
-        { to: `/people/${personId}/contact`, label: "Contact" },
-      ]
-    : [
-        { to: "/", label: "Home", exact: true },
-        { to: "/about", label: "About" },
-        { to: "/skills", label: "Skills" },
-        { to: "/projects", label: "Projects" },
-        { to: "/experience", label: "Experience" },
-        { to: "/certifications", label: "Certifications" },
-        { to: "/education", label: "Education" },
-        { to: "/contact", label: "Contact" },
-      ];
+  const links: NavItem[] =
+    isPerson && personId
+      ? [
+          { to: `/people/${personId}`, label: "Home", exact: true },
+          { to: `/people/${personId}/about`, label: "About" },
+          { to: `/people/${personId}/skills`, label: "Skills" },
+          { to: `/people/${personId}/projects`, label: "Projects" },
+          { to: `/people/${personId}/experience`, label: "Experience" },
+          { to: `/people/${personId}/certifications`, label: "Certifications" },
+          { to: `/people/${personId}/education`, label: "Education" },
+          { to: `/people/${personId}/contact`, label: "Contact" },
+        ]
+      : [
+          { to: "/", label: "Home", exact: true },
+          { to: "/about", label: "About" },
+          { to: "/skills", label: "Skills" },
+          { to: "/projects", label: "Projects" },
+          { to: "/experience", label: "Experience" },
+          { to: "/certifications", label: "Certifications" },
+          { to: "/education", label: "Education" },
+          { to: "/contact", label: "Contact" },
+        ];
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";
   const contactTo = isPerson && personId ? `/people/${personId}/contact` : "/contact";
-  const brandLabel = isPerson && person?.displayName
-    ? `${person.displayName} portfolio home`
-    : "Guda Abhishek home";
+  const brandLabel =
+    isPerson && person?.displayName ? `${person.displayName} portfolio home` : "Guda Abhishek home";
 
   const handleAiIntroClick = () => {
     setMenu(false);
@@ -169,11 +169,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
           </Button>
 
           {/* 4. Let's talk contact button */}
-          <Button
-            asChild
-            variant="outline"
-            className="site-nav-talk hidden xl:inline-flex"
-          >
+          <Button asChild variant="outline" className="site-nav-talk hidden xl:inline-flex">
             <Link to={contactTo}>
               Let&apos;s talk <ArrowUpRight aria-hidden="true" />
             </Link>
@@ -204,12 +200,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
           className="site-container site-mobile-nav grid grid-cols-2 gap-2 py-4 lg:hidden"
         >
           {links.map(({ to, label, exact }) => (
-            <Button
-              key={to}
-              asChild
-              variant="ghost"
-              className="min-h-11 justify-start text-sm"
-            >
+            <Button key={to} asChild variant="ghost" className="min-h-11 justify-start text-sm">
               <Link
                 to={to}
                 activeOptions={{ exact: Boolean(exact) }}
@@ -236,25 +227,14 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             <span>AI Intro</span>
           </Button>
 
-          <Button
-            asChild
-            variant="ghost"
-            className="min-h-11 justify-start gap-2 text-sm"
-          >
-            <Link
-              to={projectsTo}
-              onClick={() => setMenu(false)}
-            >
+          <Button asChild variant="ghost" className="min-h-11 justify-start gap-2 text-sm">
+            <Link to={projectsTo} onClick={() => setMenu(false)}>
               <Clapperboard className="size-4" aria-hidden="true" />
               <span>Explore projects</span>
             </Link>
           </Button>
 
-          <Button
-            asChild
-            variant="ghost"
-            className="min-h-11 justify-start gap-2 text-sm"
-          >
+          <Button asChild variant="ghost" className="min-h-11 justify-start gap-2 text-sm">
             <Link to="/profiles" onClick={() => setMenu(false)}>
               <UsersRound className="size-4" aria-hidden="true" />
               <span>Choose profile</span>
@@ -290,11 +270,7 @@ function AiIntroModal({
 }) {
   return (
     <div className="sr-only">
-      <AiIntro
-        controlledOpen={open}
-        onControlledOpenChange={onOpenChange}
-      />
+      <AiIntro controlledOpen={open} onControlledOpenChange={onOpenChange} />
     </div>
   );
 }
-

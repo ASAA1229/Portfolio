@@ -5,7 +5,12 @@ type SecretEnv = Record<string, unknown>;
 
 function secret(name: string, env?: unknown): string | undefined {
   const runtimeValue = env && typeof env === "object" ? (env as SecretEnv)[name] : undefined;
-  const value = typeof runtimeValue === "string" ? runtimeValue : typeof process !== "undefined" ? process.env[name] : undefined;
+  const value =
+    typeof runtimeValue === "string"
+      ? runtimeValue
+      : typeof process !== "undefined"
+        ? process.env[name]
+        : undefined;
   return value?.trim() || undefined;
 }
 
@@ -33,7 +38,9 @@ async function hmac(value: string, key: string): Promise<Uint8Array> {
     false,
     ["sign", "verify"],
   );
-  return new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(value)));
+  return new Uint8Array(
+    await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(value)),
+  );
 }
 
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
@@ -44,7 +51,9 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 export function adminAuthConfigured(env?: unknown): boolean {
-  return Boolean(secret("PORTFOLIO_ADMIN_PASSWORD", env) && secret("PORTFOLIO_ADMIN_SESSION_SECRET", env));
+  return Boolean(
+    secret("PORTFOLIO_ADMIN_PASSWORD", env) && secret("PORTFOLIO_ADMIN_SESSION_SECRET", env),
+  );
 }
 
 export async function verifyAdminPassword(password: string, env?: unknown): Promise<boolean> {
@@ -69,8 +78,11 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
   const key = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   if (!key) return false;
   const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookie = cookieHeader.split(";").map((part) => part.trim())
-    .find((part) => part.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
+  const cookie = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${COOKIE_NAME}=`))
+    ?.slice(COOKIE_NAME.length + 1);
   if (!cookie) return false;
 
   // A SHA-256 HMAC has a fixed 32-byte signature (43 unpadded base64url
@@ -88,7 +100,8 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
     bytesToBase64Url(signature) !== encodedSignature ||
     !Number.isSafeInteger(expiry) ||
     expiry <= Math.floor(Date.now() / 1000)
-  ) return false;
+  )
+    return false;
   return constantTimeEqual(signature, await hmac(payload, key));
 }
 

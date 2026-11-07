@@ -24,14 +24,20 @@ function Home() {
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : { images: [] })
+      .then((response) => (response.ok ? response.json() : { images: [] }))
       .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
         if (!active) return;
-        const portraits = (payload.images ?? []).filter((image) => image.profileId === "abhishek" && image.slot === "portrait");
+        const portraits = (payload.images ?? []).filter(
+          (image) => image.profileId === "abhishek" && image.slot === "portrait",
+        );
         setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
       })
-      .catch(() => { if (active) setPublishedPortrait(null); });
-    return () => { active = false; };
+      .catch(() => {
+        if (active) setPublishedPortrait(null);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   return (
     <>
@@ -58,10 +64,17 @@ function Home() {
                 <span className="text-primary">.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg font-semibold leading-7">
-                {publishedResume?.headline || <>Software Engineer<br /><span className="text-violet">AI & Full-Stack Developer</span></>}
+                {publishedResume?.headline || (
+                  <>
+                    Software Engineer
+                    <br />
+                    <span className="text-violet">AI & Full-Stack Developer</span>
+                  </>
+                )}
               </p>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                {publishedResume?.summary || "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
+                {publishedResume?.summary ||
+                  "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild className="min-h-11 px-5">

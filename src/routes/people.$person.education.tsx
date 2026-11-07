@@ -13,7 +13,10 @@ export const Route = createFileRoute("/people/$person/education")({
   head: ({ params }) => ({
     meta: [
       { title: `Education — ${getPersonPortfolio(params.person)?.name ?? "Portfolio"}` },
-      { name: "description", content: "Academic education and training for this portfolio profile." },
+      {
+        name: "description",
+        content: "Academic education and training for this portfolio profile.",
+      },
       { name: "robots", content: "index, follow" },
     ],
   }),
@@ -24,5 +27,9 @@ export const Route = createFileRoute("/people/$person/education")({
 function EducationSection() {
   const { person } = Route.useParams();
   const profile = getPersonPortfolio(person);
-  return profile ? <PersonContent profile={profile} section="education" /> : <PersonUnavailable missing />;
+  return profile ? (
+    <PersonContent profile={profile} section="education" />
+  ) : (
+    <PersonUnavailable missing />
+  );
 }
