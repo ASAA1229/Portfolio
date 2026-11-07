@@ -1,4 +1,4 @@
-import { usePublishedProfileResume } from "@/lib/published-resume";
+import type { PublishedProfileResume } from "@/lib/published-resume";
 import { Award, BriefcaseBusiness, Code2, GraduationCap, FolderKanban } from "lucide-react";
 import { TechnologyList } from "@/components/TechLogo";
 import { ResumeEntryCard } from "@/components/ResumeEntryCard";
@@ -16,11 +16,12 @@ const sectionMeta = {
 export function PublishedResumePanel({
   profileId,
   section,
+  resume,
 }: {
   profileId: string;
   section: ResumeSection;
+  resume: PublishedProfileResume | null;
 }) {
-  const resume = usePublishedProfileResume(profileId);
   if (!resume) return null;
 
   const Icon = sectionMeta[section].icon;
