@@ -1,5 +1,16 @@
 import "./lib/error-capture";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import {
+  appendHistory,
+  emptyHistory,
+  historyKey,
+  isPublicProfileId,
+  isPublishHistory,
+  planRollback,
+  snapshotOf,
+  type ProfileId,
+  type PublishHistory,
+} from "@/lib/resume-publish-history";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -566,6 +577,110 @@ async function writePublishedResumeFeed(
   );
 }
 
+async function readPublishHistory(
+  bucket: PrivateBucket,
+  profileId: ProfileId,
+): Promise<PublishHistory> {
+  const object = await bucket.get(historyKey(profileId));
+  if (!object) return emptyHistory(profileId);
+  const value = await object.json<unknown>();
+  if (!isPublishHistory(value, profileId)) {
+    throw new Error("Stored publish history failed integrity validation.");
+  }
+  return value;
+}
+
+async function writePublishHistory(bucket: PrivateBucket, history: PublishHistory): Promise<void> {
+  await bucket.put(historyKey(history.profileId), JSON.stringify(history), {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+  });
+}
+
+class StorageCommitError extends Error {
+  constructor(
+    readonly restored: boolean,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : "Storage write failed.");
+  }
+}
+
+/**
+ * Persist a resume state change: private index, then public feed, then publish
+ * history. If any write fails, already-applied writes are reverted in reverse order
+ * so the public feed never references a state the private index does not hold.
+ */
+async function commitResumeState(
+  bucket: PrivateBucket,
+  before: ResumeRecord[],
+  after: ResumeRecord[],
+  history?: { before: PublishHistory; after: PublishHistory },
+): Promise<void> {
+  const steps: Array<{ apply: () => Promise<void>; undo: () => Promise<void> }> = [
+    { apply: () => writeResumeIndex(bucket, after), undo: () => writeResumeIndex(bucket, before) },
+    {
+      apply: () => writePublishedResumeFeed(bucket, after),
+      undo: () => writePublishedResumeFeed(bucket, before),
+    },
+  ];
+  if (history) {
+    steps.push({
+      apply: () => writePublishHistory(bucket, history.after),
+      undo: () => writePublishHistory(bucket, history.before),
+    });
+  }
+  const applied: typeof steps = [];
+  for (const step of steps) {
+    try {
+      await step.apply();
+      applied.push(step);
+    } catch (error) {
+      let restored = true;
+      for (const done of applied.reverse()) {
+        try {
+          await done.undo();
+        } catch (undoError) {
+          restored = false;
+          console.error("Could not revert a partial resume storage update.", undoError);
+        }
+      }
+      throw new StorageCommitError(restored, error);
+    }
+  }
+}
+
+function storageFailure(error: unknown, operation: string): Response {
+  const restored = error instanceof StorageCommitError ? error.restored : false;
+  console.error(`Resume ${operation} failed while writing storage.`, error);
+  return jsonResponse(
+    {
+      error: restored
+        ? `The ${operation} could not be saved. Nothing was changed; please retry.`
+        : `The ${operation} failed part-way and could not be fully reverted. Refresh and review the published state before retrying.`,
+      code: "RESUME_STORAGE_COMMIT_FAILED",
+      restored,
+      ...(import.meta.env.DEV === true
+        ? { detail: error instanceof Error ? error.message : "Unknown storage error." }
+        : {}),
+    },
+    500,
+  );
+}
+
+function imageStorageFailure(error: unknown, operation: string): Response {
+  console.error(`Portfolio image ${operation} failed while writing the index.`, error);
+  return jsonResponse(
+    {
+      error: `The image ${operation} could not be saved. The previous state was restored; please retry.`,
+      code: "IMAGE_STORAGE_COMMIT_FAILED",
+      ...(import.meta.env.DEV === true
+        ? { detail: error instanceof Error ? error.message : "Unknown storage error." }
+        : {}),
+    },
+    500,
+  );
+}
+
 function bucketNotConfigured(): Response {
   return jsonResponse(
     {
@@ -720,12 +835,99 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
   }
 
+  // Publish history for one profile (public fields + timestamps only).
+  if (path === "/api/admin/resumes/history" && request.method === "GET") {
+    const profileId = new URL(request.url).searchParams.get("profileId");
+    if (!isPublicProfileId(profileId)) {
+      return jsonResponse({ error: "Choose a public profile." }, 400);
+    }
+    const history = await readPublishHistory(bucket, profileId);
+    const records = await readResumeIndex(bucket);
+    const current = records.find((item) => item.profileId === profileId && item.status === "approved");
+    return jsonResponse(
+      {
+        profileId,
+        currentResumeId: current?.id ?? null,
+        entries: history.entries
+          .map(({ resumeId, publishedAt, displayName, headline }) => ({
+            resumeId,
+            publishedAt,
+            displayName,
+            headline,
+            resumeStillStored: records.some((item) => item.id === resumeId),
+          }))
+          .reverse(),
+      },
+      200,
+    );
+  }
+
+  // Restore the previously published version for a profile.
+  if (path === "/api/admin/resumes/rollback" && request.method === "POST") {
+    const boundedRequest = await limitRequestBody(request, 4 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    const payload = (await boundedRequest.json().catch(() => null)) as { profileId?: unknown } | null;
+    const profileId = payload?.profileId;
+    if (!isPublicProfileId(profileId)) {
+      return jsonResponse({ error: "Choose a public profile to roll back." }, 400);
+    }
+    const records = await readResumeIndex(bucket);
+    const history = await readPublishHistory(bucket, profileId);
+    const current = records.find((item) => item.profileId === profileId && item.status === "approved");
+    const plan = planRollback(history, current?.id);
+    if (!plan.ok) return jsonResponse({ error: plan.reason }, 409);
+    const targetIndex = records.findIndex((item) => item.id === plan.target.resumeId);
+    if (targetIndex < 0) {
+      return jsonResponse(
+        {
+          error:
+            "The earlier version's resume record was deleted, so it cannot be restored. Upload and publish it again.",
+        },
+        409,
+      );
+    }
+    const target = records[targetIndex]!;
+    const after = records.map((item) =>
+      item.profileId === profileId && item.status === "approved" && item.id !== target.id
+        ? { ...item, status: "pending" as const }
+        : item,
+    );
+    after[targetIndex] = {
+      ...target,
+      profileId,
+      displayName: plan.target.displayName,
+      headline: plan.target.headline,
+      summary: plan.target.summary,
+      skills: [...plan.target.skills],
+      contact: plan.target.contact,
+      structuredSections:
+        (plan.target.structuredSections as ResumeRecord["structuredSections"]) ??
+        target.structuredSections,
+      status: "approved",
+    };
+    try {
+      await commitResumeState(bucket, records, after, { before: history, after: plan.remaining });
+    } catch (error) {
+      return storageFailure(error, "rollback");
+    }
+    // Operational log without private review notes or resume content.
+    console.info("Portfolio resume rolled back.", {
+      profileId,
+      from: current?.id ?? null,
+      to: target.id,
+      restoredPublishedAt: plan.target.publishedAt,
+    });
+    return jsonResponse({ resume: after[targetIndex], restoredFrom: plan.target.publishedAt }, 200);
+  }
+
   const match = path.match(
     /^\/api\/admin\/resumes\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(?:\/(download|extract|publish|draft|unpublish))?$/i,
   );
   if (match) {
     const [, id, action] = match;
     const records = await readResumeIndex(bucket);
+    // Snapshot of the stored state, used to revert partial writes.
+    const original = records.map((item) => ({ ...item }));
     const index = records.findIndex((record) => record.id === id);
     if (index < 0) return privateNotFound();
     const record = records[index];
@@ -847,16 +1049,23 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         ),
         status: "pending",
       };
-      await writePublishedResumeFeed(bucket, records);
-      await writeResumeIndex(bucket, records);
+      try {
+        await commitResumeState(bucket, original, records);
+      } catch (error) {
+        return storageFailure(error, "draft save");
+      }
       return jsonResponse({ resume: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
       if (record.status !== "approved")
         return jsonResponse({ error: "This resume is not currently published." }, 409);
+      // Public visibility is removed; the private original and history are kept.
       records[index] = { ...record, status: "pending" };
-      await writePublishedResumeFeed(bucket, records);
-      await writeResumeIndex(bucket, records);
+      try {
+        await commitResumeState(bucket, original, records);
+      } catch (error) {
+        return storageFailure(error, "unpublish");
+      }
       return jsonResponse({ resume: records[index] }, 200);
     }
 
@@ -937,15 +1146,47 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         ),
         status: "approved",
       };
-      await writeResumeIndex(bucket, records);
-      await writePublishedResumeFeed(bucket, records);
-      return jsonResponse({ resume: records[index] }, 200);
+      const published = records[index]!;
+      const profileId = published.profileId as ProfileId;
+      // One published resume per profile: an earlier publication is superseded
+      // (kept privately and in history) rather than silently left alongside.
+      const supersededIds: string[] = [];
+      for (let i = 0; i < records.length; i++) {
+        const item = records[i]!;
+        if (i !== index && item.profileId === profileId && item.status === "approved") {
+          records[i] = { ...item, status: "pending" };
+          supersededIds.push(item.id);
+        }
+      }
+      let historyBefore: PublishHistory;
+      try {
+        historyBefore = await readPublishHistory(bucket, profileId);
+      } catch (error) {
+        return storageFailure(error, "publish");
+      }
+      const historyAfter = appendHistory(
+        historyBefore,
+        snapshotOf(published, new Date().toISOString()),
+      );
+      try {
+        await commitResumeState(bucket, original, records, {
+          before: historyBefore,
+          after: historyAfter,
+        });
+      } catch (error) {
+        return storageFailure(error, "publish");
+      }
+      return jsonResponse({ resume: published, supersededIds }, 200);
     }
 
     if (request.method === "DELETE" && !action) {
       records.splice(index, 1);
-      await writePublishedResumeFeed(bucket, records);
-      await writeResumeIndex(bucket, records);
+      try {
+        await commitResumeState(bucket, original, records);
+      } catch (error) {
+        return storageFailure(error, "delete");
+      }
+      // The private file is removed only after nothing references it.
       await bucket.delete(fileKey);
       return jsonResponse({ ok: true }, 200);
     }
@@ -1245,27 +1486,62 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (action === "publish" && request.method === "POST") {
       const object = await bucket.get(`private-admin/images/files/${id}`);
       if (!object) return privateNotFound();
-      await bucket.put(`public/profile-images/${id}`, await object.arrayBuffer(), {
+      const bytes = await object.arrayBuffer();
+      await bucket.put(`public/profile-images/${id}`, bytes, {
         httpMetadata: { contentType: record.contentType },
       });
       records[index] = { ...record, status: "approved" };
-      await writeImageIndex(bucket, records);
+      try {
+        await writeImageIndex(bucket, records);
+      } catch (error) {
+        // Do not leave an orphaned public copy that the index does not reference.
+        await bucket.delete(`public/profile-images/${id}`).catch(() => undefined);
+        return imageStorageFailure(error, "publish");
+      }
       return jsonResponse({ image: records[index] }, 200);
     }
     if (action === "unpublish" && request.method === "POST") {
       if (record.status !== "approved")
         return jsonResponse({ error: "This image is not currently published." }, 409);
+      const publicCopy = await bucket.get(`public/profile-images/${id}`);
+      const publicBytes = publicCopy ? await publicCopy.arrayBuffer() : null;
       await bucket.delete(`public/profile-images/${id}`);
       records[index] = { ...record, status: "pending" };
-      await writeImageIndex(bucket, records);
+      try {
+        await writeImageIndex(bucket, records);
+      } catch (error) {
+        // The index still says "approved": restore the public copy so it is not broken.
+        if (publicBytes) {
+          await bucket
+            .put(`public/profile-images/${id}`, publicBytes, {
+              httpMetadata: { contentType: record.contentType },
+            })
+            .catch(() => undefined);
+        }
+        return imageStorageFailure(error, "unpublish");
+      }
       return jsonResponse({ image: records[index] }, 200);
     }
     if (!action && request.method === "DELETE") {
-      // Remove public bytes before changing the index; a failed index write can
-      // leave an approved record temporarily unavailable, but never publicly served.
+      // Remove public bytes before changing the index; if the index write then fails,
+      // the public copy is restored so an approved record never points at nothing.
+      const publicCopy =
+        record.status === "approved" ? await bucket.get(`public/profile-images/${id}`) : null;
+      const publicBytes = publicCopy ? await publicCopy.arrayBuffer() : null;
       await bucket.delete(`public/profile-images/${id}`);
       records.splice(index, 1);
-      await writeImageIndex(bucket, records);
+      try {
+        await writeImageIndex(bucket, records);
+      } catch (error) {
+        if (publicBytes) {
+          await bucket
+            .put(`public/profile-images/${id}`, publicBytes, {
+              httpMetadata: { contentType: record.contentType },
+            })
+            .catch(() => undefined);
+        }
+        return imageStorageFailure(error, "delete");
+      }
       // Private cleanup happens only after the public index no longer references the image.
       await bucket.delete(`private-admin/images/files/${id}`);
       return jsonResponse({ ok: true }, 200);
