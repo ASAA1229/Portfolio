@@ -5,6 +5,16 @@
 **Status snapshot:** 2026-11-07  
 **Overall status:** IN PROGRESS — substantial portfolio and DevOps source implementation exists; runtime verification, quality acceptance and production release are incomplete.
 
+## Documentation status checkpoint — 2026-11-07 (authoritative)
+
+- **Development:** STOPPED by owner instruction. Only project documentation is being updated.
+- **Testing/validation:** PAUSED. No tests, build, lint, browser checks, CI/Jenkins runs, artifact verification or deployment were performed for this refresh.
+- **Implemented in source, not verified:** four-profile portfolio foundations; shared profile/section rendering; profile-aware AI context/chat and stream cancellation; published-resume normalization and selected section precedence; asset/profile integrity checks; admin resume/image upload foundations and improved multipart handling/diagnostics; provenance, SHA-256, archive/customer verification, SBOM/signing and release-disposition utilities.
+- **Partially implemented:** complete route/content consistency, admin security and resume/image lifecycle, AI provider/runtime behavior, responsive/accessibility behavior, and operational CI/artifact workflows.
+- **Known open issue:** the previously reported `/admin/images` 404 has not been confirmed resolved. Recent upload-related source fixes do not substitute for a browser/API check.
+- **Not complete:** full route matrix and four-profile content acceptance, secure admin publish/unpublish/rollback lifecycle, complete accessibility/performance/SEO review, exact-head CI and artifact acceptance, and production release.
+- No story is accepted until its criteria are evidenced on the exact branch revision. Test files and source changes alone are not acceptance evidence.
+
 ## Read this first — what this project is
 
 This project is a cinematic, Netflix-inspired multi-person portfolio website for four profiles: Abhishek, Amulya, Anjini and Sai. It provides a shared visual system with profile-specific identity, biography, skills, projects, experience, education, certifications and contact information.
@@ -41,7 +51,7 @@ A route/component or test file existing does not prove the page works in a brows
 
 The current `new` branch contains source implementation for the four-profile experience, shared section rendering, profile-aware AI context, streaming and cancellation safeguards, published-resume content precedence, profile asset integrity checks, and shared DevOps/artifact-integrity utilities.
 
-The latest recorded portfolio increment (2026-11-07) makes Abhishek's Skills, Projects, Experience, Education and Certifications pages prefer valid published resume sections, while retaining curated static content as fallback. The shared published-resume panel receives normalized profile-scoped data from its caller. Other profiles continue through the shared profile-aware renderer with static fallback.
+The latest recorded portfolio increment (2026-11-07) makes Abhishek's Skills, Projects, Experience, Education and Certifications pages prefer valid published resume sections, while retaining curated static content as fallback. Recent same-day source increments also align section navigation with published content and harden admin resume/image multipart upload handling with clearer diagnostics; these changes remain runtime-unverified. The shared published-resume panel receives normalized profile-scoped data from its caller. Other profiles continue through the shared profile-aware renderer with static fallback.
 
 The DevOps implementation includes provenance and release identity, manifest and SHA-256 validation, archive-backed `.tar.gz` verification, structured customer verification reports, SBOM/signing foundations, and operator-invoked quarantine/recovery evidence records. These are source-level implementation claims, not evidence of successful pipeline execution.
 
