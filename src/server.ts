@@ -84,7 +84,14 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
-async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
+export async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
+  // Snapshot request metadata before consuming the body. Some runtimes (srvx on
+  // Node, used by `vite dev`/preview) build the underlying Request lazily on the
+  // first access to properties such as `redirect`; doing that after the stream
+  // was read throws "Response body object should not be disturbed or locked".
+  const { url, method, redirect } = request;
+  const headers = new Headers(request.headers);
+  headers.delete("content-length");
   const rawLength = request.headers.get("content-length");
   if (rawLength !== null) {
     if (!/^\d+$/.test(rawLength)) return jsonResponse({ error: "Invalid content length." }, 400);
@@ -119,14 +126,7 @@ async function limitRequestBody(request: Request, maxBytes: number): Promise<Req
     body.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  const headers = new Headers(request.headers);
-  headers.delete("content-length");
-  return new Request(request.url, {
-    method: request.method,
-    headers,
-    body,
-    redirect: request.redirect,
-  });
+  return new Request(url, { method, headers, body, redirect });
 }
 
 function adminAuthBypassed(env: unknown): boolean {
