@@ -84,7 +84,10 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
-export async function limitRequestBody(request: Request, maxBytes: number): Promise<Request | Response> {
+export async function limitRequestBody(
+  request: Request,
+  maxBytes: number,
+): Promise<Request | Response> {
   // Snapshot request metadata before consuming the body. Some runtimes (srvx on
   // Node, used by `vite dev`/preview) build the underlying Request lazily on the
   // first access to properties such as `redirect`; doing that after the stream
