@@ -122,7 +122,8 @@ async function verifyRelease(indexPath, rootPath) {
   );
 
   const identity = releaseIdentity(manifest);
-  if (manifest.releaseIdentity !== undefined && manifest.releaseIdentity !== identity) {
+  if ((manifest.releaseIdentity !== undefined && manifest.releaseIdentity !== identity) ||
+      (index.releaseIdentity !== undefined && index.releaseIdentity !== null && index.releaseIdentity !== identity)) {
     fail('Manifest release identity does not match its provenance.');
   }
   return {
