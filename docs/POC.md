@@ -190,3 +190,43 @@ No tests, builds, CI/Jenkins executions or rollback actions were performed; vali
 - Amulya, Anjini and Sai continue to use the shared profile-aware `PersonContent` renderer, with profile matching and static fallback behavior.
 
 No tests, builds, lint, browser checks or route-matrix verification were performed; validation remains paused.
+
+
+## Owner-approved product requirements baseline — 2026-11-08
+
+This section records the owner's consolidated answers to the 50-question development requirements exercise. It supplements the implementation/status snapshot above and does not imply that future capabilities are implemented.
+
+### Product direction and profile model
+
+- The current product remains a personal portfolio for four people: Abhishek, Amulya/Ammu, Anjini/Bava and Sai/Darling.
+- All four profiles use one shared template, design system and common functionality; profile-specific content and approved media differ.
+- The owner/admin can manage the full experience: profiles, pages, sections, content, resumes, projects, credentials, images/galleries, themes, layout, navigation, SEO, AI configuration and publishing lifecycle.
+- Additional profiles and configurable profile creation/permissions are future extensibility requirements. The current owner-only admin model remains the initial authorization model.
+- The current product is personal. Its architecture, templates, content model and configuration should be reusable for future client-specific customizations, but a multi-tenant commercial platform is not part of the immediate scope.
+
+### Visitor experience and content management
+
+- Preserve the cinematic portfolio experience while supporting all requested visitor journeys, pages, project exploration and contact/business capabilities.
+- The CMS should support original resume files plus structured extracted data, profile-scoped knowledge, draft/review/publish/unpublish, version history, rollback, media metadata, import/export and audit history.
+- Dynamic profile content and AI knowledge must come from approved profile data and authorized sources; private originals, drafts and review notes remain private.
+- Visual customization should ultimately support editable themes, fonts, colors, layout, reusable components and templates through an admin-facing visual configuration experience.
+
+### JARVIS-powered AI integration
+
+- JARVIS is the portfolio's primary AI engine and agent service. Portfolio remains a separate visitor-facing application and sends only the selected profile's approved, bounded context to JARVIS.
+- Remove dependence on a third-party paid API as the primary assistant. JARVIS availability, authentication and offline behavior must be handled explicitly; no API key or secret is exposed to the browser.
+- Support profile-aware introductions and chat, project/skills/experience Q&A, multilingual and optional voice experiences as capabilities mature.
+- Profile persona, response style, knowledge scope and system instructions are configurable by the owner/admin within the shared security and privacy rules.
+
+### Storage, privacy and deployment
+
+- Use adaptive local, database and cloud storage according to data importance, complexity, privacy and operational needs; define clear source-of-truth and synchronization rules.
+- Provide visitor consent, minimal collection by default, retention controls, deletion, export and privacy notices/controls.
+- Preserve server-side authentication and secret boundaries. Current access is owner-only; future roles and permissions can be added when required.
+- Deployment should remain portable and cost-conscious, with clear configuration for application hosting, database, object storage, CDN and the JARVIS connection.
+
+### Future reusable-client direction
+
+- Keep profile data, themes, sections, components, AI persona and integration settings configuration-driven where practical.
+- Future client onboarding should be able to start from a reusable template and apply client-specific branding, content, modules, integrations and permissions without copying business logic.
+- Do not introduce multi-tenancy, client billing or commercial account workflows into the current personal release without a separate owner decision.
