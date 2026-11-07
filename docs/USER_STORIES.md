@@ -485,3 +485,96 @@ Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node
 - Testing and pipeline acceptance remain pending while validation is paused.
 
 **Implementation notes:** Operator-invoked quarantine and recovery-candidate record commands are available in `scripts/release-disposition.mjs`; they fail closed on inconsistent evidence and never perform promotion, deployment, rollback or Nexus publication. See [release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md). Acceptance remains pending while validation is paused.
+
+
+## Owner-approved expanded product backlog — 2026-11-08
+
+The following stories capture the owner's answers to the 50-question development requirements exercise. They are future backlog requirements, not claims of implementation. Existing story IDs and acceptance criteria remain unchanged. Add these to the delivery plan after dependency mapping; the current product remains a personal four-profile site.
+
+### PORT-US-035 — Owner-managed complete portfolio CMS
+
+**Priority:** P1
+
+**As the owner,** I want to manage all profiles, pages, sections, projects, experience, education, certifications, media, themes and publishing from one protected admin experience, so that the portfolio can evolve without routine code changes.
+
+**Acceptance criteria**
+- The owner can create/update/archive profile content and manage all supported page/section types.
+- Content changes support draft, review, publish, unpublish and version history.
+- The owner can manage resume records, projects, media, galleries, SEO metadata, navigation and AI settings.
+- Admin mutations are authenticated, authorized, audited and recoverable.
+- Current access remains owner-only; role-based permissions are a later extension.
+
+### PORT-US-036 — Resume and profile knowledge lifecycle
+
+**Priority:** P1
+
+**As the owner,** I want original resumes and structured extracted profile data to be versioned and reviewed before publication, so that public content and AI answers remain accurate.
+
+**Acceptance criteria**
+- Original PDF/DOCX files are stored privately with profile association and version metadata.
+- Extracted data is normalized into structured profile sections and remains a private draft until approved.
+- Publishing creates an immutable/versioned snapshot that can be rolled back.
+- Public pages and AI context use only the current approved published version.
+- Deletion and retention behavior covers originals, extracted drafts, published records and derived AI indexes according to policy.
+
+### PORT-US-037 — JARVIS as the portfolio AI engine
+
+**Priority:** P0 — shared integration priority
+
+**As the owner,** I want portfolio AI introductions and chat to use my JARVIS personal AI, so that the portfolio benefits from my own AI platform rather than depending on an external paid API.
+
+**Acceptance criteria**
+- Portfolio sends requests to the authenticated JARVIS gateway using server-side credentials only.
+- Requests include the selected profile's approved, bounded knowledge and configured persona; they exclude other profiles, private originals and admin notes.
+- JARVIS enforces provider routing, rate limits, policy and audit rules.
+- If JARVIS is unavailable, the portfolio provides a clear offline/fallback experience without pretending a live AI response occurred.
+- No third-party paid provider is silently selected as a fallback.
+
+### PORT-US-038 — Configurable profile personas and knowledge
+
+**Priority:** P1
+
+**As the owner,** I want to configure each profile's AI persona, response style, instructions and approved knowledge, so that each assistant represents the correct person while sharing the same platform.
+
+**Acceptance criteria**
+- Each profile has isolated persona and knowledge configuration.
+- Persona instructions cannot override platform security, privacy or factual-grounding rules.
+- Profile switching changes the context and prevents cross-profile leakage.
+- The owner can preview and publish persona/knowledge changes with version history.
+
+### PORT-US-039 — Privacy and visitor data controls
+
+**Priority:** P1
+
+**As a visitor,** I want clear consent and control over any personal data collected during my visit, so that I understand and can manage how my information is used.
+
+**Acceptance criteria**
+- Anonymous browsing collects only the minimum operational data required.
+- Chat history, analytics and contact details are collected only for disclosed purposes and with required consent.
+- Retention periods and deletion/export requests are supported for stored visitor data.
+- Public responses never expose another visitor's data, private profile records or admin content.
+
+### PORT-US-040 — Reusable profile templates and future client configuration
+
+**Priority:** P2 — future scope
+
+**As the owner,** I want the personal portfolio's profile model, themes and content structures to be reusable as templates, so that I can customize future client portfolios without duplicating the core product.
+
+**Acceptance criteria**
+- Profile content, theme tokens, sections, navigation and AI configuration are data/configuration-driven where practical.
+- A new profile can be created from an approved template with independent content and media.
+- Future client customization can override branding, modules and content without modifying shared core components.
+- Multi-tenant hosting, client billing and client-specific role systems remain out of scope until separately approved.
+
+### PORT-US-041 — Adaptive storage and portable deployment
+
+**Priority:** P2
+
+**As the owner,** I want portfolio data and media to use local, database and cloud storage according to privacy and operational needs, so that the product remains portable and cost-conscious.
+
+**Acceptance criteria**
+- Storage adapters expose a consistent contract and define a source of truth for each data class.
+- Sensitive originals and admin data use private storage and least-privilege access.
+- Public media can use optimized object storage/CDN where configured.
+- Backup, export, restore and migration are documented without coupling the application to one provider.
+- No paid hosting or storage dependency is assumed without owner approval.
