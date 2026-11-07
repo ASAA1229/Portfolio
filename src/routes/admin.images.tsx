@@ -36,11 +36,11 @@ export const Route = createFileRoute("/admin/images")({
   component: ImageManager,
 });
 
-async function readApiResponse<T extends { error?: string }>(response: Response): Promise<T> {
+async function readApiResponse<T extends { error?: string; detail?: string }>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null) as T | null;
   if (!response.ok) {
     throw new Error(
-      payload?.error || `Image service request failed (HTTP ${response.status}).`,
+      [payload?.error, payload?.detail].filter(Boolean).join(" — ") || `Image service request failed (HTTP ${response.status}).`,
     );
   }
   if (!payload || typeof payload !== "object") {
