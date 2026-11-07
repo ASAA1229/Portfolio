@@ -466,7 +466,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const form = await request.formData().catch(() => null);
     const file = form?.get("file");
     const requestedProfile = form?.get("profileId");
-    if (!(file instanceof File)) return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
+    if (!isUploadedResumeFile(file)) return jsonResponse({ error: "Choose a PDF or DOCX resume." }, 400);
     if (typeof requestedProfile !== "string" || !["abhishek", "ammu", "bava", "sai", "unassigned"].includes(requestedProfile)) {
       return jsonResponse({ error: "Choose a valid profile assignment." }, 400);
     }
@@ -514,7 +514,14 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         try { await bucket.delete(key); }
         catch (cleanupError) { console.error("Failed to clean up an incomplete resume upload.", cleanupError); }
       }
-      throw error;
+      console.error("Portfolio resume upload failed while storing or indexing the resume.", error);
+      return jsonResponse({
+        error: "Resume upload failed while saving the file. Check the development server terminal for the detailed cause and retry.",
+        code: "RESUME_UPLOAD_STORAGE_FAILED",
+        ...(import.meta.env.DEV === true
+          ? { detail: error instanceof Error ? error.message : "Unknown resume storage error." }
+          : {}),
+      }, 500);
     }
   }
 
@@ -694,6 +701,19 @@ async function writeImageIndex(bucket: PrivateBucket, records: PortfolioImageRec
   await bucket.put(IMAGE_INDEX_KEY, JSON.stringify(records), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
 }
 
+function isUploadedResumeFile(value: FormDataEntryValue | null): value is File {
+  // Multipart File instances may come from a different runtime realm than the
+  // global File constructor used by the SSR server. Validate the File surface
+  // instead of relying on instanceof, which can reject otherwise valid uploads.
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<File>;
+  return typeof candidate.name === "string" &&
+    typeof candidate.type === "string" &&
+    typeof candidate.size === "number" &&
+    typeof candidate.arrayBuffer === "function" &&
+    typeof candidate.slice === "function";
+}
+
 function isUploadedImageFile(value: FormDataEntryValue | null): value is File {
   // Avoid relying on a runtime-global File constructor: some Vite/SSR runtimes
   // expose multipart uploads as File objects without installing globalThis.File.
@@ -796,6 +816,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       return jsonResponse({
         error: "Image upload failed while saving the image. Check the development server terminal for the detailed cause and retry.",
         code: "IMAGE_UPLOAD_STORAGE_FAILED",
+        ...(import.meta.env.DEV === true
+          ? { detail: error instanceof Error ? error.message : "Unknown image storage error." }
+          : {}),
         cleanupWarning: cleanupFailures.length ? cleanupFailures.join("; ") : undefined,
       }, 500);
     }
