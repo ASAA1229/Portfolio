@@ -16,7 +16,7 @@ type ImageRecord = {
 type ImageListPayload = {
   images?: ImageRecord[];
   error?: string;
-  storageMode?: "local-ephemeral" | "persistent";
+  storageMode?: "local-disk" | "persistent";
 };
 
 const profiles = [
@@ -63,7 +63,7 @@ function ImageManager() {
   const [alt, setAlt] = useState("");
   const [slot, setSlot] = useState<"gallery" | "portrait">("gallery");
   const [publishOnUpload, setPublishOnUpload] = useState(false);
-  const [storageMode, setStorageMode] = useState<"local-ephemeral" | "persistent" | null>(null);
+  const [storageMode, setStorageMode] = useState<"local-disk" | "persistent" | null>(null);
 
   async function loadImages(signal?: AbortSignal) {
     const response = await fetch("/api/admin/images", {
@@ -219,11 +219,11 @@ function ImageManager() {
         </button>
       </header>
 
-      {storageMode === "local-ephemeral" && (
+      {storageMode === "local-disk" && (
         <p role="status" className="mb-5 rounded border border-border p-4 text-sm">
-          Local development storage is active. Uploaded images are kept in server memory and will be
-          cleared when the development server restarts. Configure the R2 RESUME_BUCKET binding for
-          persistent storage.
+          Local development storage is active. Uploads are saved on this computer in the
+          project&apos;s <code>.local-storage/</code> folder and survive dev-server restarts. The
+          deployed site uses the Cloudflare R2 RESUME_BUCKET instead.
         </p>
       )}
 

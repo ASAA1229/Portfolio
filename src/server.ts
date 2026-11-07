@@ -1,4 +1,5 @@
 import "./lib/error-capture";
+import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -308,41 +309,18 @@ type AdminEnv = {
  */
 let localDevelopmentBucket: PrivateBucket | undefined;
 
+/**
+ * In `vite dev` (no R2 binding) admin uploads are stored on the local disk so they
+ * survive dev-server restarts: PORTFOLIO_LOCAL_STORAGE_DIR, default `.local-storage/`
+ * (git-ignored). Deployed environments must bind the RESUME_BUCKET R2 bucket.
+ */
 function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
   const configured = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (configured) return configured;
   if (import.meta.env.DEV !== true) return undefined;
-  if (!localDevelopmentBucket) {
-    const objects = new Map<string, { bytes: Uint8Array; contentType?: string | undefined }>();
-    localDevelopmentBucket = {
-      async get(key) {
-        const stored = objects.get(key);
-        if (!stored) return null;
-        const bytes = stored.bytes.slice();
-        return {
-          httpMetadata: { contentType: stored.contentType },
-          async json<T>() {
-            return JSON.parse(new TextDecoder().decode(bytes)) as T;
-          },
-          async arrayBuffer() {
-            return bytes.slice().buffer;
-          },
-        };
-      },
-      async put(key, value, options) {
-        const bytes =
-          typeof value === "string"
-            ? new TextEncoder().encode(value)
-            : value instanceof Uint8Array
-              ? value.slice()
-              : new Uint8Array(value.slice(0));
-        objects.set(key, { bytes, contentType: options?.httpMetadata?.contentType });
-      },
-      async delete(key) {
-        objects.delete(key);
-      },
-    };
-  }
+  localDevelopmentBucket ??= createLocalDiskBucket(
+    process.env["PORTFOLIO_LOCAL_STORAGE_DIR"] || ".local-storage",
+  );
   return localDevelopmentBucket;
 }
 
@@ -1124,7 +1102,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     return jsonResponse(
       {
         images: await readImageIndex(bucket),
-        storageMode: isLocalDevelopmentBucket(bucket) ? "local-ephemeral" : "persistent",
+        storageMode: isLocalDevelopmentBucket(bucket) ? "local-disk" : "persistent",
       },
       200,
     );
