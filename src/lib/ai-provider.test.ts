@@ -15,7 +15,12 @@ describe("AI provider selection", () => {
   });
 
   it("falls back to OpenAI, then to no provider", () => {
-    expect(resolveAiProvider({ OPENAI_API_KEY: "sk-test" })?.name).toBe("openai");
+    // A paid provider is never selected silently (PORT-US-037).
+    expect(resolveAiProvider({ OPENAI_API_KEY: "sk-test" })).toBeNull();
+    expect(
+      resolveAiProvider({ OPENAI_API_KEY: "sk-test", PORTFOLIO_AI_ALLOW_PAID_FALLBACK: "true" })
+        ?.name,
+    ).toBe("openai");
     expect(resolveAiProvider({})).toBeNull();
   });
 

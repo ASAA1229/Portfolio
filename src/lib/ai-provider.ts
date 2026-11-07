@@ -4,7 +4,9 @@
  * Preference order:
  *   1. JARVIS — the owner's personal AI gateway (OpenAI-compatible /v1/chat/completions),
  *      configured with JARVIS_AI_URL + JARVIS_AI_KEY.
- *   2. OpenAI Responses API — only when OPENAI_API_KEY is set.
+ *   2. OpenAI Responses API — a paid provider, used only when the owner explicitly
+ *      opts in with PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true AND sets OPENAI_API_KEY
+ *      (PORT-US-037: no paid provider is ever selected silently).
  *   3. None — callers return 503 and the UI uses its offline, profile-grounded answers.
  *
  * Keys are read from server-side environment only and never sent to the browser.
@@ -72,7 +74,8 @@ export function resolveAiProvider(env: Env): AiProvider | null {
   }
 
   const openAiKey = env["OPENAI_API_KEY"];
-  if (openAiKey) {
+  const paidFallbackApproved = env["PORTFOLIO_AI_ALLOW_PAID_FALLBACK"] === "true";
+  if (openAiKey && paidFallbackApproved) {
     return {
       name: "openai",
       endpoint: "https://api.openai.com/v1/responses",
@@ -107,5 +110,17 @@ export function resolveAiProvider(env: Env): AiProvider | null {
   return null;
 }
 
+/** Safe, non-secret description of the active provider for health/admin views. */
+export function describeAiProvider(env: Env): {
+  provider: "jarvis" | "openai" | "offline";
+  paidFallbackApproved: boolean;
+} {
+  const provider = resolveAiProvider(env);
+  return {
+    provider: provider?.name ?? "offline",
+    paidFallbackApproved: env["PORTFOLIO_AI_ALLOW_PAID_FALLBACK"] === "true",
+  };
+}
+
 export const AI_NOT_CONFIGURED_MESSAGE =
-  "AI is not configured. Set JARVIS_AI_URL and JARVIS_AI_KEY (your JARVIS personal AI gateway), or OPENAI_API_KEY, in the server-side environment, then restart or redeploy.";
+  "AI is not configured. Set JARVIS_AI_URL and JARVIS_AI_KEY (your JARVIS personal AI gateway) in the server-side environment, then restart or redeploy. A paid provider is used only if you explicitly enable PORTFOLIO_AI_ALLOW_PAID_FALLBACK.";
