@@ -138,8 +138,8 @@ function ResumeManager() {
       form.append("file", selectedFile);
       form.append("profileId", uploadProfileId);
       const response = await fetch("/api/admin/resumes", { method: "POST", body: form, credentials: "same-origin" });
-      const payload = await response.json() as { resume?: ResumeRecord; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "Upload failed.");
+      const payload = await response.json() as { resume?: ResumeRecord; error?: string; detail?: string };
+      if (!response.ok) throw new Error([payload.error, payload.detail].filter(Boolean).join(" — ") || "Upload failed.");
       setSelectedFile(null);
       event.currentTarget.reset();
       await loadResumes();
