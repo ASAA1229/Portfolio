@@ -42,7 +42,7 @@ function Education() {
         <span className="chapter-hero-index">KNOWLEDGE · PRACTICE · PROGRESS</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="education" resume={publishedResume} />
+        <PublishedResumePanel section="education" resume={publishedResume} />
         {!publishedResume?.structuredSections?.education?.length && (
           <>
         <section id="education-record" className="career-timeline">
