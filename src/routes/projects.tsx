@@ -47,9 +47,13 @@ function Projects() {
             <p className="chapter-lede">
               Product thinking, engineering, and a willingness to work through the hard parts.
             </p>
-            <Link to="/projects/$slug" params={{ slug: featured!.slug }} className="chapter-cta">
-              Featured work <ArrowUpRight />
-            </Link>
+            {publishedResume?.structuredSections?.projects?.length ? (
+              <a href="#projects-published-resume" className="chapter-cta">Published projects <ArrowUpRight /></a>
+            ) : (
+              <Link to="/projects/$slug" params={{ slug: featured!.slug }} className="chapter-cta">
+                Featured work <ArrowUpRight />
+              </Link>
+            )}
           </Reveal>
         </div>
         <span className="chapter-hero-index">SELECTED WORK · 2023—PRESENT</span>
