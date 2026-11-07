@@ -74,7 +74,7 @@ function Skills() {
         <span className="chapter-hero-index">TOOLS IN PRACTICE · NO SCORES, JUST WORK</span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="skills" resume={publishedResume} />
+        <PublishedResumePanel section="skills" resume={publishedResume} />
         {!publishedResume?.skills.length && (
           <>
         <div className="skills-intro">
