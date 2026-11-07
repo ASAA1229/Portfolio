@@ -53,7 +53,7 @@ function releaseIdentity(manifest) {
 async function regularFile(root, descriptor, label) {
   if (!descriptor || typeof descriptor !== 'object' ||
       typeof descriptor.name !== 'string' || !descriptor.name ||
-      path.basename(descriptor.name) !== descriptor.name ||
+      path.basename(descriptor.name) !== descriptor.name || descriptor.name.includes('/') || descriptor.name.includes('\\\\') || descriptor.name === '.' || descriptor.name === '..' ||
       !Number.isSafeInteger(descriptor.size) || descriptor.size < 0 ||
       typeof descriptor.sha256 !== 'string' || !HASH.test(descriptor.sha256)) {
     fail(`Release index contains an invalid ${label} descriptor.`);
@@ -77,7 +77,9 @@ async function regularFile(root, descriptor, label) {
 async function verifyRelease(indexPath, rootPath) {
   const index = JSON.parse(await readFile(indexPath, 'utf8'));
   if (!index || typeof index !== 'object' || Array.isArray(index) ||
-      index.schemaVersion !== 1 || !index.project || !index.source || !index.ci ||
+      index.schemaVersion !== 1 || typeof index.project !== 'string' || !index.project.trim() ||
+      !index.source || typeof index.source !== 'object' || Array.isArray(index.source) ||
+      !index.ci || typeof index.ci !== 'object' || Array.isArray(index.ci) ||
       !index.files || typeof index.files !== 'object' || Array.isArray(index.files)) {
     fail('Release index schema or provenance metadata is invalid.');
   }
@@ -98,10 +100,25 @@ async function verifyRelease(indexPath, rootPath) {
   }
 
   const manifest = JSON.parse(await readFile(path.join(root, evidence.manifest.path), 'utf8'));
-  if (!manifest || manifest.project !== index.project ||
+  const commit = manifest?.source?.gitCommit;
+  const buildNumber = manifest?.source?.buildNumber;
+  const ci = manifest?.ci;
+  let runUrl;
+  try { runUrl = new URL(ci?.runUrl); } catch { runUrl = null; }
+  if (typeof manifest?.project !== 'string' || !manifest.project.trim() ||
+      typeof commit !== 'string' || !/^[a-f0-9]{40,64}$/i.test(commit) ||
+      typeof buildNumber !== 'string' || !/^[1-9]\\d*$/.test(buildNumber) ||
+      !ci || !['github-actions', 'jenkins'].includes(ci.provider) ||
+      ['repository', 'branch', 'workflow', 'runId', 'runUrl'].some((key) => typeof ci[key] !== 'string' || !ci[key].trim()) ||
+      !runUrl || !['http:', 'https:'].includes(runUrl.protocol) ||
+      typeof manifest.createdAt !== 'string' || Number.isNaN(Date.parse(manifest.createdAt)) ||
+      manifest.project !== index.project ||
       JSON.stringify(manifest.source) !== JSON.stringify(index.source) ||
       JSON.stringify(manifest.ci) !== JSON.stringify(index.ci) ||
-      !manifest.artifact ||
+      !manifest.artifact || typeof manifest.artifact.name !== 'string' ||
+      path.basename(manifest.artifact.name) !== manifest.artifact.name ||
+      !Number.isSafeInteger(manifest.artifact.size) || manifest.artifact.size < 0 ||
+      typeof manifest.artifact.sha256 !== 'string' || !HASH.test(manifest.artifact.sha256) ||
       manifest.artifact.name !== evidence.artifact.path ||
       manifest.artifact.size !== evidence.artifact.size ||
       manifest.artifact.sha256 !== evidence.artifact.sha256) {
@@ -181,13 +198,21 @@ async function recover([quarantinePath, knownGoodIndexPath, knownGoodRoot, reaso
   if (![quarantinePath, knownGoodIndexPath, knownGoodRoot, reasonArg, operatorArg, recordsDir].every(Boolean)) {
     fail('Usage: node scripts/release-disposition.mjs recover <quarantine-record.json> <known-good-release-index.json> <known-good-release-root> <reason> <operator> <records-dir>');
   }
+  const quarantineStat = await lstat(quarantinePath);
+  if (!quarantineStat.isFile() || quarantineStat.isSymbolicLink()) {
+    fail('Quarantine record must be a regular, non-symlink file.');
+  }
   const quarantineRecord = JSON.parse(await readFile(quarantinePath, 'utf8'));
   if (!quarantineRecord || quarantineRecord.schemaVersion !== 1 ||
       quarantineRecord.event !== 'QUARANTINED' ||
+      typeof quarantineRecord.project !== 'string' || !quarantineRecord.project.trim() ||
       !HASH.test(quarantineRecord.releaseIdentity || '') ||
+      !quarantineRecord.artifact || typeof quarantineRecord.artifact.sha256 !== 'string' || !HASH.test(quarantineRecord.artifact.sha256) ||
+      !quarantineRecord.evidence || typeof quarantineRecord.evidence !== 'object' ||
       quarantineRecord.controls?.promotionAllowed !== false ||
       quarantineRecord.controls?.deploymentAllowed !== false ||
-      quarantineRecord.controls?.nexusPublicationAllowed !== false) {
+      quarantineRecord.controls?.nexusPublicationAllowed !== false ||
+      quarantineRecord.controls?.artifactMoved !== false) {
     fail('The supplied quarantine record is invalid or does not represent a blocked release.');
   }
 
