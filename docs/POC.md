@@ -1,144 +1,91 @@
-# Portfolio POC — Scope, Current State and Remaining Work
+# Portfolio POC — Project Overview, Implementation Status and Remaining Work
 
-**Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
-**Branch:** `new`  
-**Review date:** 2026-11-05  
-**Status:** IN PROGRESS — documentation baseline; release acceptance remains open.
+**Repository:** `ASAA1229/pixel-perfect-pixel`  
+**Active documentation/development branch:** `new`  
+**Status snapshot:** 2026-11-07  
+**Overall status:** IN PROGRESS — substantial portfolio and DevOps source implementation exists; runtime verification, quality acceptance and production release are incomplete.
 
-## 1. Product vision
+## Read this first — what this project is
 
-Build a cinematic, Netflix-inspired, multi-person portfolio experience for Abhishek, Amulya, Anjini and Sai. The experience should present each person's verified profile information through a consistent shared design system, with dedicated pages for About, Skills, Projects, Experience, Education, Certifications and Contact.
+This project is a cinematic, Netflix-inspired multi-person portfolio website for four profiles: Abhishek, Amulya, Anjini and Sai. It provides a shared visual system with profile-specific identity, biography, skills, projects, experience, education, certifications and contact information.
 
-The product also includes an optional AI portfolio introduction/chat, a video-backed introduction, and a protected owner-only admin workflow for maintaining profile content, resumes and images.
+It also includes an optional profile-aware AI introduction/chat experience, optional narration/video, and a protected owner-only administration workflow intended to manage profile resumes and images through review and publishing.
 
-## 2. Product scope
+**The portfolio's purpose is to present accurate, approved profile information.** AI responses and resume-derived information must remain grounded in the selected profile's approved data. Private resume originals, review notes, admin records and API credentials must never become public.
 
-### In scope
-- Four separate profile experiences with correct identity, facts, media and routes.
-- Shared components, navigation, typography, layout and styling across profiles.
-- Responsive cinematic pages and project detail experiences.
-- Profile-aware AI introduction/chat grounded in approved portfolio data.
-- Optional user-started intro narration/video with accessible controls.
-- Protected admin login and resume/image upload, review, publishing and rollback.
-- Secure server-side API handling, accessibility, performance and SEO.
-- Automated build, lint, unit/integration and browser acceptance checks.
+## Status vocabulary used in this POC
 
-### Out of scope for this portfolio
-- Shared DevOps/CMM pipeline configuration tooling.
-- Customer environment snapshot utilities and on-site change detection products.
-- External customer package validation workflows or CMM-specific Nexus release management.
-- Any feature that exposes private resumes, credentials or admin data publicly.
+| Status | Meaning |
+|---|---|
+| **IMPLEMENTED — NOT VERIFIED** | Source implementation is present, but relevant tests, browser checks or operational acceptance have not been run on the current branch head. |
+| **PARTIALLY IMPLEMENTED — NOT VERIFIED** | Some pages, data paths or foundations exist; important integration, security, consistency or acceptance remains incomplete. |
+| **NOT IMPLEMENTED** | No complete implementation is currently evidenced; it remains development work. |
+| **VERIFIED** | The exact current branch revision has passed the relevant checks and acceptance evidence is recorded. No new item is marked VERIFIED by this documentation refresh. |
 
-## 3. Current technical baseline
+A route/component or test file existing does not prove the page works in a browser. A successful build alone does not prove profile correctness, admin security or release readiness.
 
-Repository source inspection indicates the application uses:
-- React, TypeScript, TanStack Start/Router, Vite and Tailwind CSS.
-- Shared profile/page components and profile-specific data modules.
-- Route-driven profile pages and project/section routes.
-- Server-side chat/API handling using the OpenAI Responses API.
-- Admin authentication and resume/image management routes.
-- Vitest/Testing Library, ESLint, Prettier and GitHub Actions configuration.
+## Current status at a glance
 
-The repository also contains build/artifact-integrity and Jenkins-related automation. Treat these as supporting delivery infrastructure only; they are not the portfolio's customer-facing product scope. A workflow definition or source file does not prove a successful external Jenkins or deployment run.
+| Area | What exists in source | Current status / what remains |
+|---|---|---|
+| Product and four profiles | Shared portfolio application and profile-specific content/media for Abhishek, Amulya, Anjini and Sai | Partially implemented; full four-profile content and visual consistency review remains |
+| Design system and responsive UI | Cinematic shared layout, profile selector, section pages, reusable components and responsive styling foundations | Partially implemented; desktop/tablet/mobile and accessibility acceptance not run |
+| Routes and content | Profile/section routes, project content, shared profile renderer and published-resume section precedence | Partially implemented; route matrix, direct refresh, legacy links and all-profile correctness remain unverified |
+| AI introduction and chat | Server-side AI integration foundations, profile-scoped approved-resume context, streaming/cancellation handling and offline fallback | Implemented in source in key paths; provider, privacy and all-profile runtime behavior not verified |
+| Admin, resume and images | Admin route/auth foundations, resume/image management components and published-resume workflow foundations | Partially implemented; upload-to-publish lifecycle and authorization acceptance incomplete; `/admin/images` has a previously reported 404 and is intentionally paused |
+| Quality engineering | Regression tests and CI definitions exist; some asset, profile and AI checks are authored | Testing is paused; no current exact-head test/build/lint/browser/CI pass is claimed |
+| Accessibility, performance and SEO | Some responsive/accessibility and metadata foundations | Not fully implemented or accepted; systematic audits/reviews remain |
+| Shared DevOps and artifact integrity | Provenance manifest, SHA-256 checks, SBOM/signing foundations, archive-backed customer verification and release quarantine/recovery records | Source implementation present; exact-head workflow/package acceptance is pending; Nexus publishing disabled |
 
-## 4. Existing capabilities observed
+## What is developed but not yet tested
 
-- Four profile identities and profile-specific data structures are present.
-- Shared cinematic visual foundations and reusable page components exist.
-- Profile, section and project routes are implemented.
-- AI chat/introduction components and a server-side API route exist.
-- Admin login, resume and image workflows have implementation in the source tree.
-- Resume-derived structured content supports review before publication.
-- Accessibility and security hardening changes are present in source.
-- Automated tests and CI configuration exist.
+The current `new` branch contains source implementation for the four-profile experience, shared section rendering, profile-aware AI context, streaming and cancellation safeguards, published-resume content precedence, profile asset integrity checks, and shared DevOps/artifact-integrity utilities.
 
-**Important:** these are implementation observations, not a claim that every workflow is fully tested or accepted. Current runtime behavior, content accuracy, external integrations and production readiness must be verified against the exact branch commit.
+The latest recorded portfolio increment (2026-11-07) makes Abhishek's Skills, Projects, Experience, Education and Certifications pages prefer valid published resume sections, while retaining curated static content as fallback. The shared published-resume panel receives normalized profile-scoped data from its caller. Other profiles continue through the shared profile-aware renderer with static fallback.
 
-## 5. Remaining work — prioritized
+The DevOps implementation includes provenance and release identity, manifest and SHA-256 validation, archive-backed `.tar.gz` verification, structured customer verification reports, SBOM/signing foundations, and operator-invoked quarantine/recovery evidence records. These are source-level implementation claims, not evidence of successful pipeline execution.
 
-### P0 — Establish a trustworthy baseline
-- [ ] Run a clean dependency install on branch `new`.
-- [ ] Run production build, lint and the complete automated test suite.
-- [ ] Capture exact commit SHA and command outputs; fix all failures.
-- [ ] Inspect TypeScript errors, route generation, imports/exports and runtime warnings.
-- [ ] Review open CI failures and ensure the workflow checks the intended branch/PR events.
+**No tests, build, lint, browser checks, route matrix, CI/Jenkins run, artifact acceptance or deployment were performed for this documentation refresh. Testing remains paused.**
 
-### P0 — Security and privacy
-- [ ] Verify server-side authentication and authorization for every admin loader, action and API.
-- [ ] Verify session expiry, logout, invalid-session handling and unauthorized access.
-- [ ] Exercise resume/image upload type, size, content, filename and parser failure cases.
-- [ ] Verify private files and review notes cannot be fetched from public routes.
-- [ ] Verify AI credentials remain server-side and are absent from client bundles, logs and error responses.
-- [ ] Verify request validation, rate limits, error redaction and safe failure behavior.
+## Known issue intentionally paused
 
-### P1 — Four-profile consistency
-- [ ] Compare Abhishek, Amulya, Anjini and Sai page-by-page against the approved shared design.
-- [ ] Keep one shared styling system; remove unintended profile-specific CSS/layout drift.
-- [ ] Verify profile facts, social links, project links, resume actions and images.
-- [ ] Confirm profile switching never leaks data or assistant context between people.
-- [ ] Verify missing media and optional data use graceful fallbacks.
+The owner previously reported `GET /admin/images` returning HTTP 404 in the local application even though an admin image route file was present. Earlier route/auth changes did not resolve the report. The owner explicitly paused that work to move to another epic. It remains an open issue and must not be described as fixed.
 
-### P1 — Routes and navigation
-- [ ] Test every profile and section route with direct URL load, in-app navigation and refresh.
-- [ ] Verify project detail slugs, education routes, 404 handling and legacy route compatibility.
-- [ ] Verify active navigation, mobile menu, footer and all internal/external destinations.
-- [ ] Fix dead links, route mismatches and inconsistent page metadata.
+## Not yet developed or not complete
 
-### P1 — AI introduction, chat and video
-- [ ] Verify AI responses use only the selected profile's approved/current data.
-- [ ] Verify unknown facts are acknowledged and never fabricated.
-- [ ] Test missing/invalid API key, timeout, provider errors, cancellation and rate limiting.
-- [ ] Test voice permissions, unsupported browser fallback and explicit user-started playback.
-- [ ] Verify video play/pause/replay, cleanup, mobile fallback and reduced-motion behavior.
-- [ ] Confirm the intro never starts audio unexpectedly.
+- Complete, verified route coverage for all profiles, section pages, project details, direct URL loads, refreshes, legacy routes and mobile navigation.
+- Full visual consistency and content accuracy review across all four profiles.
+- Complete secure admin lifecycle: authentication/authorization on every operation, upload validation, profile assignment, review, publish, unpublish, rollback and failure recovery.
+- Resolution and browser verification of the paused `/admin/images` 404.
+- Complete AI provider failure-path acceptance, profile-switch behavior and privacy review.
+- Full keyboard/screen-reader, reduced-motion, responsive, performance and SEO acceptance.
+- Exact-head clean install/build/lint/unit/browser/CI evidence. Testing is paused by owner instruction.
+- Operational Jenkins/GitHub Actions artifact acceptance, release rollback/recovery exercise and production readiness.
+- Nexus publication or production deployment. Both remain disabled unless separately approved.
 
-### P1 — Admin content lifecycle
-- [ ] Verify resume upload → extraction → manual review → draft → publish → unpublish/rollback.
-- [ ] Verify image upload → review → publish → unpublish/rollback.
-- [ ] Confirm profile assignment is mandatory and all public content is filtered by profile.
-- [ ] Verify partial failures do not leave inconsistent public/private state.
-- [ ] Confirm existing verified portfolio facts are not silently overwritten by extracted resume data.
+## Scope boundaries
 
-### P1 — Responsive design and accessibility
-- [ ] Check desktop, tablet and mobile layouts for all four profiles.
-- [ ] Verify keyboard-only navigation, visible focus, dialog focus management and Escape behavior.
-- [ ] Check semantic headings, labels, accessible names, alt text and color contrast.
-- [ ] Verify reduced-motion preference and avoid forced autoplay.
-- [ ] Check image loading, overflow, typography, spacing and long-content behavior.
+This repository is the portfolio product. CMM-specific shared pipeline configuration tooling, customer environment snapshot utilities and on-site change-detection products are separate DevOps workstreams, not portfolio application features. The portfolio's own artifact-integrity/CI implementation is included under PORT-E08.
 
-### P2 — Performance, SEO and release
-- [ ] Review route-level loading, image optimization, bundle size and runtime performance.
-- [ ] Verify page titles, descriptions, canonical URLs, sitemap/robots and social previews.
-- [ ] Validate production environment configuration without exposing secrets.
-- [ ] Run browser-based end-to-end acceptance for all critical journeys.
-- [ ] Record known limitations and obtain explicit owner approval before production release.
+## Verification policy and current pause
 
-## 6. Acceptance evidence rules
+**Development is currently stopped at the owner's request while the POC and user-story documentation is refreshed. Testing remains paused.** Do not run tests, builds, lint, audits, browser checks, CI/Jenkins workflows, deployment or Nexus operations until explicitly resumed. Do not describe unexecuted checks as passed.
 
-Use these distinct statuses:
-- **IMPLEMENTED** — source implementation exists.
-- **TEST-AUTHORED** — automated test exists.
-- **TEST-PASSED** — test executed successfully against the stated commit.
-- **BROWSER-VERIFIED** — real-browser scenario passed and evidence is recorded.
-- **ACCEPTED** — owner-approved behavior and release criteria are satisfied.
-- **BLOCKED** — dependency or missing input prevents completion; record the owner and next action.
+## Branch and safety rules
 
-Do not mark a task complete merely because code or a test file exists. Record commit SHA, command/workflow, result and any limitation.
+- `main` is production-protected and is never updated automatically.
+- `dev` is the integration branch; approved pull requests from development branches target `dev`.
+- `new` is the current feature/development branch; `fix` is for authorized fixes; `test` is for testing/audit work.
+- No PR, merge, deployment, Nexus publication or production change without explicit authorization.
+- Secrets and API keys stay in local/server environment configuration and must not be committed.
 
-## 7. Working rules
+---
 
-- All work for this task is limited to branch `new`.
-- Do not merge, raise PRs, push to other branches or deploy unless separately authorized.
-- Do not commit API keys, credentials, private resumes or personal source documents.
-- Keep shared layout/styling consistent across all four profiles.
-- Treat extracted resume content as untrusted until reviewed and explicitly approved.
-- Preserve user-provided facts; do not invent profile details or media assets.
+## Historical implementation notes
 
-## 8. Definition of done
+The historical notes below are retained as supporting implementation history. The current project overview, status classification, remaining work and verification pause at the beginning of this document take precedence over older snapshots.
 
-The portfolio is ready for owner acceptance when P0 security and baseline checks pass, all four profiles and their routes work consistently, AI/admin workflows respect profile and privacy boundaries, responsive/accessibility checks pass, and the exact release candidate has successful CI and browser evidence. Production release still requires explicit owner approval.
-
-See [EPICS.md](EPICS.md) for delivery workstreams and [USER_STORIES.md](USER_STORIES.md) for testable acceptance criteria.
+---
 
 ## Development increment — Amulya primary image consistency
 
