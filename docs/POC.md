@@ -229,3 +229,18 @@ The `new` branch includes the portfolio side of the shared DevOps baseline:
 **Latest implementation commits:** `636562c8`, `99632acb`, `ab7d56ce`, `4e5f4fcf`, `7e3ffeb1`, `5bf78bd7`.
 
 See [docs/EPICS.md](EPICS.md) and [docs/USER_STORIES.md](USER_STORIES.md) for the DevOps delivery backlog.
+
+
+## PORT-E08 development increment — release rejection, quarantine and recovery
+
+**Branch:** `new`  
+**Status:** IMPLEMENTED IN SOURCE / RUNTIME VERIFICATION PENDING
+
+- Fixed release-index checksum sidecar parsing: artifact and manifest-ignore policy checksums are now parsed and compared against the indexed file name and SHA-256.
+- Corrected release-index JSON newline output and included the optional deterministic release identity.
+- Added an operator-invoked disposition CLI. `quarantine` validates the release index, all six evidence files, manifest provenance, artifact metadata and checksum sidecars before writing an immutable JSON event record.
+- `recover` validates a quarantine record and a distinct known-good release for the same project, verifies the known-good evidence, and records its artifact fingerprint plus the quarantine-record hash.
+- Both commands fail closed. They do not move artifacts, promote releases, change branches, deploy, roll back environments or publish to Nexus. Recovery explicitly requires separate owner approval.
+- Procedure: [Release rejection, quarantine and recovery](release-rejection-quarantine-recovery.md).
+
+No tests, builds, CI/Jenkins executions or rollback actions were performed; validation remains paused.
