@@ -139,7 +139,11 @@ async function verifyRelease(indexPath, rootPath) {
 
 async function writeRecord(recordsDir, record) {
   await mkdir(recordsDir, { recursive: true });
-  const filename = `${record.createdAt.replace(/[:.]/g, '-')}-${record.event.toLowerCase()}-${record.releaseIdentity.slice(0, 12)}.json`;
+  const identity = record.releaseIdentity || record.knownGoodReleaseIdentity || record.quarantinedReleaseIdentity;
+  if (typeof identity !== 'string' || !HASH.test(identity)) {
+    fail('Disposition record is missing a valid release identity.');
+  }
+  const filename = `${record.createdAt.replace(/[:.]/g, '-')}-${record.event.toLowerCase()}-${identity.slice(0, 12)}.json`;
   const destination = path.join(path.resolve(recordsDir), filename);
   await writeFile(destination, `${JSON.stringify(record, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
   console.log(`Disposition record created: ${destination}`);
