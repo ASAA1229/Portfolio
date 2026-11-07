@@ -28,7 +28,7 @@ export function PublishedResumePanel({
   if (!hasContent) return null;
 
   return (
-    <section className="mb-10 rounded-lg border border-primary/30 bg-card p-6" aria-label={sectionMeta[section].title}>
+    <section id={`${section}-published-resume`} className="mb-10 rounded-lg border border-primary/30 bg-card p-6" aria-label={sectionMeta[section].title}>
       <p className="font-mono text-xs text-primary">LATEST PUBLISHED RESUME · {resume.displayName}</p>
       <h2 className="mt-3 flex items-center gap-3 text-2xl"><Icon className="size-6 text-primary" />{sectionMeta[section].title}</h2>
       {section === "skills" ? (
