@@ -41,7 +41,7 @@ function Certifications() {
         </span>
       </section>
       <PageBody>
-        <PublishedResumePanel profileId="abhishek" section="certifications" resume={publishedResume} />
+        <PublishedResumePanel section="certifications" resume={publishedResume} />
         {!publishedResume?.structuredSections?.certifications?.length && (
           <>
         <div className="certs-note">
