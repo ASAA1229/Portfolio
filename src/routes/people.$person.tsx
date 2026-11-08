@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, notFound, redirect } from "@tanstack/react-router";
+import { useMergedPersonPortfolio } from "@/lib/published-content";
 import { getPersonPortfolio, isPerson } from "@/lib/person-portfolios";
 import { PersonShell, PersonUnavailable } from "@/components/PersonPortfolio";
 export const Route = createFileRoute("/people/$person")({
@@ -13,7 +14,8 @@ export const Route = createFileRoute("/people/$person")({
 });
 function PersonLayout() {
   const { person } = Route.useParams();
-  const profile = getPersonPortfolio(person);
+  // Curated data with owner-published CMS overrides (PORT-US-035).
+  const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
   if (!profile) return <Outlet />;
   return (
     <PersonShell profile={profile}>

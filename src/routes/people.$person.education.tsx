@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useMergedPersonPortfolio } from "@/lib/published-content";
 import { getPersonPortfolio, isPerson } from "@/lib/person-portfolios";
 import { PersonContent, PersonUnavailable } from "@/components/PersonPortfolio";
 
@@ -26,7 +27,8 @@ export const Route = createFileRoute("/people/$person/education")({
 
 function EducationSection() {
   const { person } = Route.useParams();
-  const profile = getPersonPortfolio(person);
+  // Curated data with owner-published CMS overrides (PORT-US-035).
+  const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
   return profile ? (
     <PersonContent profile={profile} section="education" />
   ) : (

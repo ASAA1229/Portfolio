@@ -493,6 +493,8 @@ The following stories capture the owner's answers to the 50-question development
 
 ### PORT-US-035 — Owner-managed complete portfolio CMS
 
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — `/admin/content` edits basics, projects (merge by slug, archive), experience, education, certifications, per-page SEO and navigation labels; draft → publish → unpublish with append-only history and restore (`src/lib/cms-content.ts`, `/api/admin/content/*`). Published overrides merge over curated data at read time via `/api/published-content` and `useMergedPersonPortfolio` (person pages, navbar labels). Test: draft/publish/rollback/unpublish per profile, cross-origin rejection, new and archived project slugs on person pages, navigation relabel, resume precedence still wins. Not yet: themes/layout editing in admin, Abhishek root pages consume only navigation labels (not basics/projects overrides).
+
 **Priority:** P1
 
 **As the owner,** I want to manage all profiles, pages, sections, projects, experience, education, certifications, media, themes and publishing from one protected admin experience, so that the portfolio can evolve without routine code changes.
@@ -562,6 +564,8 @@ The following stories capture the owner's answers to the 50-question development
 
 ### PORT-US-040 — Reusable profile templates and future client configuration
 
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Typed `src/config/site-config.ts` (theme tokens mirroring `:root`, `NAV_SECTIONS` consumed by the navbar) and `createProfileFromTemplate()` (`src/lib/profile-template.ts`); flow in `docs/PROFILE_TEMPLATES.md`. Test: navbar renders identical labels/paths for all four profiles; factory output renders on person pages. Not yet: runtime theme switching UI.
+
 **Priority:** P2 — future scope
 
 **As the owner,** I want the personal portfolio's profile model, themes and content structures to be reusable as templates, so that I can customize future client portfolios without duplicating the core product.
@@ -573,6 +577,8 @@ The following stories capture the owner's answers to the 50-question development
 - Multi-tenant hosting, client billing and client-specific role systems remain out of scope until separately approved.
 
 ### PORT-US-041 — Adaptive storage and portable deployment
+
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — `StorageAdapter` contract with R2, local-disk (now with `list`) and in-memory adapters; source of truth per data class in `docs/STORAGE.md`; `/admin/backup` exports/restores CMS, persona and resume metadata as validated JSON (known keys only, `RESTORE` confirmation). Test: export → restore round trip on local disk and R2, invalid/unknown-key backups rejected before any write. Not yet: binary originals in backups, database adapter.
 
 **Priority:** P2
 

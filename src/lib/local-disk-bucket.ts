@@ -23,6 +23,8 @@ export interface LocalDiskBucket {
     options?: { httpMetadata?: { contentType?: string } },
   ): Promise<void>;
   delete(key: string): Promise<void>;
+  /** Keys under a prefix (metadata sidecars excluded), sorted. */
+  list(prefix: string): Promise<string[]>;
 }
 
 // Keys are generated server-side; still refuse anything that could leave the root.
@@ -89,6 +91,33 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       const contentType = options?.httpMetadata?.contentType;
       if (contentType) await fs.writeFile(file + META_SUFFIX, JSON.stringify({ contentType }));
       else await fs.rm(file + META_SUFFIX, { force: true });
+    },
+    async list(prefix) {
+      const { fs, path } = await load();
+      const base = path.resolve(root);
+      const keys: string[] = [];
+      const walk = async (dir: string) => {
+        let entries: import("node:fs").Dirent[];
+        try {
+          entries = await fs.readdir(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        for (const entry of entries) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) await walk(full);
+          else if (
+            entry.isFile() &&
+            !entry.name.endsWith(META_SUFFIX) &&
+            !entry.name.endsWith(".tmp")
+          ) {
+            const key = path.relative(base, full).split(path.sep).join("/");
+            if (key.startsWith(prefix) && isSafeStorageKey(key)) keys.push(key);
+          }
+        }
+      };
+      await walk(base);
+      return keys.sort();
     },
     async delete(key) {
       const { fs, resolve } = await load();

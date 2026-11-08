@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMergedPersonPortfolio } from "@/lib/published-content";
 import { getPersonPortfolio } from "@/lib/person-portfolios";
 import { PersonHome, PersonUnavailable } from "@/components/PersonPortfolio";
 
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/people/$person/")({
 
 function PersonIndex() {
   const { person } = Route.useParams();
-  const profile = getPersonPortfolio(person);
+  // Curated data with owner-published CMS overrides (PORT-US-035).
+  const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
   return profile ? <PersonHome profile={profile} /> : <PersonUnavailable missing />;
 }

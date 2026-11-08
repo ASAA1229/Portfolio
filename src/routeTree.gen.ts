@@ -23,6 +23,8 @@ import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminBackupRouteImport } from './routes/admin.backup'
+import { Route as AdminContentRouteImport } from './routes/admin.content'
 import { Route as AdminImagesRouteImport } from './routes/admin.images'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminPersonasRouteImport } from './routes/admin.personas'
@@ -106,6 +108,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBackupRoute = AdminBackupRouteImport.update({
+  id: '/admin/backup',
+  path: '/admin/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContentRoute = AdminContentRouteImport.update({
+  id: '/admin/content',
+  path: '/admin/content',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminImagesRoute = AdminImagesRouteImport.update({
   id: '/admin/images',
   path: '/admin/images',
@@ -182,6 +194,8 @@ export interface FileRoutesByFullPath {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
+  '/admin/backup': typeof AdminBackupRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/personas': typeof AdminPersonasRoute
@@ -209,6 +223,8 @@ export interface FileRoutesByTo {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
+  '/admin/backup': typeof AdminBackupRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/personas': typeof AdminPersonasRoute
@@ -237,6 +253,8 @@ export interface FileRoutesById {
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
+  '/admin/backup': typeof AdminBackupRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/images': typeof AdminImagesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/personas': typeof AdminPersonasRoute
@@ -267,6 +285,8 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/skills'
+    | '/admin/backup'
+    | '/admin/content'
     | '/admin/images'
     | '/admin/login'
     | '/admin/personas'
@@ -294,6 +314,8 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/skills'
+    | '/admin/backup'
+    | '/admin/content'
     | '/admin/images'
     | '/admin/login'
     | '/admin/personas'
@@ -321,6 +343,8 @@ export interface FileRouteTypes {
     | '/robots.txt'
     | '/sitemap.xml'
     | '/skills'
+    | '/admin/backup'
+    | '/admin/content'
     | '/admin/images'
     | '/admin/login'
     | '/admin/personas'
@@ -350,6 +374,8 @@ export interface RootRouteChildren {
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SkillsRoute: typeof SkillsRoute
+  AdminBackupRoute: typeof AdminBackupRoute
+  AdminContentRoute: typeof AdminContentRoute
   AdminImagesRoute: typeof AdminImagesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminPersonasRoute: typeof AdminPersonasRoute
@@ -457,6 +483,20 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/backup': {
+      id: '/admin/backup'
+      path: '/admin/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AdminBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/content': {
+      id: '/admin/content'
+      path: '/admin/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AdminContentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/images': {
@@ -592,6 +632,8 @@ const rootRouteChildren: RootRouteChildren = {
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SkillsRoute: SkillsRoute,
+  AdminBackupRoute: AdminBackupRoute,
+  AdminContentRoute: AdminContentRoute,
   AdminImagesRoute: AdminImagesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminPersonasRoute: AdminPersonasRoute,

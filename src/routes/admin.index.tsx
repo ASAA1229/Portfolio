@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Bot, FileText, ImagePlus } from "lucide-react";
+import { Bot, FileText, ImagePlus, DatabaseBackup, LayoutList } from "lucide-react";
 
 // Private admin landing page. The server applies the same admin authorization
 // to /admin as to every /admin/* route; this page only links to the managers.
@@ -32,6 +32,19 @@ const TOOLS = [
     description:
       "Set each profile's assistant name, tone and approved notes; draft, publish and roll back.",
     Icon: Bot,
+  },
+  {
+    to: "/admin/content",
+    title: "Content Manager",
+    description:
+      "Edit profile basics, projects, experience, education, certifications, SEO and navigation labels with version history.",
+    Icon: LayoutList,
+  },
+  {
+    to: "/admin/backup",
+    title: "Backup & Restore",
+    description: "Download or restore content, personas and resume metadata as one JSON file.",
+    Icon: DatabaseBackup,
   },
 ] as const;
 

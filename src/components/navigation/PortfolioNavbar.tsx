@@ -6,6 +6,9 @@ import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import logoImage from "../../../logo.png";
 import { monogramFor } from "@/lib/monogram";
+import { NAV_SECTIONS, sectionHref } from "@/config/site-config";
+import { navigationLabel } from "@/lib/cms-content";
+import { usePublishedContent } from "@/lib/published-content";
 
 export interface PortfolioNavbarProps {
   person?: PersonPortfolio | null;
@@ -48,29 +51,14 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   // Same string-typed route form as the section links below.
   const projectsTo: string = isPerson && personId ? `/people/${personId}/projects` : "/projects";
 
-  // Exact 8 items in required order: Home, About, Skills, Projects, Experience, Certifications, Education, Contact
-  const links: NavItem[] =
-    isPerson && personId
-      ? [
-          { to: `/people/${personId}`, label: "Home", exact: true },
-          { to: `/people/${personId}/about`, label: "About" },
-          { to: `/people/${personId}/skills`, label: "Skills" },
-          { to: `/people/${personId}/projects`, label: "Projects" },
-          { to: `/people/${personId}/experience`, label: "Experience" },
-          { to: `/people/${personId}/certifications`, label: "Certifications" },
-          { to: `/people/${personId}/education`, label: "Education" },
-          { to: `/people/${personId}/contact`, label: "Contact" },
-        ]
-      : [
-          { to: "/", label: "Home", exact: true },
-          { to: "/about", label: "About" },
-          { to: "/skills", label: "Skills" },
-          { to: "/projects", label: "Projects" },
-          { to: "/experience", label: "Experience" },
-          { to: "/certifications", label: "Certifications" },
-          { to: "/education", label: "Education" },
-          { to: "/contact", label: "Contact" },
-        ];
+  // Exact 8 items in required order, from the shared site configuration (PORT-US-040).
+  // Labels can be overridden per profile through published CMS content (PORT-US-035).
+  const publishedContent = usePublishedContent(isPerson && personId ? personId : "abhishek");
+  const links: NavItem[] = NAV_SECTIONS.map((section) => ({
+    to: sectionHref(isPerson ? personId : undefined, section),
+    label: navigationLabel(publishedContent, section.page, section.label),
+    ...(section.exact ? { exact: true } : {}),
+  }));
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";
   const contactTo = isPerson && personId ? `/people/${personId}/contact` : "/contact";

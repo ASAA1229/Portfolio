@@ -1,4 +1,19 @@
 import "./lib/error-capture";
+import { createBackup, MAX_BACKUP_BYTES, validateBackup } from "@/lib/admin-backup";
+import {
+  contentKey,
+  emptyContentDocument,
+  isContentDocument,
+  isContentProfileId,
+  publishContentDraft,
+  publishedContent,
+  rollbackContent,
+  saveContentDraft,
+  unpublishContent,
+  validateContentOverrides,
+  type ContentDocument,
+  type ContentProfileId,
+} from "@/lib/cms-content";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import {
   appendHistory,
@@ -1825,6 +1840,180 @@ async function handlePersonaApi(request: Request, env: unknown): Promise<Respons
   return jsonResponse({ persona: next }, 200);
 }
 
+// ---------------------------------------------------------------------------
+// Owner-managed CMS content (PORT-US-035). Private storage; public read of the
+// published version only. Logs carry ids and versions, never content text.
+// ---------------------------------------------------------------------------
+
+async function readContentDocument(
+  bucket: PrivateBucket,
+  profileId: ContentProfileId,
+): Promise<ContentDocument> {
+  const object = await bucket.get(contentKey(profileId));
+  if (!object) return emptyContentDocument(profileId);
+  const value = await object.json<unknown>();
+  if (!isContentDocument(value, profileId)) {
+    throw new Error("Stored content failed integrity validation.");
+  }
+  return value;
+}
+
+async function handleContentApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (path === "/api/published-content" && request.method === "GET") {
+    const profileId = new URL(request.url).searchParams.get("profileId");
+    if (!isContentProfileId(profileId)) return jsonResponse({ error: "Unknown profile." }, 400);
+    const bucket = resolvePrivateBucket(env);
+    if (!bucket) return jsonResponse({ profileId, content: null }, 200);
+    try {
+      const content = publishedContent(await readContentDocument(bucket, profileId));
+      return jsonResponse({ profileId, content }, 200);
+    } catch (error) {
+      console.error("Could not read published portfolio content.", error);
+      // Pages fall back to curated static content.
+      return jsonResponse({ profileId, content: null }, 200);
+    }
+  }
+  if (path !== "/api/admin/content" && !path.startsWith("/api/admin/content/")) return null;
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+  if (request.method !== "GET") {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+  }
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return bucketNotConfigured();
+
+  if (path === "/api/admin/content" && request.method === "GET") {
+    const profileId = new URL(request.url).searchParams.get("profileId");
+    if (!isContentProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
+    try {
+      return jsonResponse({ document: await readContentDocument(bucket, profileId) }, 200);
+    } catch (error) {
+      return storageFailure(error, "read content");
+    }
+  }
+
+  const action = path.match(/^\/api\/admin\/content\/(draft|publish|rollback|unpublish)$/)?.[1];
+  if (!action || request.method !== "POST") return privateNotFound();
+  const bounded = await limitRequestBody(request, 128 * 1024);
+  if (bounded instanceof Response) return bounded;
+  const payload = (await bounded.json().catch(() => null)) as {
+    profileId?: unknown;
+    content?: unknown;
+    version?: unknown;
+  } | null;
+  const profileId = payload?.profileId;
+  if (!isContentProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
+
+  let doc: ContentDocument;
+  try {
+    doc = await readContentDocument(bucket, profileId);
+  } catch (error) {
+    return storageFailure(error, "read content");
+  }
+  const now = new Date().toISOString();
+  let next: ContentDocument;
+  try {
+    if (action === "draft") {
+      const validated = validateContentOverrides(payload?.content);
+      if (!validated.ok) return jsonResponse({ error: validated.errors.join(" ") }, 400);
+      next = saveContentDraft(doc, validated.content, now);
+    } else if (action === "publish") {
+      next = publishContentDraft(doc, now);
+    } else if (action === "rollback") {
+      if (typeof payload?.version !== "number") {
+        return jsonResponse({ error: "Choose a version to restore." }, 400);
+      }
+      next = rollbackContent(doc, payload.version, now);
+    } else {
+      next = unpublishContent(doc);
+    }
+  } catch (error) {
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : "Invalid request." },
+      409,
+    );
+  }
+  try {
+    await bucket.put(contentKey(profileId), JSON.stringify(next), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+  } catch (error) {
+    return storageFailure(error, `content ${action}`);
+  }
+  // Audit trail without content text.
+  console.info("Portfolio content updated.", {
+    profileId,
+    action,
+    publishedVersion: next.publishedVersion,
+    historyEntries: next.history.length,
+  });
+  return jsonResponse({ document: next }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Owner backup / restore of admin metadata (PORT-US-041).
+// ---------------------------------------------------------------------------
+
+async function handleBackupApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (path !== "/api/admin/backup" && path !== "/api/admin/backup/restore") return null;
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+  if (request.method !== "GET") {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+  }
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return bucketNotConfigured();
+
+  if (path === "/api/admin/backup" && request.method === "GET") {
+    try {
+      const backup = await createBackup(bucket);
+      console.info("Portfolio admin backup exported.", {
+        documents: Object.keys(backup.entries).length,
+      });
+      return jsonResponse(backup, 200, {
+        "content-disposition": `attachment; filename="portfolio-admin-backup-${backup.exportedAt.slice(0, 10)}.json"`,
+      });
+    } catch (error) {
+      return storageFailure(error, "export backup");
+    }
+  }
+  if (path !== "/api/admin/backup/restore" || request.method !== "POST") return privateNotFound();
+  const bounded = await limitRequestBody(request, MAX_BACKUP_BYTES);
+  if (bounded instanceof Response) return bounded;
+  const payload = (await bounded.json().catch(() => null)) as {
+    confirm?: unknown;
+    backup?: unknown;
+  } | null;
+  if (payload?.confirm !== "RESTORE") {
+    return jsonResponse({ error: "Type RESTORE to confirm replacing current admin data." }, 400);
+  }
+  const validated = validateBackup(payload.backup);
+  if (!validated.ok) return jsonResponse({ error: validated.errors.join(" ") }, 400);
+  // Everything is validated before the first write; writes are per document.
+  const written: string[] = [];
+  try {
+    for (const [key, value] of validated.entries) {
+      await bucket.put(key, JSON.stringify(value), {
+        httpMetadata: { contentType: "application/json; charset=utf-8" },
+      });
+      written.push(key);
+    }
+  } catch {
+    console.error("Portfolio admin restore stopped part-way.", { written: written.length });
+    return jsonResponse(
+      {
+        error: "Restore stopped part-way; some documents were restored. Retry the same backup.",
+        restored: written,
+      },
+      500,
+    );
+  }
+  console.info("Portfolio admin backup restored.", { documents: written.length });
+  return jsonResponse({ restored: written }, 200);
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const path = normalizedPath(request);
@@ -1835,6 +2024,10 @@ export default {
     if (resumeResponse) return resumeResponse;
     const personaResponse = await handlePersonaApi(request, env);
     if (personaResponse) return personaResponse;
+    const contentResponse = await handleContentApi(request, env);
+    if (contentResponse) return contentResponse;
+    const backupResponse = await handleBackupApi(request, env);
+    if (backupResponse) return backupResponse;
     try {
       const imageResponse = await handlePortfolioImageApi(request, env);
       if (imageResponse) return imageResponse;
