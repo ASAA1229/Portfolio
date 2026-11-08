@@ -7,6 +7,24 @@
 
 **Status vocabulary:** **DONE — VERIFIED (automated)** · **DONE — VERIFIED LOCALLY** (dev server / browser on the owner's laptop) · **IMPLEMENTED — NEEDS TESTING** (test named) · **PARTIAL — NEEDS DEVELOPMENT** · **NOT STARTED**. Nothing is marked production-verified: no CI run, deployment or production check has happened for this head.
 
+
+## Development completion snapshot — 2026-11-08
+
+All backlog stories in the owner-approved baseline now have an implementation on `new`. Testing was paused by the owner for this phase, so every item below is **IMPLEMENTED — NEEDS TESTING**. `npm run typecheck`, `npm run lint` (0 errors) and `npm run build` pass.
+
+| Story | What was built | Commit(s) | Test still required |
+|---|---|---|---|
+| PORT-US-013 / 036 Resume publish history | Append-only history, confirmed rollback (adds an entry), drafts removed on delete | `312302b`, `99c7208`, `032e55e` | Run history tests; publish → rollback → unpublish in browser |
+| PORT-US-035 Owner CMS | `/admin/content`: profile basics, projects, experience, education, certifications, SEO, navigation; draft/publish/history/restore, merged over curated data | `e6289eb` | CMS tests; publish edits and check every profile page |
+| PORT-US-037 JARVIS as AI engine | JARVIS primary; paid OpenAI only with `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` | `0cec5b6`, `7887729` | Chat via JARVIS gateway + tunnel in production |
+| PORT-US-038 Personas | `/admin/personas`: per-profile persona with preview, publish, history; cannot override grounding rules | `032e55e` | Persona tests; chat per profile |
+| PORT-US-039 Privacy | `/privacy`, chat consent notice with "Clear my chat", no analytics, mailto-only contact | `032e55e` | Browser check of notice and clear |
+| PORT-US-040 Templates | `src/config/site-config.ts`, navbar reads it, new-profile factory, `docs/PROFILE_TEMPLATES.md` | `e6289eb` | Visual regression on all profiles |
+| PORT-US-041 Storage | One storage contract (R2, local disk, memory), `docs/STORAGE.md`, `/admin/backup` export/restore | `e6289eb` | Backup → restore round trip |
+| Dev uploads on disk | `.local-storage/` survives restarts | `604fe9c` | Upload, restart, confirm |
+
+**Known limits:** CMS edits to Abhishek's own pages only affect navigation labels so far; backups contain metadata only (no resume/image files); person project pages with unknown slugs return an "unavailable" page (200) instead of 404. **Owner-dependent:** production R2 + login check, `VITE_SITE_URL`, JARVIS tunnel secrets, first CI run, Sai monogram (DR vs DS).
+
 ## 1. Product summary
 
 A cinematic, Netflix-inspired portfolio presenting four people — **Abhishek** (root site `/`), **Amulya / Ammu**, **Anjini Kumar / Bava** and **Sai / Darling** (`/people/{ammu,bava,sai}`, `/people/darling` → `/people/sai`). All profiles now share one visual template (chapter heroes, featured projects, contact panel, footer, per-person monogram). Visitors can chat with a profile-grounded AI assistant, which now runs on the owner's **JARVIS personal AI** (OpenAI optional fallback; offline profile answers when no AI is reachable). A private `/admin` area lets the owner upload resumes and images, review them, and publish/unpublish.
