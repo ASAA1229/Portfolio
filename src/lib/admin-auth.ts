@@ -66,17 +66,36 @@ export async function verifyAdminPassword(password: string, env?: unknown): Prom
   return constantTimeEqual(new Uint8Array(actualHash), new Uint8Array(expectedHash));
 }
 
-export async function createAdminCookie(env?: unknown): Promise<string | null> {
-  const key = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!key) return null;
+/**
+ * Session epoch: "log out everywhere" increments a stored epoch, which changes the
+ * signing key and invalidates every previously issued admin cookie at once.
+ * Epoch "0" keeps the original key so existing sessions stay valid until then.
+ */
+function sessionKey(secretValue: string, epoch: string): string {
+  return epoch === "0" ? secretValue : `${secretValue}|epoch:${epoch}`;
+}
+
+export function isValidSessionEpoch(value: unknown): value is string {
+  return typeof value === "string" && /^(?:0|[1-9]\d{0,15})$/.test(value);
+}
+
+export async function createAdminCookie(env?: unknown, epoch = "0"): Promise<string | null> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !isValidSessionEpoch(epoch)) return null;
+  const key = sessionKey(secretValue, epoch);
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
   const payload = String(expires);
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 
-export async function isAdminRequest(request: Request, env?: unknown): Promise<boolean> {
-  const key = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!key) return false;
+export async function isAdminRequest(
+  request: Request,
+  env?: unknown,
+  epoch = "0",
+): Promise<boolean> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !isValidSessionEpoch(epoch)) return false;
+  const key = sessionKey(secretValue, epoch);
   const cookieHeader = request.headers.get("cookie") ?? "";
   const cookie = cookieHeader
     .split(";")

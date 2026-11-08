@@ -111,6 +111,9 @@ describe("POST /api/chat request flow", () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(sent.model).toBe("jarvis");
+    // Profile scope travels in both the header and the body for gateway enforcement.
+    expect((calls[0]!.init.headers as Record<string, string>)["X-Jarvis-Profile"]).toBe("ammu");
+    expect((sent as unknown as { jarvis_profile?: string }).jarvis_profile).toBe("ammu");
     expect(sent.stream).toBe(true);
     expect(sent.messages[0]!.role).toBe("system");
     expect(sent.messages[0]!.content).toContain("Dudala Amulya");

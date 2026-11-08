@@ -73,13 +73,17 @@ describe("backup / restore (PORT-US-041)", () => {
     await storage.put("private-admin/resumes/files/abc", "binary");
     const backup = await createBackup(storage);
     expect(Object.keys(backup.entries)).toEqual(["private-admin/content/sai.json"]);
-    expect(validateBackup(backup).ok).toBe(true);
-    expect(validateBackup({ ...backup, entries: { "private-admin/other.json": {} } }).ok).toBe(
-      false,
-    );
+    expect((await validateBackup(backup)).ok).toBe(true);
     expect(
-      validateBackup({ ...backup, entries: { "private-admin/content/sai.json": { bad: true } } })
-        .ok,
+      (await validateBackup({ ...backup, entries: { "private-admin/other.json": {} } })).ok,
+    ).toBe(false);
+    expect(
+      (
+        await validateBackup({
+          ...backup,
+          entries: { "private-admin/content/sai.json": { bad: true } },
+        })
+      ).ok,
     ).toBe(false);
   });
 

@@ -1,7 +1,7 @@
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { DatabaseBackup, Download, Upload } from "lucide-react";
-import { validateBackup } from "@/lib/admin-backup";
+import { MAX_BACKUP_BYTES, validateBackup } from "@/lib/admin-backup";
 
 export const Route = createFileRoute("/admin/backup")({
   head: () => ({
@@ -21,8 +21,59 @@ function BackupManager() {
     name: string;
     backup: unknown;
     documents: number;
+    files: number;
+    missingFiles: number;
   } | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [adapters, setAdapters] = useState<string[]>([]);
+  const [migrateConfirm, setMigrateConfirm] = useState("");
+  const [direction, setDirection] = useState<"local-disk:r2" | "r2:local-disk">("local-disk:r2");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/admin/storage", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { available?: string[] } | null) => setAdapters(payload?.available ?? []))
+      .catch(() => setAdapters([]));
+    return () => controller.abort();
+  }, []);
+
+  async function migrate() {
+    const [from, to] = direction.split(":");
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/storage/migrate", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ from, to, confirm: migrateConfirm }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        documents?: number;
+        files?: number;
+        missingFiles?: string[];
+        error?: string;
+      } | null;
+      if (!response.ok) throw new Error(payload?.error ?? "Migration failed.");
+      setMessage(
+        `Copied ${payload?.documents ?? 0} documents and ${payload?.files ?? 0} files from ${from} to ${to}.` +
+          (payload?.missingFiles?.length
+            ? ` ${payload.missingFiles.length} referenced files were missing in the source.`
+            : ""),
+      );
+      setMigrateConfirm("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Migration failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function download() {
     setBusy(true);
@@ -63,16 +114,22 @@ function BackupManager() {
     setPending(null);
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Backup files are limited to 2 MB.");
+    if (file.size > MAX_BACKUP_BYTES) {
+      setError("Backup files are limited to 95 MB.");
       return;
     }
     try {
       const backup = JSON.parse(await file.text()) as unknown;
       // Validate in the browser first; the server validates again before writing.
-      const validated = validateBackup(backup);
+      const validated = await validateBackup(backup);
       if (!validated.ok) throw new Error(validated.errors.join(" "));
-      setPending({ name: file.name, backup, documents: validated.entries.length });
+      setPending({
+        name: file.name,
+        backup,
+        documents: validated.entries.length,
+        files: validated.files.length,
+        missingFiles: validated.missingFiles.length,
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "That file is not a valid backup.");
     }
@@ -91,10 +148,16 @@ function BackupManager() {
       });
       const payload = (await response.json().catch(() => null)) as {
         restored?: string[];
+        files?: number;
+        missingFiles?: string[];
         error?: string;
       } | null;
       if (!response.ok) throw new Error(payload?.error ?? "Restore failed.");
-      setMessage(`Restored ${payload?.restored?.length ?? 0} documents from ${pending.name}.`);
+      const missing = payload?.missingFiles?.length ?? 0;
+      setMessage(
+        `Restored ${payload?.restored?.length ?? 0} items (${payload?.files ?? 0} files) from ${pending.name}.` +
+          (missing ? ` ${missing} referenced files were not in the backup.` : ""),
+      );
       setPending(null);
       setConfirmText("");
     } catch (reason) {
@@ -111,9 +174,9 @@ function BackupManager() {
         <DatabaseBackup className="size-8" aria-hidden="true" /> Backup &amp; restore
       </h1>
       <p className="mt-3 text-sm leading-7 text-muted-foreground">
-        Export content, personas, resume metadata, publish histories and the image index as one JSON
-        file, or restore them from a previous export. Resume and image files themselves are not
-        included and stay in private storage.
+        Export content, personas, resume metadata, publish histories, the image index, the admin
+        audit log and the resume and image files themselves (with SHA-256 checks) as one JSON file,
+        or restore from a previous export. A failed restore is rolled back completely.
       </p>
       {error && (
         <p role="alert" className="mt-4 rounded border border-red-400/40 p-3 text-sm text-red-300">
@@ -152,8 +215,9 @@ function BackupManager() {
         {pending && (
           <div className="mt-4 space-y-3 text-sm">
             <p>
-              {pending.name}: {pending.documents} valid documents. Type <strong>RESTORE</strong> to
-              confirm.
+              {pending.name}: {pending.documents} valid documents and {pending.files} verified files
+              {pending.missingFiles ? ` (${pending.missingFiles} referenced files missing)` : ""}.
+              Type <strong>RESTORE</strong> to confirm.
             </p>
             <input
               className="w-full max-w-xs rounded border border-border bg-background p-2"
@@ -167,6 +231,45 @@ function BackupManager() {
               onClick={() => void restore()}
             >
               <Upload className="size-4" aria-hidden="true" /> Restore backup
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border bg-card p-5">
+        <h2 className="text-2xl">Storage migration</h2>
+        {adapters.length < 2 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Available storage here: {adapters.length ? adapters.join(", ") : "none"}. Migration
+            needs both the local disk store and the R2 bucket in the same runtime; otherwise move
+            data by downloading a backup here and restoring it in the other environment.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3 text-sm">
+            <label className="block">
+              Direction
+              <select
+                className="mt-1 block min-h-11 rounded border border-border bg-background px-3"
+                value={direction}
+                onChange={(event) => setDirection(event.target.value as typeof direction)}
+              >
+                <option value="local-disk:r2">Local disk → R2</option>
+                <option value="r2:local-disk">R2 → Local disk</option>
+              </select>
+            </label>
+            <input
+              className="w-full max-w-xs rounded border border-border bg-background p-2"
+              value={migrateConfirm}
+              onChange={(event) => setMigrateConfirm(event.target.value)}
+              aria-label="Type MIGRATE to confirm"
+              placeholder="Type MIGRATE"
+            />
+            <button
+              className="inline-flex min-h-11 items-center gap-2 rounded border border-border px-4 disabled:opacity-50"
+              disabled={busy || migrateConfirm !== "MIGRATE"}
+              onClick={() => void migrate()}
+            >
+              Copy admin data
             </button>
           </div>
         )}

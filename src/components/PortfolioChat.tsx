@@ -1,3 +1,4 @@
+import { describeChatFailure } from "@/lib/ai-chat-errors";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChatPrivacyNotice } from "@/components/ChatPrivacyNotice";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,16 +64,7 @@ async function askAi(
     } catch {
       /* The server may return a non-JSON error page. */
     }
-    const reason =
-      res.status === 503 && detail.toLowerCase().includes("not configured")
-        ? "The AI service is not configured on the server (missing OPENAI_API_KEY)."
-        : res.status === 401 || res.status === 403
-          ? "The AI service rejected its server credentials (HTTP " + res.status + ")."
-          : res.status === 402
-            ? "The AI service has no available credits or billing access (HTTP 402)."
-            : res.status === 429
-              ? "The AI service rate limit was reached (HTTP 429). Please try again shortly."
-              : "The AI request failed (HTTP " + res.status + ").";
+    const reason = describeChatFailure(res.status, detail);
     throw new Error(reason);
   }
   const reader = res.body.getReader();

@@ -1,3 +1,4 @@
+import { describeChatFailure } from "@/lib/ai-chat-errors";
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send, Volume2, VolumeX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -103,16 +104,7 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
         } catch {
           /* The server may return a non-JSON error page. */
         }
-        const reason =
-          response.status === 503 && detail.toLowerCase().includes("not configured")
-            ? "The AI service is not configured on the server (missing OPENAI_API_KEY)."
-            : response.status === 401 || response.status === 403
-              ? "The AI service rejected its server credentials (HTTP " + response.status + ")."
-              : response.status === 402
-                ? "The AI service has no available credits or billing access (HTTP 402)."
-                : response.status === 429
-                  ? "The AI service rate limit was reached (HTTP 429). Please try again shortly."
-                  : "The AI request failed (HTTP " + response.status + ").";
+        const reason = describeChatFailure(response.status, detail);
         throw new Error(reason);
       }
       const reader = response.body.getReader();

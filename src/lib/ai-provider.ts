@@ -20,8 +20,9 @@ export interface ChatTurn {
 export interface AiProvider {
   name: "jarvis" | "openai";
   endpoint: string;
-  headers: Record<string, string>;
-  body(instructions: string, messages: ChatTurn[]): Record<string, unknown>;
+  /** Request headers; JARVIS also receives the profile scope (X-Jarvis-Profile). */
+  headers(profileId: string): Record<string, string>;
+  body(instructions: string, messages: ChatTurn[], profileId: string): Record<string, unknown>;
   /** Extract assistant text from one parsed SSE event; undefined when the event carries none. */
   extractDelta(event: unknown): string | undefined;
   /** Provider-reported stream error code, if this event signals failure. */
@@ -54,10 +55,17 @@ export function resolveAiProvider(env: Env): AiProvider | null {
     return {
       name: "jarvis",
       endpoint: `${jarvisUrl}/v1/chat/completions`,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${jarvisKey}` },
-      body: (instructions, messages) => ({
+      // The gateway enforces the site key's allowed profiles from both the header and
+      // the body field, so one site key cannot be used to answer as another profile.
+      headers: (profileId) => ({
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jarvisKey}`,
+        "X-Jarvis-Profile": profileId,
+      }),
+      body: (instructions, messages, profileId) => ({
         model: "jarvis",
         stream: true,
+        jarvis_profile: profileId,
         messages: [{ role: "system", content: instructions }, ...messages],
       }),
       extractDelta: (event) => {
@@ -79,7 +87,7 @@ export function resolveAiProvider(env: Env): AiProvider | null {
     return {
       name: "openai",
       endpoint: "https://api.openai.com/v1/responses",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openAiKey}` },
+      headers: () => ({ "Content-Type": "application/json", Authorization: `Bearer ${openAiKey}` }),
       body: (instructions, messages) => ({
         model: "gpt-4.1-mini",
         stream: true,

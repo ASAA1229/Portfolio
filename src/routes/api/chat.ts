@@ -131,9 +131,11 @@ export const Route = createFileRoute("/api/chat")({
           ? `${groundedInstructions}\n\n${buildPersonaPrompt(personaConfig)}`
           : groundedInstructions;
 
-        // JARVIS (the owner's personal AI gateway) is preferred; OpenAI is an optional
-        // fallback provider. Lovable AI is paused.
+        // JARVIS (the owner's personal AI gateway) is the primary engine. A paid
+        // provider is used only with PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true.
         const provider = resolveAiProvider(process.env);
+        // The validated profile this answer is scoped to; sent to the JARVIS gateway.
+        const profileScope = parsed.data.person ?? "abhishek";
         if (!provider) {
           return Response.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 503 });
         }
@@ -164,7 +166,7 @@ export const Route = createFileRoute("/api/chat")({
         try {
           upstream = await fetch(provider.endpoint, {
             method: "POST",
-            headers: provider.headers,
+            headers: provider.headers(profileScope),
             body: JSON.stringify(
               provider.body(
                 instructions,
@@ -172,6 +174,7 @@ export const Route = createFileRoute("/api/chat")({
                   role: message.role,
                   content: message.content,
                 })),
+                profileScope,
               ),
             ),
             signal: abortController.signal,
@@ -190,12 +193,21 @@ export const Route = createFileRoute("/api/chat")({
           const status = upstream.status || 502;
           const upstreamText = await upstream.text().catch(() => "");
           // Avoid returning raw provider errors that may contain implementation details.
-          const message =
-            status === 401 || status === 403
+          const profileScopeRejected =
+            provider.name === "jarvis" && status === 403 && /profile/i.test(upstreamText);
+          const message = profileScopeRejected
+            ? "This site's JARVIS key is not allowed to answer for this profile. Showing profile answers instead."
+            : status === 401 || status === 403
               ? "The AI provider rejected its server API key. Check the deployment secret and provider access."
               : status === 429
-                ? "The AI service is rate-limited or out of available quota. Check the API billing and usage limits."
-                : "The AI service could not complete the request. Please try again.";
+                ? provider.name === "jarvis"
+                  ? "JARVIS is busy or this site reached its request limit. Please wait a moment and try again."
+                  : "The AI service is rate-limited or out of available quota. Check the API billing and usage limits."
+                : status === 503 || status === 502 || status === 504
+                  ? provider.name === "jarvis"
+                    ? "JARVIS is offline or its local model is unavailable right now. Showing profile answers instead."
+                    : "The AI service is temporarily unavailable. Please try again shortly."
+                  : "The AI service could not complete the request. Please try again.";
           console.error("Portfolio chat provider error", {
             provider: provider.name,
             status,

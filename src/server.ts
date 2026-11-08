@@ -1,5 +1,18 @@
 import "./lib/error-capture";
-import { createBackup, MAX_BACKUP_BYTES, validateBackup } from "@/lib/admin-backup";
+import {
+  createBackup,
+  MAX_BACKUP_BYTES,
+  migrateStorage,
+  restoreBackup,
+  validateBackup,
+} from "@/lib/admin-backup";
+import {
+  appendAdminAudit,
+  bumpSessionEpoch,
+  describeAdminAction,
+  readAuditLog,
+  readSessionEpoch,
+} from "@/lib/admin-audit";
 import {
   contentKey,
   emptyContentDocument,
@@ -214,7 +227,10 @@ function adminAuthBypassed(env: unknown): boolean {
 }
 
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
-  return adminAuthBypassed(env) || (await isAdminRequest(request, env));
+  if (adminAuthBypassed(env)) return true;
+  // Cookies are bound to the current session epoch ("log out everywhere").
+  const epoch = await readSessionEpoch(resolvePrivateBucket(env));
+  return isAdminRequest(request, env, epoch);
 }
 
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
@@ -266,7 +282,7 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     }
 
     loginAttempts.delete(clientKey);
-    const cookie = await createAdminCookie(env);
+    const cookie = await createAdminCookie(env, await readSessionEpoch(resolvePrivateBucket(env)));
     if (!cookie) return jsonResponse({ error: "Admin authentication is not configured." }, 503);
     return jsonResponse({ ok: true }, 200, {
       "set-cookie": adminCookieHeader(cookie, new URL(request.url).protocol === "https:"),
@@ -282,9 +298,40 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     });
   }
 
+  if (path === "/api/admin/logout-all" && request.method === "POST") {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+    if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+    const bucket = resolvePrivateBucket(env);
+    if (!bucket) return bucketNotConfigured();
+    try {
+      await bumpSessionEpoch(bucket);
+    } catch (error) {
+      return storageFailure(error, "end all admin sessions");
+    }
+    return jsonResponse({ ok: true, endedAllSessions: true }, 200, {
+      "set-cookie": clearAdminCookieHeader(new URL(request.url).protocol === "https:"),
+    });
+  }
+
   if (path === "/api/admin/session" && request.method === "GET") {
     if (!(await isAdminAuthorized(request, env))) return privateNotFound();
     return jsonResponse({ authenticated: true }, 200);
+  }
+
+  if (path === "/api/admin/audit" && request.method === "GET") {
+    if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+    const bucket = resolvePrivateBucket(env);
+    if (!bucket) return bucketNotConfigured();
+    try {
+      const log = await readAuditLog(bucket);
+      return jsonResponse(
+        { startedAt: log.startedAt, entries: [...log.entries].reverse().slice(0, 500) },
+        200,
+      );
+    } catch (error) {
+      return storageFailure(error, "read the admin audit log");
+    }
   }
 
   return null;
@@ -1957,7 +2004,13 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
 
 async function handleBackupApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
-  if (path !== "/api/admin/backup" && path !== "/api/admin/backup/restore") return null;
+  if (
+    path !== "/api/admin/backup" &&
+    path !== "/api/admin/backup/restore" &&
+    path !== "/api/admin/storage" &&
+    path !== "/api/admin/storage/migrate"
+  )
+    return null;
   if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (request.method !== "GET") {
     const origin = request.headers.get("origin");
@@ -1979,6 +2032,12 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
       return storageFailure(error, "export backup");
     }
   }
+  if (path === "/api/admin/storage" && request.method === "GET") {
+    return handleStorageMigration(request, env);
+  }
+  if (path === "/api/admin/storage/migrate" && request.method === "POST") {
+    return handleStorageMigration(request, env);
+  }
   if (path !== "/api/admin/backup/restore" || request.method !== "POST") return privateNotFound();
   const bounded = await limitRequestBody(request, MAX_BACKUP_BYTES);
   if (bounded instanceof Response) return bounded;
@@ -1989,33 +2048,164 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
   if (payload?.confirm !== "RESTORE") {
     return jsonResponse({ error: "Type RESTORE to confirm replacing current admin data." }, 400);
   }
-  const validated = validateBackup(payload.backup);
+  // Everything (documents, file keys, sizes, SHA-256) is validated before the first write.
+  const validated = await validateBackup(payload.backup);
   if (!validated.ok) return jsonResponse({ error: validated.errors.join(" ") }, 400);
-  // Everything is validated before the first write; writes are per document.
-  const written: string[] = [];
-  try {
-    for (const [key, value] of validated.entries) {
-      await bucket.put(key, JSON.stringify(value), {
-        httpMetadata: { contentType: "application/json; charset=utf-8" },
-      });
-      written.push(key);
-    }
-  } catch {
-    console.error("Portfolio admin restore stopped part-way.", { written: written.length });
+  const result = await restoreBackup(bucket, validated);
+  if (!result.ok) {
+    console.error("Portfolio admin restore failed.", { rolledBack: result.rolledBack });
     return jsonResponse(
       {
-        error: "Restore stopped part-way; some documents were restored. Retry the same backup.",
-        restored: written,
+        error: result.rolledBack
+          ? "Restore failed and every change was rolled back. Nothing was modified."
+          : "Restore failed and could not be fully rolled back. Export a fresh backup and retry.",
+        rolledBack: result.rolledBack,
       },
       500,
     );
   }
-  console.info("Portfolio admin backup restored.", { documents: written.length });
-  return jsonResponse({ restored: written }, 200);
+  console.info("Portfolio admin backup restored.", {
+    keys: result.restored.length,
+    files: validated.files.length,
+  });
+  return jsonResponse(
+    {
+      restored: result.restored,
+      files: validated.files.length,
+      missingFiles: validated.missingFiles,
+    },
+    200,
+  );
+}
+
+/**
+ * Storage adapters available to this runtime: the R2 binding (deployed or via the
+ * platform proxy) and, in `vite dev` only, the local disk bucket.
+ */
+function availableStorageAdapters(env: unknown): Partial<Record<"r2" | "local-disk", PrivateBucket>> {
+  const adapters: Partial<Record<"r2" | "local-disk", PrivateBucket>> = {};
+  const r2 = (env as AdminEnv | undefined)?.RESUME_BUCKET;
+  if (r2) adapters.r2 = r2;
+  if (import.meta.env.DEV === true) {
+    localDevelopmentBucket ??= createLocalDiskBucket(
+      process.env["PORTFOLIO_LOCAL_STORAGE_DIR"] || ".local-storage",
+    );
+    adapters["local-disk"] = localDevelopmentBucket;
+  }
+  return adapters;
+}
+
+async function handleStorageMigration(request: Request, env: unknown): Promise<Response> {
+  const adapters = availableStorageAdapters(env);
+  if (request.method === "GET") {
+    return jsonResponse({ available: Object.keys(adapters) }, 200);
+  }
+  const bounded = await limitRequestBody(request, 1024);
+  if (bounded instanceof Response) return bounded;
+  const payload = (await bounded.json().catch(() => null)) as {
+    from?: unknown;
+    to?: unknown;
+    confirm?: unknown;
+  } | null;
+  const from = payload?.from;
+  const to = payload?.to;
+  if ((from !== "r2" && from !== "local-disk") || (to !== "r2" && to !== "local-disk") || from === to) {
+    return jsonResponse({ error: "Choose two different storage adapters (r2, local-disk)." }, 400);
+  }
+  if (payload?.confirm !== "MIGRATE") {
+    return jsonResponse({ error: "Type MIGRATE to confirm copying admin data." }, 400);
+  }
+  const source = adapters[from];
+  const target = adapters[to];
+  if (!source || !target) {
+    return jsonResponse({ error: "Both storage adapters must be available in this runtime." }, 409);
+  }
+  const result = await migrateStorage(source, target);
+  if (!result.ok) {
+    return jsonResponse({ error: result.error, rolledBack: result.rolledBack ?? false }, 500);
+  }
+  console.info("Portfolio admin storage migrated.", {
+    from,
+    to,
+    documents: result.documents,
+    files: result.files,
+  });
+  return jsonResponse(result, 200);
+}
+
+/**
+ * Person project pages render on the client from curated data plus CMS overrides,
+ * so the HTML is always produced. Decide the HTTP status here: a slug that exists
+ * in neither the curated data nor the published CMS projects (or is archived)
+ * returns a real 404 for crawlers and direct loads.
+ */
+async function personProjectExists(path: string, env: unknown): Promise<boolean | null> {
+  const match = /^\/people\/([a-z]+)\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
+  if (!match) return null;
+  const [, person, slug] = match as unknown as [string, string, string];
+  let archived = false;
+  const bucket = resolvePrivateBucket(env);
+  if (bucket && isContentProfileId(person)) {
+    try {
+      const content = publishedContent(await readContentDocument(bucket, person));
+      const edit = content?.projects?.find((project) => project.slug === slug);
+      if (edit) {
+        if (edit.archived) archived = true;
+        else return true;
+      }
+    } catch {
+      // Unreadable CMS content: fall back to curated data only.
+    }
+  }
+  if (archived) return false;
+  return Boolean(getPersonProject(person, slug));
+}
+
+/**
+ * Central admin audit hook: every admin API mutation (any non-GET request under
+ * /api/admin/) is recorded once, after the handler responds, with ids/actions/
+ * status only. Audit failures are logged but never change the API response.
+ */
+async function auditAdminMutation(request: Request, env: unknown, response: Response) {
+  const path = normalizedPath(request);
+  if (!path.startsWith("/api/admin/") || ["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    return;
+  }
+  // Failed logins are rate-limited separately; only record successful sign-ins.
+  if (path === "/api/admin/login" && response.status !== 200) return;
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return;
+  const { action, targets } = describeAdminAction(request.method, path);
+  try {
+    await appendAdminAudit(bucket, {
+      actor: adminAuthBypassed(env) ? "local-dev" : "owner",
+      action,
+      targets,
+      status: response.status,
+      outcome:
+        response.status < 400 ? "success" : response.status < 500 ? "rejected" : "failed",
+    });
+  } catch (error) {
+    console.error("Admin audit entry could not be written.", {
+      action,
+      reason: error instanceof Error ? error.message : "unknown",
+    });
+  }
 }
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const method = request.method;
+    const auditRequest = new Request(request.url, { method });
+    const response = await routeRequest(request, env, ctx);
+    // Unauthenticated probes return a private 404 and are not worth an audit entry.
+    if (response.status !== 404) await auditAdminMutation(auditRequest, env, response);
+    return response;
+  },
+};
+
+async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+  {
     const path = normalizedPath(request);
     const isAdmin = isAdminPath(path);
     const authResponse = await handleAdminAuth(request, env);
@@ -2065,6 +2255,16 @@ export default {
       const response = await normalizeCatastrophicSsrResponse(
         await handler.fetch(request, env, ctx),
       );
+      if (request.method === "GET" && response.status === 200) {
+        const exists = await personProjectExists(path, env);
+        if (exists === false) {
+          return new Response(response.body, {
+            status: 404,
+            statusText: "Not Found",
+            headers: response.headers,
+          });
+        }
+      }
       return isAdmin ? withNoindex(response) : response;
     } catch (error) {
       console.error(error);
@@ -2073,5 +2273,5 @@ export default {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
-  },
-};
+  }
+}
