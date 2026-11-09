@@ -611,3 +611,20 @@ The following stories capture the owner's answers to the 50-question development
 - An unknown profile remains not found and cannot leak another profile's projects.
 - Direct load and refresh behavior is consistent across all supported profiles.
 
+
+
+## Owner-directed status reconciliation — 2026-11-09 12:22 IST
+
+**Inspected `new` branch head:** `3605e922ef469d821e19dde8b5f079799ccedab4`. Development is ACTIVE; testing/validation is PAUSED. Existing source additions for profile routes/content, JARVIS-first AI provider, admin audit, storage migration, backup/restore and release disposition are implementation evidence only. Do not reuse the 2026-11-07 local test/build/browser evidence as proof for this later branch head.
+
+### Current development priorities
+1. **PORT-US-013 / resume publishing:** close publish/unpublish/rollback consistency and recoverable partial failures across private index, public feed and object storage.
+2. **PORT-US-011 / admin access:** complete secure session lifecycle, server-side authorization and production configuration boundaries.
+3. **PORT-US-034 / JARVIS chat:** preserve profile scope, bounded approved context, safe provider failures, cancellation and server-only credentials; paid fallback remains explicit opt-in only.
+4. **PORT-US-017 / regression readiness:** continue adding targeted regression coverage without executing it while testing is paused.
+5. **PORT-US-033 / release disposition:** keep promotion/deployment/Nexus blocked; implement only safe, operator-reviewed evidence and recovery controls.
+
+### Constraints applying to every story
+Four-profile isolation is mandatory. Public content and AI context may contain only approved, profile-scoped data; private resume originals, drafts, source notes and admin data remain private. JARVIS is primary; paid OpenAI fallback requires explicit opt-in and server-side keys. Free-first/zero ongoing cost; no unapproved paid infrastructure. Testing paused means no tests, build, typecheck, lint, image audit, browser/accessibility checks, CI/Jenkins or release validation. Work only on `new`; no PR, merge, push to `dev`/`main`, deployment, production secret changes, artifact publication or Nexus enablement without explicit authorization. Nexus stays disabled.
+
+New or changed stories remain OPEN / IMPLEMENTED — NEEDS TESTING until exact-head and applicable owner acceptance evidence is recorded after testing resumes.
