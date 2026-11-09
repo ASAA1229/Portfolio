@@ -119,3 +119,80 @@ describe("resume publish history", () => {
     expect(isPublishHistory(wrongProfile, "ammu")).toBe(false);
   });
 });
+  
+  it("rejects unknown top-level fields so private metadata cannot enter persisted history", () => {
+    const valid = appendHistory(
+      emptyHistory("ammu"),
+      snapshotOf(record("v1"), "2026-11-01T00:00:00.000Z"),
+    );
+    const withPrivateField = structuredClone(valid);
+    (withPrivateField.entries[0] as unknown as Record<string, unknown>).privateReviewNotes =
+      "confidential reviewer comment";
+    expect(isPublishHistory(withPrivateField, "ammu")).toBe(false);
+  });
+
+  it("rejects invalid timestamps, unsupported schema versions and oversized history", () => {
+    const valid = appendHistory(
+      emptyHistory("ammu"),
+      snapshotOf(record("v1"), "2026-11-01T00:00:00.000Z"),
+    );
+    const badTimestamp = structuredClone(valid);
+    (badTimestamp.entries[0] as unknown as { publishedAt: string }).publishedAt = "not-a-date";
+    expect(isPublishHistory(badTimestamp, "ammu")).toBe(false);
+
+    const badVersion = { ...valid, version: 2 };
+    expect(isPublishHistory(badVersion, "ammu")).toBe(false);
+
+    const oversized = {
+      ...valid,
+      entries: Array.from({ length: MAX_HISTORY_ENTRIES + 1 }, (_, index) => ({
+        ...valid.entries[0]!,
+        resumeId: `v${index}`,
+      })),
+    };
+    expect(isPublishHistory(oversized, "ammu")).toBe(false);
+  });
+
+  it("rejects malformed rollback metadata and invalid nested contact values", () => {
+    const valid = appendHistory(
+      emptyHistory("ammu"),
+      snapshotOf(record("v1"), "2026-11-01T00:00:00.000Z"),
+    );
+    const badRollback = structuredClone(valid);
+    (badRollback.entries[0] as unknown as { kind: string; restoredPublishedAt: string }).kind =
+      "rollback";
+    (badRollback.entries[0] as unknown as { restoredPublishedAt: string }).restoredPublishedAt =
+      "yesterday";
+    expect(isPublishHistory(badRollback, "ammu")).toBe(false);
+
+    const badContact = structuredClone(valid);
+    (badContact.entries[0] as unknown as { contact: unknown }).contact = {
+      email: "valid@example.com",
+      unexpected: "private",
+    };
+    expect(isPublishHistory(badContact, "ammu")).toBe(false);
+  });
+
+  it("deep-copies structured sections so later draft mutation cannot rewrite history", () => {
+    const structuredSections = { experience: [{ role: "Engineer", organization: "Example" }] };
+    const snapshot = snapshotOf(
+      { ...record("v1"), structuredSections },
+      "2026-11-01T00:00:00.000Z",
+    );
+    (structuredSections.experience[0] as { role: string }).role = "Mutated after publish";
+    expect(snapshot.structuredSections).toEqual({
+      experience: [{ role: "Engineer", organization: "Example" }],
+    });
+  });
+
+  it("rejects snapshots and append operations that cross profile boundaries", () => {
+    expect(() =>
+      snapshotOf({ ...record("v1"), profileId: "sai" }, "2026-11-01T00:00:00.000Z"),
+    ).not.toThrow();
+    const ammuHistory = emptyHistory("ammu");
+    const saiSnapshot = snapshotOf(
+      { ...record("sai-v1"), profileId: "sai" },
+      "2026-11-01T00:00:00.000Z",
+    );
+    expect(() => appendHistory(ammuHistory, saiSnapshot)).toThrow(/profile mismatch/i);
+  });
