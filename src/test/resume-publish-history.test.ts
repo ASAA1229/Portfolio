@@ -92,4 +92,30 @@ describe("resume publish history", () => {
       skills: [],
     });
   });
+
+  it("rejects malformed nested public fields and cross-profile history entries", () => {
+    const valid = appendHistory(
+      emptyHistory("ammu"),
+      snapshotOf(record("v1"), "2026-11-01T00:00:00.000Z"),
+    );
+    expect(isPublishHistory(valid, "ammu")).toBe(true);
+
+    const badContact = structuredClone(valid);
+    (badContact.entries[0] as unknown as { contact: unknown }).contact = { email: 42 };
+    expect(isPublishHistory(badContact, "ammu")).toBe(false);
+
+    const badSections = structuredClone(valid);
+    (badSections.entries[0] as unknown as { structuredSections: unknown }).structuredSections = {
+      experience: [{ role: "Engineer", unexpectedPrivateField: "no" }],
+    };
+    expect(isPublishHistory(badSections, "ammu")).toBe(false);
+
+    const oversizedSkills = structuredClone(valid);
+    (oversizedSkills.entries[0] as unknown as { skills: string[] }).skills = Array(21).fill("skill");
+    expect(isPublishHistory(oversizedSkills, "ammu")).toBe(false);
+
+    const wrongProfile = structuredClone(valid);
+    (wrongProfile.entries[0] as unknown as { profileId: string }).profileId = "sai";
+    expect(isPublishHistory(wrongProfile, "ammu")).toBe(false);
+  });
 });
