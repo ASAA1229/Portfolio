@@ -1,7 +1,7 @@
 # Portfolio — User Stories and Acceptance Criteria
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
-**Branch:** `new`
+**Branch:** `test`
 **Updated:** 2026-11-09 (development resumed; testing paused)
 **Rule:** A story is fully closed only when its acceptance criteria are evidenced; production/CI evidence is still pending for every story.
 
