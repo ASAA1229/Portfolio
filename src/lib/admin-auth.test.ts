@@ -35,9 +35,9 @@ describe("private admin authentication", () => {
       headers: { cookie: `portfolio_admin_session=${value}` },
     });
     expect(await isAdminRequest(request, env)).toBe(true);
-    expect(
-      await isAdminRequest(new Request("https://portfolio.example/admin/resumes"), env),
-    ).toBe(false);
+    expect(await isAdminRequest(new Request("https://portfolio.example/admin/resumes"), env)).toBe(
+      false,
+    );
     const tampered = new Request("https://portfolio.example/admin/resumes", {
       headers: { cookie: `portfolio_admin_session=${value}x` },
     });
@@ -59,16 +59,7 @@ describe("private admin authentication", () => {
     for (const valid of ["0", "1", "7", "9999999999999999"]) {
       expect(isValidSessionEpoch(valid)).toBe(true);
     }
-    for (const invalid of [
-      "",
-      "-1",
-      "01",
-      "1.0",
-      "1e3",
-      "10000000000000000",
-      1,
-      null,
-    ]) {
+    for (const invalid of ["", "-1", "01", "1.0", "1e3", "10000000000000000", 1, null]) {
       expect(isValidSessionEpoch(invalid)).toBe(false);
     }
   });

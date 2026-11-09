@@ -115,10 +115,7 @@ function isValidStructuredEntry(value: unknown): boolean {
         !field.every((item) => typeof item === "string" && item.length <= 80)
       )
         return false;
-    } else if (
-      typeof field !== "string" ||
-      field.length > (key === "description" ? 2000 : 320)
-    ) {
+    } else if (typeof field !== "string" || field.length > (key === "description" ? 2000 : 320)) {
       return false;
     }
   }
@@ -165,7 +162,8 @@ function isValidHistoryEntry(
     !Array.isArray(e.skills) ||
     e.skills.length > 20 ||
     !e.skills.every(
-      (skill: unknown) => typeof skill === "string" && skill.trim().length > 0 && skill.length <= 80,
+      (skill: unknown) =>
+        typeof skill === "string" && skill.trim().length > 0 && skill.length <= 80,
     ) ||
     (e.kind !== undefined && e.kind !== "publish" && e.kind !== "rollback") ||
     (e.kind === "rollback" &&
