@@ -2,11 +2,42 @@
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
 **Branch:** `new` (local commits not yet pushed)
-**Status snapshot:** 2026-11-07 (after the testing-resumed development round)
+**Status snapshot:** 2026-11-09
 **Overall status:** IN PROGRESS — core product works locally and passes all automated checks; production configuration, deployment and some lifecycle features remain.
 
 **Status vocabulary:** **DONE — VERIFIED (automated)** · **DONE — VERIFIED LOCALLY** (dev server / browser on the owner's laptop) · **IMPLEMENTED — NEEDS TESTING** (test named) · **PARTIAL — NEEDS DEVELOPMENT** · **NOT STARTED**. Nothing is marked production-verified: no CI run, deployment or production check has happened for this head.
 
+
+
+## Current status refresh — 2026-11-09 (authoritative)
+
+**Latest inspected commit before this refresh:** `9f4a923143eeb2deab4b3288a3e9e067f4f8edd3`. The project remains IN PROGRESS. Development is active; **testing is PAUSED**. Do not treat older local test/build/browser evidence as evidence for the latest code.
+
+### Newly implemented source changes — not tested
+- Profile route has a dedicated recoverable error screen with retry and profile-selection navigation.
+- Published content and public image responses use bounded public cache headers; private/admin responses remain no-store.
+- Runtime startup diagnostics report missing configuration names only, never secret values.
+- **2026-11-09 development increment:** valid-format but unknown profile project slugs now throw the route's not-found result and use the route's 404 boundary rather than rendering a missing page with HTTP 200. Commit: `96e2a4ca65605aef92b3cea737b7312641d601fb`.
+
+### Remaining development
+1. Complete CMS coverage for Abhishek's root pages and ensure all profile routes consume published overrides consistently.
+2. Finish resume publish/rollback/unpublish failure reconciliation and durable-storage behavior.
+3. Extend backup/restore to binary resume/image originals with integrity checks and safe partial-failure recovery.
+4. Complete admin authentication/session hardening and production R2 configuration readiness.
+5. Complete JARVIS gateway production integration without silently enabling paid fallback.
+6. Close browser journey, screen-reader, responsive, performance and release evidence after testing resumes.
+
+### Constraints and requirements
+- Testing is **PAUSED**: do not run tests, typecheck, lint, build, audit, browser checks, CI or deployment checks until explicitly resumed.
+- Development may continue on `new`; tests may be authored/updated but not executed.
+- Four profiles remain Abhishek, Amulya/Ammu, Anjini/Bava and Sai/Darling, with strict profile isolation and approved resume facts only.
+- JARVIS is the primary AI engine; paid OpenAI fallback is allowed only with explicit `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` and owner-supplied server secret. No silent paid provider or secret in client code.
+- Keep owner/admin data private, credentials server-side, mutations authenticated/audited and published data profile-scoped.
+- No production deployment, domain/tunnel setup, production secrets, R2 provisioning, PR, merge or promotion without explicit owner approval.
+
+**Evidence rule:** the route change and latest source commits are IMPLEMENTED — NEEDS TESTING. No new test, build, browser or production result is claimed.
+
+---
 
 ## Development completion snapshot — 2026-11-08
 
@@ -23,7 +54,7 @@ All backlog stories in the owner-approved baseline now have an implementation on
 | PORT-US-041 Storage | One storage contract (R2, local disk, memory), `docs/STORAGE.md`, `/admin/backup` export/restore | `e6289eb` | Backup → restore round trip |
 | Dev uploads on disk | `.local-storage/` survives restarts | `604fe9c` | Upload, restart, confirm |
 
-**Known limits:** CMS edits to Abhishek's own pages only affect navigation labels so far; backups contain metadata only (no resume/image files); person project pages with unknown slugs return an "unavailable" page (200) instead of 404. **Owner-dependent:** production R2 + login check, `VITE_SITE_URL`, JARVIS tunnel secrets, first CI run, Sai monogram (DR vs DS).
+**Known limits:** CMS edits to Abhishek's own pages only affect navigation labels so far; backups contain metadata only (no resume/image files); unknown person-project slugs now route to the not-found boundary (implementation added 2026-11-09; HTTP status still needs verification). **Owner-dependent:** production R2 + login check, `VITE_SITE_URL`, JARVIS tunnel secrets, first CI run, Sai monogram (DR vs DS).
 
 ## 1. Product summary
 
