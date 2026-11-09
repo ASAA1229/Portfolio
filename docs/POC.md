@@ -1,5 +1,34 @@
 # Portfolio POC — Status Baseline, Constraints and Future Scope
 
+## Owner-approved execution baseline — 2026-11-09
+
+**Authority:** The owner has explicitly resumed development, testing and enhancement. This section supersedes prior statements in this document that development/testing is paused.
+
+- **Active development branch:** `new` (baseline commit: `57ceb0a8146f78645c00fc8ea9ef261b99e7eb48`). Keep all changes on this branch.
+- **Testing:** ACTIVE. Execute relevant checks and CI against each candidate commit; report exact SHA, commands, pass/fail counts and skipped checks.
+- **Product scope now:** This is a personal four-profile portfolio for Abhishek, Amulya, Anjini and Sai. Keep the implementation reusable and configurable for future client-specific customization, but do **not** turn it into an actively launched multi-tenant SaaS product now.
+- **AI direction:** A modular portfolio AI layer may use selected JARVIS capabilities (chat, specialized agent and monitoring functions) without requiring the entire JARVIS platform or creating a hard runtime dependency.
+- **Content and management:** Owner-managed dashboard, profile-scoped resume/image processing, AI-assisted extraction and drafting with owner review/approval, and strict separation of each profile's data.
+- **Architecture:** Configurable shared design system, profile-specific content and optional customization, adaptive backend/storage and provider-independent deployment where practical.
+- **Cost/privacy:** Zero recurring cost by default. No paid provider, production resource, production secret or hosted service activation without explicit approval. Keep API keys server-side and out of source control.
+- **Release boundary:** No merge to `dev` or `main`, no production deployment, production secret/R2 provisioning, public tunnel or Nexus publication without separate explicit approval. Keep Nexus disabled.
+
+### Current branch and CI evidence at authorization
+
+- The `new` branch head is `57ceb0a8146f78645c00fc8ea9ef261b99e7eb48`.
+- Latest observed CI run for this exact SHA: [run #42608509533](https://github.com/ASAA1229/pixel-perfect-pixel/actions/runs/42608509533) **FAILED** during CycloneDX SBOM generation. npm reported `EINVALIDPURLTYPE` for package `tanstack_start_ts@`; build, typecheck, lint and tests were skipped. Dependency installation also reported 13 vulnerabilities (11 moderate, 2 high); this is an audit finding, not a completed security assessment.
+- First technical priority: repair the SBOM generation/input contract without weakening provenance or silently omitting dependencies, then rerun the full pipeline so build, typecheck, lint and tests actually execute.
+- Other priorities: resume publish/rollback consistency and recoverability; admin authentication/session/authorization; profile isolation and route correctness; resume/image lifecycle; JARVIS gateway privacy/fallback; accessibility, responsive behavior, performance and SEO.
+- Historical local test counts and older CI runs are not proof for the current branch head. A story remains open until its own acceptance evidence is recorded.
+
+### Implementation principles
+
+- Personal use first; preserve a clean path to reusable client templates later.
+- Shared components and design tokens, with profile content and identity isolated.
+- All AI-derived resume/profile facts are untrusted until reviewed and approved by the owner.
+- Public pages expose only approved content; original resumes, drafts, review notes and credentials remain private.
+- Keep the product deployable without mandatory paid services or a JARVIS runtime.
+
 **Repository:** `ASAA1229/pixel-perfect-pixel`
 **Branch:** `test`
 **Status snapshot:** 2026-11-09
