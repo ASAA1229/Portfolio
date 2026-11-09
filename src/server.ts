@@ -960,19 +960,24 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   ) {
     const records = await readResumeIndex(bucket);
     const expected = records
-      .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
+      .filter(
+        (item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned",
+      )
       .map((item) => item.id)
       .sort();
     const feedObject = await bucket.get("public/approved-resumes.json");
     const feed = feedObject
-      ? ((await feedObject.json<unknown>().catch(() => null)) as { resumes?: Array<{ id?: unknown }> } | null)
+      ? ((await feedObject.json<unknown>().catch(() => null)) as {
+          resumes?: Array<{ id?: unknown }>;
+        } | null)
       : null;
     const feedIds = Array.isArray(feed?.resumes)
       ? feed.resumes.map((item) => (typeof item?.id === "string" ? item.id : "")).sort()
       : null;
     const missingFiles: string[] = [];
     for (const record of records) {
-      if (!(await bucket.get(`private-admin/resumes/files/${record.id}`))) missingFiles.push(record.id);
+      if (!(await bucket.get(`private-admin/resumes/files/${record.id}`)))
+        missingFiles.push(record.id);
     }
     const feedInSync =
       feedIds !== null &&
@@ -1001,7 +1006,10 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       published: expected.length,
       wasInSync: feedInSync,
     });
-    return jsonResponse({ reconciled: true, wasInSync: feedInSync, published: expected, missingFiles }, 200);
+    return jsonResponse(
+      { reconciled: true, wasInSync: feedInSync, published: expected, missingFiles },
+      200,
+    );
   }
 
   // Restore the previously published version for a profile.

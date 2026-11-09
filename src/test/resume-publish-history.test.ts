@@ -111,7 +111,8 @@ describe("resume publish history", () => {
     expect(isPublishHistory(badSections, "ammu")).toBe(false);
 
     const oversizedSkills = structuredClone(valid);
-    (oversizedSkills.entries[0] as unknown as { skills: string[] }).skills = Array(21).fill("skill");
+    (oversizedSkills.entries[0] as unknown as { skills: string[] }).skills =
+      Array(21).fill("skill");
     expect(isPublishHistory(oversizedSkills, "ammu")).toBe(false);
 
     const wrongProfile = structuredClone(valid);

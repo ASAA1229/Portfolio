@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -62,7 +62,7 @@ async function regularFile(root, descriptor, label) {
     !descriptor.name ||
     path.basename(descriptor.name) !== descriptor.name ||
     descriptor.name.includes("/") ||
-    descriptor.name.includes("\\\\") ||
+    descriptor.name.includes("\\") ||
     descriptor.name === "." ||
     descriptor.name === ".." ||
     !Number.isSafeInteger(descriptor.size) ||
@@ -143,7 +143,7 @@ async function verifyRelease(indexPath, rootPath) {
     typeof commit !== "string" ||
     !/^[a-f0-9]{40,64}$/i.test(commit) ||
     typeof buildNumber !== "string" ||
-    !/^[1-9]\\d*$/.test(buildNumber) ||
+    !/^[1-9]\d*$/.test(buildNumber) ||
     !ci ||
     !["github-actions", "jenkins"].includes(ci.provider) ||
     ["repository", "branch", "workflow", "runId", "runUrl"].some(
@@ -320,11 +320,122 @@ async function recover([
   await writeRecord(recordsDir, record);
 }
 
+const ENVIRONMENTS = new Set(["staging", "production"]);
+
+function environmentArg(value) {
+  if (!ENVIRONMENTS.has(value)) fail("Environment must be one of: staging, production.");
+  return value;
+}
+
+/** Read every disposition record in a directory; unreadable records fail closed. */
+async function readRecords(recordsDir) {
+  let names = [];
+  try {
+    names = await readdir(path.resolve(recordsDir));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  const records = [];
+  for (const name of names.filter((item) => item.endsWith(".json")).sort()) {
+    const file = path.join(path.resolve(recordsDir), name);
+    const stat = await lstat(file);
+    if (!stat.isFile() || stat.isSymbolicLink())
+      fail(`Disposition record ${name} is not a regular file.`);
+    try {
+      records.push({ file, record: JSON.parse(await readFile(file, "utf8")) });
+    } catch {
+      fail(`Disposition record ${name} is not valid JSON; resolve it before promotion.`);
+    }
+  }
+  return records;
+}
+
+function assertNotQuarantined(records, releaseIdentity) {
+  if (
+    records.some(
+      ({ record }) => record?.event === "QUARANTINED" && record.releaseIdentity === releaseIdentity,
+    )
+  ) {
+    fail("This release identity is quarantined and can never be promoted.");
+  }
+}
+
+async function approve([indexPath, rootPath, envArg, approvalArg, operatorArg, recordsDir]) {
+  if (![indexPath, rootPath, envArg, approvalArg, operatorArg, recordsDir].every(Boolean)) {
+    fail(
+      "Usage: node scripts/release-disposition.mjs approve <release-index.json> <release-root> <staging|production> <owner-approval-reference> <operator> <records-dir>",
+    );
+  }
+  const environment = environmentArg(envArg);
+  const verified = await verifyRelease(indexPath, rootPath);
+  const records = await readRecords(recordsDir);
+  assertNotQuarantined(records, verified.releaseIdentity);
+  if (
+    environment === "production" &&
+    !records.some(
+      ({ record }) =>
+        record?.event === "PROMOTION_APPROVED" &&
+        record.environment === "staging" &&
+        record.releaseIdentity === verified.releaseIdentity &&
+        record.artifact?.sha256 === verified.artifact.sha256,
+    )
+  ) {
+    fail("Production promotion requires a prior staging approval for the same release.");
+  }
+  await writeRecord(recordsDir, {
+    schemaVersion: 1,
+    event: "PROMOTION_APPROVED",
+    createdAt: new Date().toISOString(),
+    environment,
+    operator: safeReason(operatorArg, "Operator"),
+    ownerApprovalReference: safeReason(approvalArg, "Owner approval reference"),
+    project: verified.project,
+    releaseIdentity: verified.releaseIdentity,
+    source: verified.source,
+    ci: verified.ci,
+    artifact: verified.artifact,
+    evidence: verified.evidence,
+    controls: {
+      deploymentPerformed: false,
+      productionBranchChanged: false,
+      nexusPublicationPerformed: false,
+    },
+    nextAction: `Run the gate command for ${environment} immediately before the owner-authorised deployment step.`,
+  });
+}
+
+async function gate([indexPath, rootPath, envArg, recordsDir]) {
+  if (![indexPath, rootPath, envArg, recordsDir].every(Boolean)) {
+    fail(
+      "Usage: node scripts/release-disposition.mjs gate <release-index.json> <release-root> <staging|production> <records-dir>",
+    );
+  }
+  const environment = environmentArg(envArg);
+  const verified = await verifyRelease(indexPath, rootPath);
+  const records = await readRecords(recordsDir);
+  assertNotQuarantined(records, verified.releaseIdentity);
+  const approval = records.find(
+    ({ record }) =>
+      record?.event === "PROMOTION_APPROVED" &&
+      record.environment === environment &&
+      record.releaseIdentity === verified.releaseIdentity &&
+      record.artifact?.sha256 === verified.artifact.sha256,
+  );
+  if (!approval)
+    fail(`No owner promotion approval is recorded for this exact release in ${environment}.`);
+  console.log(
+    `Promotion gate PASSED for ${environment}: release ${verified.releaseIdentity.slice(0, 12)} approved by ${approval.record.operator} (${approval.record.ownerApprovalReference}).`,
+  );
+}
+
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (command === "quarantine") return quarantine(args);
   if (command === "recover") return recover(args);
-  fail("Commands: quarantine, recover");
+  if (command === "approve") return approve(args);
+  if (command === "gate") return gate(args);
+  fail("Commands: quarantine, recover, approve, gate");
 }
 
 main().catch((error) => {

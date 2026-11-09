@@ -690,7 +690,7 @@ async function verifyRelease(artifactPath, manifestPath, checksumPath) {
   }
 
   const checksumContent = (await readFile(checksumPath, "utf8")).trim();
-  const checksumMatch = checksumContent.match(/^([a-f0-9]{64})\\s+\\*?(.+)$/);
+  const checksumMatch = checksumContent.match(/^([a-f0-9]{64})\s+\*?(.+)$/);
   const actualHash = await hashFile(artifact);
   if (
     !checksumMatch ||

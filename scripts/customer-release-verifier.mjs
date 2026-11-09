@@ -4,7 +4,6 @@ import { createReadStream } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 
 const execFileAsync = promisify(execFile);
@@ -181,11 +180,20 @@ async function extractVerifiedArchive(archivePath) {
     if (!isDirectory && detail[0] !== "-") fail("Package archive contains a non-regular file.");
   }
 
-  const destination = await mkdtemp(path.join(os.tmpdir(), "portfolio-release-"));
+  // Extract beside the archive and pass a relative directory: GNU tar on Windows
+  // misparses drive-letter paths given to -C.
+  const destination = await mkdtemp(path.join(tarOptions.cwd, ".portfolio-release-"));
   try {
     await execFileAsync(
       "tar",
-      ["-xzf", archiveName, "-C", destination, "--no-same-owner", "--no-same-permissions"],
+      [
+        "-xzf",
+        archiveName,
+        "-C",
+        path.basename(destination),
+        "--no-same-owner",
+        "--no-same-permissions",
+      ],
       tarOptions,
     );
     return { destination, cleanup: () => rm(destination, { recursive: true, force: true }) };
