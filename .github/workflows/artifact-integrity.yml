@@ -42,7 +42,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Generate CycloneDX dependency SBOM
-        run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
+        run: npm sbom --sbom-format=cyclonedx > portfolio-dependencies.cdx.json
       - name: Build
         run: npm run build
       - name: Type check
