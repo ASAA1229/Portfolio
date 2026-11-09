@@ -119,8 +119,7 @@ describe("resume publish history", () => {
     (wrongProfile.entries[0] as unknown as { profileId: string }).profileId = "sai";
     expect(isPublishHistory(wrongProfile, "ammu")).toBe(false);
   });
-});
-  
+
   it("rejects unknown top-level fields so private metadata cannot enter persisted history", () => {
     const valid = appendHistory(
       emptyHistory("ammu"),
@@ -197,4 +196,4 @@ describe("resume publish history", () => {
     );
     expect(() => appendHistory(ammuHistory, saiSnapshot)).toThrow(/profile mismatch/i);
   });
-
+});

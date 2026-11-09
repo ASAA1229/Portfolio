@@ -115,7 +115,10 @@ function isValidStructuredEntry(value: unknown): boolean {
         !field.every((item) => typeof item === "string" && item.length <= 80)
       )
         return false;
-    } else if (typeof field !== "string" || field.length > (key === "description" ? 2000 : 320)) {
+    } else if (
+      typeof field !== "string" ||
+      field.length > (key === "description" ? 2000 : 320)
+    ) {
       return false;
     }
   }
@@ -145,7 +148,7 @@ function isValidHistoryEntry(
 ): entry is PublishedResumeSnapshot {
   if (!isRecord(entry)) return false;
   if (Object.keys(entry).some((key) => !SNAPSHOT_FIELDS.has(key))) return false;
-  const e = entry as any;
+  const e = entry;
   if (
     typeof e.resumeId !== "string" ||
     !e.resumeId.trim() ||
@@ -178,7 +181,7 @@ function isValidHistoryEntry(
 
 export function isPublishHistory(value: unknown, profileId: ProfileId): value is PublishHistory {
   if (!isRecord(value)) return false;
-  const v = value as any;
+  const v = value;
   return (
     v.version === 1 &&
     v.profileId === profileId &&
