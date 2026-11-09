@@ -30,15 +30,15 @@
 - Keep the product deployable without mandatory paid services or a JARVIS runtime.
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
-**Branch:** `test`
-**Updated:** 2026-11-09 (development resumed; testing paused)
+**Active branch:** `new`
+**Updated:** 2026-11-09 (development and testing active on `new`)
 **Rule:** A story is fully closed only when its acceptance criteria are evidenced; production/CI evidence is still pending for every story.
 
 Epic mapping: [EPICS.md](EPICS.md) · Project overview, constraints and future scope: [POC.md](POC.md)
 
 ## Evidence boundary — 2026-11-09
 
-Development is active on `new`; **testing is PAUSED**. The latest previously inspected commit is `9f4a923143eeb2deab4b3288a3e9e067f4f8edd3`; a route-handling development commit `96e2a4ca65605aef92b3cea737b7312641d601fb` was added after it. Do not reuse the 2026-11-07 local test/build/browser evidence as proof for these newer commits. No tests, typecheck, lint, build, browser checks or CI were run for this update. Every newly implemented item remains NEEDS TESTING.
+Development and testing are ACTIVE on `new`. The current exact-head CI run is authoritative; historical local test/build/browser evidence does not prove the latest commit. Every story remains open until its own acceptance criteria are evidenced.
 
 ## Status vocabulary
 
@@ -148,7 +148,7 @@ Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node
 - Empty sections have an intentional empty state.
 - Internal and external links resolve to the intended destination.
 
-**Implementation notes:** The shared published-resume panel is now fed from the page's profile-scoped normalized data. Abhishek's five content routes prefer valid published section data and use the curated static portfolio only when the matching published section is empty. Other profile routes retain the shared profile-aware renderer. Direct-load, refresh and cross-profile acceptance remain unverified while testing is paused.
+**Implementation notes:** The shared published-resume panel is now fed from the page's profile-scoped normalized data. Abhishek's five content routes prefer valid published section data and use the curated static portfolio only when the matching published section is empty. Other profile routes retain the shared profile-aware renderer. Direct-load, refresh and cross-profile acceptance remain unverified while the corresponding exact-head check is pending.
 
 ### PORT-US-006 — Preserve legacy route behavior
 
@@ -628,7 +628,7 @@ The following stories capture the owner's answers to the 50-question development
 
 ### PORT-US-042 — Return a real not-found response for unknown profile projects
 
-**Current implementation status:** IMPLEMENTED — NEEDS TESTING. `src/routes/people.$person.projects.$slug.tsx` now throws `notFound()` when the selected profile does not contain the requested project after published CMS overrides are merged. The route uses its existing not-found boundary. No HTTP/browser verification has been run because testing is paused.
+**Current implementation status:** IMPLEMENTED — NEEDS TESTING. `src/routes/people.$person.projects.$slug.tsx` now throws `notFound()` when the selected profile does not contain the requested project after published CMS overrides are merged. The route uses its existing not-found boundary. No HTTP/browser verification has been run pending exact-head verification.
 
 **As a visitor or search engine,** I want an unknown project URL to return a real not-found response, so that missing content is not presented as a successful page.
 
