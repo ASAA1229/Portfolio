@@ -53,7 +53,6 @@ describe("local disk bucket (dev uploads)", () => {
     expect(isSafeStorageKey("private-admin/resumes/files/2b1c-uuid")).toBe(true);
   });
 
-
   it.skipIf(process.platform === "win32")(
     "does not follow a storage-key symlink outside the configured root",
     async () => {
