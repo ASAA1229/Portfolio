@@ -279,3 +279,29 @@ This section records the owner's consolidated answers to the 50-question develop
 - Keep profile data, themes, sections, components, AI persona and integration settings configuration-driven where practical.
 - Future client onboarding should be able to start from a reusable template and apply client-specific branding, content, modules, integrations and permissions without copying business logic.
 - Do not introduce multi-tenancy, client billing or commercial account workflows into the current personal release without a separate owner decision.
+
+## Authoritative continuation update — 2026-11-09 12:22 IST
+
+**Inspected branch head:** `new` · `3605e922ef469d821e19dde8b5f079799ccedab4` (merge commit). The earlier feature SHA in this POC is a historical checkpoint, not the current branch head.
+
+### Current disposition
+- **Development: ACTIVE on `new`. Testing/validation: PAUSED by owner.** No tests, typecheck, lint, build, image audit, browser/accessibility checks, CI/Jenkins or release validation may be started until explicitly resumed.
+- Current source includes profile-aware routes/content, JARVIS-first server-side AI provider selection, protected admin managers, resume/image review and publishing workflows, storage adapters/migration, backup/restore, audit history and release-integrity tooling.
+- Resume publishing/reconciliation, persistent production storage/configuration, real admin-session acceptance, full profile/content isolation and production JARVIS connectivity remain **PARTIAL or IMPLEMENTED — NEEDS TESTING** as appropriate; do not claim production-ready.
+- The current `README.md` AI configuration text is stale: it still describes OpenAI Responses API as the only provider, while `src/lib/ai-provider.ts` selects JARVIS first and permits OpenAI only with explicit paid-fallback opt-in. This documentation mismatch remains to be corrected.
+
+### Active development order
+1. Complete resume publish/unpublish/rollback consistency and partial-failure reconciliation across private index, public feed and object storage.
+2. Finish production admin authentication/session and private storage configuration boundaries.
+3. Complete profile-scoped public content and JARVIS chat failure/stream cancellation handling.
+4. Close image/resume manager failure states and accessibility gaps.
+5. Finish DevOps release disposition and gated promotion implementation without executing release operations.
+
+### Non-negotiable requirements and constraints
+- Four profiles remain strictly isolated: Abhishek, Amulya, Anjini and Sai. Public content must be approved, profile-scoped metadata; private originals, drafts, source notes and admin records never enter public pages or AI context.
+- JARVIS is the primary AI provider. Cloud/paid OpenAI fallback is allowed only with explicit `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` and server-side credentials. No key in browser bundles, source control or logs.
+- Zero ongoing cost/free-first defaults; no paid hosting/storage/model dependency without owner approval.
+- No tests/build/lint/audits/browser/CI/device validation while paused. Development and documentation updates only.
+- Work only on `new`; no PR, merge, push to `dev`/`main`, deployment, production secret change, artifact publication or Nexus enablement without explicit authorization. Keep Nexus disabled.
+
+**Evidence rule:** source presence is implementation only. Every changed/new story remains OPEN / NEEDS TESTING until exact-head checks and owner acceptance are completed after testing resumes.
