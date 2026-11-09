@@ -1,7 +1,7 @@
 # Portfolio — Epic Register and Delivery Plan
 
 **Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
-**Branch:** `new`  
+**Branch:** `test`  
 **Status:** OPEN until acceptance criteria have evidence. **Current per-epic status (Done / Needs testing / Pending development, 2026-11-07) is maintained in [POC.md §2](POC.md#2-status-at-a-glance); epic-level status lines below are historical.**
 
 See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_STORIES.md) for detailed user stories.
