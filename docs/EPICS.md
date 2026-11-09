@@ -231,3 +231,10 @@ The customer verifier now inspects `.tar.gz` member names and entry types before
 - Added [release rejection, quarantine and recovery procedure](release-rejection-quarantine-recovery.md).
 
 Tests, builds, CI/Jenkins runs and operational rollback remain paused/not performed. Do not mark PORT-US-033 accepted until validation is explicitly resumed and evidence is recorded.
+
+
+## Owner-directed execution update — 2026-11-09 12:22 IST
+
+Inspected `new` head: `3605e922ef469d821e19dde8b5f079799ccedab4`. Development is ACTIVE; testing/validation is PAUSED. Continue the existing epic scope on `new`; do not start tests, builds, typecheck, lint, audits, browser/accessibility checks, CI/Jenkins or release operations. The immediate development focus is resume publication consistency and partial-failure reconciliation, followed by production admin/session and storage boundaries, profile-scoped JARVIS integration, and remaining manager/accessibility gaps.
+
+Maintain four-profile isolation and public/private data separation. JARVIS remains the primary AI provider; paid OpenAI fallback requires explicit opt-in and server-only credentials. Keep zero-cost defaults and secrets out of Git/logs. No PR, merge, push to `dev`/`main`, deployment, production secret changes, artifact publication or Nexus enablement without explicit approval. Nexus remains disabled. Source-only implementation does not close an epic; validation evidence is deferred until testing resumes.
