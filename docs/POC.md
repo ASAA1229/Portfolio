@@ -305,3 +305,8 @@ This section records the owner's consolidated answers to the 50-question develop
 - Work only on `new`; no PR, merge, push to `dev`/`main`, deployment, production secret change, artifact publication or Nexus enablement without explicit authorization. Keep Nexus disabled.
 
 **Evidence rule:** source presence is implementation only. Every changed/new story remains OPEN / NEEDS TESTING until exact-head checks and owner acceptance are completed after testing resumes.
+
+
+## Resume publishing integrity update — 2026-11-09
+
+A source-level hardening increment was added to `src/lib/resume-publish-history.ts`: persisted history validation now validates nested contact and structured-section records, allowed keys, per-field bounds, profile ownership, skill limits and timestamp/rollback metadata. Regression cases were authored in `src/test/resume-publish-history.test.ts`; **they were not executed because testing is paused**. This closes a validation gap only. It does not resolve object-storage non-transactionality or prove publish/unpublish/rollback recovery. PORT-US-013 remains partial until that work and later acceptance are complete.
