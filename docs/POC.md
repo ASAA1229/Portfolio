@@ -327,3 +327,56 @@ A source-level hardening increment was added to `src/lib/resume-publish-history.
 - Feed reconciliation repairs the public feed only; it does not recreate missing private original files or make private-index, original-file and public-feed writes transactional.
 - Recoverable partial-failure handling across all storage writes remains incomplete. Keep PORT-US-013 **PARTIAL — NEEDS DEVELOPMENT / TESTING**.
 - Regression tests were not run. No tests, builds, typecheck, lint, audits, browser checks, CI/Jenkins or release validation were run for this increment. Four-profile isolation and private/public data separation remain mandatory.
+
+
+## Authoritative testing and status refresh — 2026-11-09 (test branch)
+
+**Branch:** `test`  
+**Exact branch head inspected:** `0f90a96c47a1a36826306ca5bd26a1f7b263acfe`  
+**Status:** core application and local automated suite are substantially implemented; exact-head CI is RED; production and owner acceptance remain incomplete. This section supersedes older statements that testing is paused.
+
+### Antigravity local test report
+
+- **22 suites / 138 test cases listed.**
+- **137 passed, 0 failed, 1 skipped** (Win32 filesystem symlink-policy check).
+- **100% pass rate among runnable tests (137/137)**; 137/138 = **99.3% executed** when the skipped case is included in the denominator.
+- Local TypeScript check is reported clean.
+- The report does not record the exact Git commit SHA used for the local run; treat it as local evidence only.
+
+### Exact-head GitHub Actions evidence
+
+Run: [Verify portfolio #42591418653](https://github.com/ASAA1229/pixel-perfect-pixel/actions/runs/42591418653)  
+Head: `0f90a96c47a1a36826306ca5bd26a1f7b263acfe`  
+**Overall: FAILED.**
+
+Passed: dependency installation, CycloneDX SBOM generation, production build and TypeScript check.
+
+Failed: ESLint due to Prettier formatting violations in:
+- `src/lib/admin-auth.test.ts`
+- `src/lib/local-disk-bucket.test.ts`
+- `src/lib/resume-publish-history.ts`
+- `src/server.ts`
+- `src/test/resume-publish-history.test.ts`
+
+The test step and SBOM upload were skipped after lint failed. The local report's passing tests therefore do not replace a green exact-head CI run.
+
+### Completion percentages
+
+- **Antigravity local runnable-test pass rate:** **100% (137/137)**.
+- **All listed test cases executed:** **99.3% (137/138)**; one platform-specific symlink test was skipped.
+- **Exact-head CI acceptance:** not complete (workflow is red; lint blocks the test step).
+- **Production/owner acceptance:** not complete.
+- **Overall product/development completion:** no single percentage is assigned; open storage, resume recovery, production security, JARVIS gateway, accessibility and release gates are not measured by test-case counts.
+
+### Remaining work — priority order
+
+1. Resolve the Prettier lint failures in the five listed files; rerun lint and the full exact-head CI suite.
+2. Reconcile resume publish/rollback/unpublish failures across private index, original files and public feed; feed rebuild does not recreate missing originals and is not a multi-store transaction.
+3. Complete durable R2 storage, production admin authentication/session expiry, authorization and upload boundary checks.
+4. Verify four-profile isolation, content precedence, invalid routes/HTTP 404 behavior and public/private data separation in browser E2E.
+5. Complete JARVIS gateway integration through the approved deployment/tunnel path; preserve local-first and explicit paid-fallback opt-in.
+6. Finish automated admin journeys (resume/image upload, review, publish, unpublish, rollback, backup/restore) and browser acceptance.
+7. Complete screen-reader/keyboard, responsive, reduced-motion and performance acceptance.
+8. Verify production configuration, SEO, release integrity, rollback and owner approval before any deployment.
+
+**No production release is accepted.** Do not merge, deploy, publish artifacts, provision production secrets/R2 or enable Nexus without explicit owner approval.
