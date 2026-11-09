@@ -227,7 +227,7 @@ Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node
 
 ### PORT-US-013 — Publish and roll back resume content
 
-**Current implementation status:** **PARTIAL — NEEDS DEVELOPMENT** — Publish/unpublish exists; version history and rollback to a previous published resume, and partial-failure reconciliation, are not built.
+**Current implementation status:** **PARTIAL — NEEDS DEVELOPMENT / TESTING** — Append-only publish/rollback history and a per-profile admin history panel with confirmed rollback are implemented. An authenticated consistency endpoint compares the public feed with the private approved-resume index and reports missing private files; an owner-confirmed reconciliation endpoint rebuilds the public feed from the private index. Still incomplete: recoverable/transactional handling across private index, original file storage and public feed writes. Reconciliation does not recreate missing originals. Regression tests are authored but not run.
 
 **As the owner,** I want to publish approved resume-derived sections and roll them back, so that public profile updates remain controlled.
 
@@ -514,7 +514,7 @@ The following stories capture the owner's answers to the 50-question development
 
 **Priority:** P1
 
-**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Publish history is append-only (publish and rollback entries; replayed to find the effective version), rollback never trims newer entries, public pages/AI context read only the current approved record, and deleting a resume drops its extracted draft with the index record and redacts its history entries to timestamps. To test: publish v1→v2→v3, roll back twice, unpublish/roll back, delete a resume and inspect history/public feed (`src/test/resume-publish-history.test.ts` written, not run).
+**Current implementation status:** **IMPLEMENTED — NEEDS TESTING** — Publish history is append-only (publish and rollback entries; replayed to find the effective version), rollback never trims newer entries, public pages/AI context read only the current approved record, and deleting a resume drops its extracted draft with the index record and redacts its history entries to timestamps. The admin panel exposes per-profile history/confirmed rollback, and the server exposes private-index/public-feed consistency reporting and owner-confirmed feed reconciliation. To test: publish v1→v2→v3, roll back twice, unpublish/roll back, delete a resume and inspect history/public feed (`src/test/resume-publish-history.test.ts` written, not run).
 
 **As the owner,** I want original resumes and structured extracted profile data to be versioned and reviewed before publication, so that public content and AI answers remain accurate.
 
@@ -633,3 +633,9 @@ New or changed stories remain OPEN / IMPLEMENTED — NEEDS TESTING until exact-h
 ## PORT-US-013 implementation update — 2026-11-09
 
 **Implemented in source; testing paused:** publish-history loading now rejects malformed nested contact data, unknown structured-section fields, invalid section entries, oversized skills, invalid timestamps and cross-profile records. Focused regression cases were added for malformed contact, structured fields, skill bounds and profile mismatch. Tests were authored but not run. This hardens the persisted history boundary; it does not yet prove end-to-end consistency across private index, public feed and object storage. Keep PORT-US-013 **PARTIAL — NEEDS DEVELOPMENT / TESTING** until compensation/reconciliation and acceptance evidence are complete.
+
+## Post-Claude story reconciliation — 2026-11-09 13:30 IST
+
+- **PORT-US-013:** status updated to PARTIAL. Publish history, confirmed rollback, feed consistency reporting and owner-confirmed public-feed rebuild are present in source. Missing-original recovery and robust compensation across private index/file/public feed writes remain unfinished.
+- **PORT-US-036:** append-only lifecycle and admin history controls remain IMPLEMENTED — NEEDS TESTING. Exact-head tests and owner acceptance have not occurred.
+- Testing remains paused; no tests/build/typecheck/lint/audits/browser/CI/release validation were run.
