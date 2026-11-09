@@ -628,3 +628,8 @@ The following stories capture the owner's answers to the 50-question development
 Four-profile isolation is mandatory. Public content and AI context may contain only approved, profile-scoped data; private resume originals, drafts, source notes and admin data remain private. JARVIS is primary; paid OpenAI fallback requires explicit opt-in and server-side keys. Free-first/zero ongoing cost; no unapproved paid infrastructure. Testing paused means no tests, build, typecheck, lint, image audit, browser/accessibility checks, CI/Jenkins or release validation. Work only on `new`; no PR, merge, push to `dev`/`main`, deployment, production secret changes, artifact publication or Nexus enablement without explicit authorization. Nexus stays disabled.
 
 New or changed stories remain OPEN / IMPLEMENTED — NEEDS TESTING until exact-head and applicable owner acceptance evidence is recorded after testing resumes.
+
+
+## PORT-US-013 implementation update — 2026-11-09
+
+**Implemented in source; testing paused:** publish-history loading now rejects malformed nested contact data, unknown structured-section fields, invalid section entries, oversized skills, invalid timestamps and cross-profile records. Focused regression cases were added for malformed contact, structured fields, skill bounds and profile mismatch. Tests were authored but not run. This hardens the persisted history boundary; it does not yet prove end-to-end consistency across private index, public feed and object storage. Keep PORT-US-013 **PARTIAL — NEEDS DEVELOPMENT / TESTING** until compensation/reconciliation and acceptance evidence are complete.
