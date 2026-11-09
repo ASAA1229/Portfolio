@@ -2,10 +2,14 @@
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
 **Branch:** `new`
-**Updated:** 2026-11-07 (status baseline after testing resumed)
+**Updated:** 2026-11-09 (development resumed; testing paused)
 **Rule:** A story is fully closed only when its acceptance criteria are evidenced; production/CI evidence is still pending for every story.
 
 Epic mapping: [EPICS.md](EPICS.md) · Project overview, constraints and future scope: [POC.md](POC.md)
+
+## Evidence boundary — 2026-11-09
+
+Development is active on `new`; **testing is PAUSED**. The latest previously inspected commit is `9f4a923143eeb2deab4b3288a3e9e067f4f8edd3`; a route-handling development commit `96e2a4ca65605aef92b3cea737b7312641d601fb` was added after it. Do not reuse the 2026-11-07 local test/build/browser evidence as proof for these newer commits. No tests, typecheck, lint, build, browser checks or CI were run for this update. Every newly implemented item remains NEEDS TESTING.
 
 ## Status vocabulary
 
@@ -590,3 +594,20 @@ The following stories capture the owner's answers to the 50-question development
 - Public media can use optimized object storage/CDN where configured.
 - Backup, export, restore and migration are documented without coupling the application to one provider.
 - No paid hosting or storage dependency is assumed without owner approval.
+
+## PORT-E02 — Routes, Navigation and Portfolio Content (additional story)
+
+### PORT-US-042 — Return a real not-found response for unknown profile projects
+
+**Current implementation status:** IMPLEMENTED — NEEDS TESTING. `src/routes/people.$person.projects.$slug.tsx` now throws `notFound()` when the selected profile does not contain the requested project after published CMS overrides are merged. The route uses its existing not-found boundary. No HTTP/browser verification has been run because testing is paused.
+
+**As a visitor or search engine,** I want an unknown project URL to return a real not-found response, so that missing content is not presented as a successful page.
+
+**Acceptance criteria**
+- A known curated project slug renders its project detail page.
+- A known published CMS project slug renders for the correct profile only.
+- An unknown but syntactically valid slug returns HTTP 404 and the intended not-found UI.
+- A malformed slug continues to be rejected by route validation.
+- An unknown profile remains not found and cannot leak another profile's projects.
+- Direct load and refresh behavior is consistent across all supported profiles.
+
