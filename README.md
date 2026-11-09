@@ -25,19 +25,26 @@ npm run dev
 
 ## AI chatbot configuration
 
-The portfolio chatbot API is handled server-side by `src/routes/api/chat.ts` and uses the OpenAI Responses API only. Lovable AI is currently paused and is not used as a fallback.
+The portfolio chat is served by `src/routes/api/chat.ts`. Provider selection is server-side and implemented in `src/lib/ai-provider.ts`.
+
+### Provider order
+
+1. **JARVIS personal AI gateway (primary):** configured with `JARVIS_AI_URL` and `JARVIS_AI_KEY`. The URL must use HTTPS, except loopback HTTP for local development. The site key is sent only by the server and the selected profile scope is included in the gateway request.
+2. **OpenAI paid fallback (opt-in only):** used only when `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` and `OPENAI_API_KEY` is configured server-side. It is never selected silently.
+3. **Offline mode:** if no provider is configured, the API returns a safe unavailable response and the UI can use its profile-grounded offline answers.
 
 ### Local development
 
 1. Copy `.env.example` to `.env.local`.
-2. Put your key in `.env.local` as `OPENAI_API_KEY=your_real_key`.
-3. Restart the development server.
+2. Configure the JARVIS URL and site key in server-side environment variables. For local JARVIS, use the loopback URL and a locally generated site key.
+3. Only if the owner explicitly wants paid fallback, set `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` and provide `OPENAI_API_KEY`.
+4. Restart the development server.
 
-`.env`, `.env.local`, and other real environment files are ignored by Git. Never put an API key in React components, client-side variables such as `VITE_OPENAI_API_KEY`, source files, screenshots, issues, or public repositories.
+Never put provider keys in React components, client-side variables such as `VITE_*`, source files, screenshots, issues or public repositories. Keep real environment files out of Git.
 
 ### Deployment
 
-Add `OPENAI_API_KEY` as a **server-side environment secret** in the hosting provider's dashboard, then redeploy. Do not put the secret into frontend build variables. No Lovable AI key is needed while Lovable AI is paused. OpenAI API access and usage billing are managed separately from ChatGPT subscriptions.
+Configure `JARVIS_AI_URL` and `JARVIS_AI_KEY` as server-side secrets in the hosting environment. The JARVIS gateway must be reachable through an owner-approved HTTPS endpoint; keep the laptop's main JARVIS port private and expose only the dedicated gateway port if a tunnel is explicitly approved. Paid OpenAI fallback remains disabled unless the owner explicitly opts in with `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` and configures `OPENAI_API_KEY`. Provider availability, credentials and usage are separate from ChatGPT subscriptions.
 
 ## CI/CD artifact integrity and Nexus publication
 
