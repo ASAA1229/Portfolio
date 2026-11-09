@@ -6,7 +6,7 @@ import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import logoImage from "../../../logo.png";
 import { monogramFor } from "@/lib/monogram";
-import { NAV_SECTIONS, sectionHref } from "@/config/site-config";
+import { NAV_SECTIONS, sectionHref, themeCssVariables, themeForPreset } from "@/config/site-config";
 import { navigationLabel } from "@/lib/cms-content";
 import { usePublishedContent } from "@/lib/published-content";
 
@@ -54,11 +54,20 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   // Exact 8 items in required order, from the shared site configuration (PORT-US-040).
   // Labels can be overridden per profile through published CMS content (PORT-US-035).
   const publishedContent = usePublishedContent(isPerson && personId ? personId : "abhishek");
-  const links: NavItem[] = NAV_SECTIONS.map((section) => ({
+  const hiddenSections = new Set(publishedContent?.appearance?.hiddenSections ?? []);
+  const links: NavItem[] = NAV_SECTIONS.filter(
+    (section) => section.page === "home" || !hiddenSections.has(section.page),
+  ).map((section) => ({
     to: sectionHref(isPerson ? personId : undefined, section),
     label: navigationLabel(publishedContent, section.page, section.label),
     ...(section.exact ? { exact: true } : {}),
   }));
+  // Published theme preset: fixed token values only, so the style block cannot carry owner input.
+  const themePreset = publishedContent?.appearance?.theme;
+  const themeStyle =
+    themePreset && themePreset !== "crimson"
+      ? `:root { ${themeCssVariables(themeForPreset(themePreset))} }`
+      : null;
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";
   const contactTo = isPerson && personId ? `/people/${personId}/contact` : "/contact";
@@ -78,6 +87,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
   return (
     <header className="site-nav sticky inset-x-0 top-0 z-40">
+      {themeStyle && <style data-profile-theme={themePreset}>{themeStyle}</style>}
       <div className="site-container site-nav-inner flex min-h-[92px] items-center justify-between gap-3 sm:gap-5">
         {/* Left section: Brand logo */}
         <Link

@@ -7,7 +7,7 @@
  * components. Theme tokens are the canonical list of what src/styles.css defines
  * on :root; `themeCssVariables()` renders an override block for a custom theme.
  */
-import type { ContentPage } from "@/lib/cms-content";
+import type { ContentPage, ThemePresetId } from "@/lib/cms-content";
 
 export interface ThemeTokens {
   colors: {
@@ -62,6 +62,36 @@ export function themeCssVariables(theme: ThemeTokens): string {
     `--font-mono: ${fonts.mono};`,
     `--radius: ${theme.radius};`,
   ].join(" ");
+}
+
+/**
+ * Owner-selectable accent presets (PORT-US-035/040). Only accent tokens change, so
+ * every preset keeps the audited dark surfaces; `primaryText` values are chosen to
+ * stay at or above WCAG AA (4.5:1) for small text on the dark background.
+ */
+export const THEME_PRESETS: Record<
+  ThemePresetId,
+  { label: string; primary: string; primaryText: string }
+> = {
+  crimson: {
+    label: "Crimson (default)",
+    primary: DEFAULT_THEME.colors.primary,
+    primaryText: DEFAULT_THEME.colors.primaryText,
+  },
+  cobalt: { label: "Cobalt", primary: "oklch(0.55 0.2 260)", primaryText: "#7aa7ff" },
+  emerald: { label: "Emerald", primary: "oklch(0.6 0.15 160)", primaryText: "#4fd1a1" },
+  amber: { label: "Amber", primary: "oklch(0.7 0.16 70)", primaryText: "#f5b545" },
+  violet: { label: "Violet", primary: "oklch(0.55 0.22 300)", primaryText: "#c38bff" },
+};
+
+/** Theme tokens for a preset; unknown or absent presets fall back to the default theme. */
+export function themeForPreset(preset: ThemePresetId | undefined): ThemeTokens {
+  const accent = preset ? THEME_PRESETS[preset] : undefined;
+  if (!accent || preset === "crimson") return DEFAULT_THEME;
+  return {
+    ...DEFAULT_THEME,
+    colors: { ...DEFAULT_THEME.colors, primary: accent.primary, primaryText: accent.primaryText },
+  };
 }
 
 export interface NavSection {

@@ -110,3 +110,56 @@ describe("profile template (PORT-US-040)", () => {
     ).toThrow();
   });
 });
+
+describe("appearance overrides (theme and layout)", () => {
+  it("accepts a known theme preset and unique non-home hidden sections", () => {
+    const result = validateContentOverrides({
+      appearance: { theme: "cobalt", hiddenSections: ["certifications", "skills"] },
+    });
+    expect(result).toEqual({
+      ok: true,
+      content: { appearance: { theme: "cobalt", hiddenSections: ["certifications", "skills"] } },
+    });
+  });
+
+  it("rejects free-form themes, hiding home, duplicates and unknown keys", () => {
+    for (const appearance of [
+      { theme: "red; } body { display:none" },
+      { hiddenSections: ["home"] },
+      { hiddenSections: ["skills", "skills"] },
+      { hiddenSections: ["blog"] },
+      { css: ":root{}" },
+    ]) {
+      expect(validateContentOverrides({ appearance }).ok).toBe(false);
+    }
+  });
+});
+
+describe("theme presets", async () => {
+  const { DEFAULT_THEME, THEME_PRESETS, themeCssVariables, themeForPreset } =
+    await import("@/config/site-config");
+  it("changes only accent tokens and falls back to the default theme", () => {
+    expect(themeForPreset(undefined)).toBe(DEFAULT_THEME);
+    expect(themeForPreset("crimson")).toBe(DEFAULT_THEME);
+    const cobalt = themeForPreset("cobalt");
+    expect(cobalt.colors.primary).toBe(THEME_PRESETS.cobalt.primary);
+    expect(cobalt.colors.background).toBe(DEFAULT_THEME.colors.background);
+    expect(themeCssVariables(cobalt)).toContain(
+      `--primary-text: ${THEME_PRESETS.cobalt.primaryText};`,
+    );
+  });
+
+  it("keeps preset small-text colours at WCAG AA contrast on the dark background", () => {
+    // Background oklch(0.191 0 0) ≈ #1a1a1a.
+    const luminance = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+      const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
+    };
+    const background = luminance("#1a1a1a");
+    for (const preset of Object.values(THEME_PRESETS)) {
+      const ratio = (luminance(preset.primaryText) + 0.05) / (background + 0.05);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

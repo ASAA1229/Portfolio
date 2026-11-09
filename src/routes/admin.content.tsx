@@ -3,12 +3,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { EyeOff, FileText, History, RotateCcw, Save, Send } from "lucide-react";
 import {
   CONTENT_PAGES,
+  THEME_PRESET_IDS,
   validateContentOverrides,
   type ContentDocument,
   type ContentOverrides,
   type ContentProfileId,
 } from "@/lib/cms-content";
-import { NAV_SECTIONS } from "@/config/site-config";
+import { NAV_SECTIONS, THEME_PRESETS } from "@/config/site-config";
+import { clearPublishedContentCache } from "@/lib/published-content";
 
 export const Route = createFileRoute("/admin/content")({
   head: () => ({
@@ -91,7 +93,12 @@ function splitContent(content: ContentOverrides | undefined) {
     ...(content?.seo ? { seo: content.seo } : {}),
     ...(socials ? { socials } : {}),
   };
-  return { basics, navigation: content?.navigation ?? {}, lists };
+  return {
+    basics,
+    navigation: content?.navigation ?? {},
+    appearance: content?.appearance ?? {},
+    lists,
+  };
 }
 
 function ContentManager() {
@@ -99,6 +106,7 @@ function ContentManager() {
   const [doc, setDoc] = useState<ContentDocument | null>(null);
   const [basics, setBasics] = useState<Omit<Basics, "socials">>({});
   const [navigation, setNavigation] = useState<ContentOverrides["navigation"]>({});
+  const [appearance, setAppearance] = useState<NonNullable<ContentOverrides["appearance"]>>({});
   const [listsJson, setListsJson] = useState("{}");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -110,6 +118,7 @@ function ContentManager() {
     const parts = splitContent(next.draft?.content ?? published?.content);
     setBasics(parts.basics);
     setNavigation(parts.navigation);
+    setAppearance(parts.appearance);
     setListsJson(JSON.stringify(parts.lists, null, 2));
   }, []);
 
@@ -166,6 +175,16 @@ function ContentManager() {
         ? { basics: { ...cleanBasics, ...(socials ? { socials } : {}) } }
         : {}),
       ...(Object.keys(cleanNavigation).length ? { navigation: cleanNavigation } : {}),
+      ...(appearance.theme || appearance.hiddenSections?.length
+        ? {
+            appearance: {
+              ...(appearance.theme ? { theme: appearance.theme } : {}),
+              ...(appearance.hiddenSections?.length
+                ? { hiddenSections: appearance.hiddenSections }
+                : {}),
+            },
+          }
+        : {}),
     };
     const validated = validateContentOverrides(content);
     if (!validated.ok) {
@@ -196,6 +215,7 @@ function ContentManager() {
       if (!response.ok || !payload?.document)
         throw new Error(payload?.error ?? `${action} failed.`);
       applyDocument(payload.document);
+      clearPublishedContentCache();
       setMessage(
         action === "draft"
           ? "Draft saved privately. Publish it to update the public pages."
@@ -307,6 +327,61 @@ function ContentManager() {
               />
             </label>
           ))}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border bg-card p-5 sm:p-7">
+        <h2 className="text-2xl">Theme and layout</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Accent presets keep the accessible dark design. Hidden sections are removed from this
+          profile's navigation; Home always stays.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+          <label className="text-sm">
+            Accent theme
+            <select
+              className={input}
+              value={appearance.theme ?? "crimson"}
+              onChange={(event) =>
+                setAppearance({
+                  ...appearance,
+                  theme: event.target.value as (typeof THEME_PRESET_IDS)[number],
+                })
+              }
+            >
+              {THEME_PRESET_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {THEME_PRESETS[id].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <fieldset className="text-sm">
+            <legend>Hidden sections</legend>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {NAV_SECTIONS.filter((section) => section.page !== "home").map((section) => {
+                const hidden = appearance.hiddenSections?.includes(section.page) ?? false;
+                return (
+                  <label key={section.page} className="inline-flex min-h-11 items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={hidden}
+                      onChange={() => {
+                        const current = appearance.hiddenSections ?? [];
+                        setAppearance({
+                          ...appearance,
+                          hiddenSections: hidden
+                            ? current.filter((page) => page !== section.page)
+                            : [...current, section.page],
+                        });
+                      }}
+                    />
+                    {section.label}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
         </div>
       </section>
 

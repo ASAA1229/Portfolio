@@ -64,7 +64,16 @@ export interface ContentOverrides {
   seo?: Partial<Record<ContentPage, { title?: string; description?: string }>>;
   /** Navigation label per page id, e.g. { projects: "Originals" }. */
   navigation?: Partial<Record<ContentPage, string>>;
+  /** Theme preset and layout choices; presets are fixed token sets, never free-form CSS. */
+  appearance?: {
+    theme?: ThemePresetId;
+    /** Sections removed from navigation (home always stays). */
+    hiddenSections?: ContentPage[];
+  };
 }
+
+export const THEME_PRESET_IDS = ["crimson", "cobalt", "emerald", "amber", "violet"] as const;
+export type ThemePresetId = (typeof THEME_PRESET_IDS)[number];
 
 export interface ContentVersion {
   version: number;
@@ -187,7 +196,16 @@ export function validateContentOverrides(
   const errors: Errors = [];
   unknownKeys(
     input,
-    ["basics", "projects", "experience", "education", "certifications", "seo", "navigation"],
+    [
+      "basics",
+      "projects",
+      "experience",
+      "education",
+      "certifications",
+      "seo",
+      "navigation",
+      "appearance",
+    ],
     "content",
     errors,
   );
@@ -368,6 +386,39 @@ export function validateContentOverrides(
         seo[page] = { ...(title ? { title } : {}), ...(description ? { description } : {}) };
       }
       content.seo = seo;
+    }
+  }
+
+  if (input["appearance"] !== undefined) {
+    const appearance = input["appearance"] as Record<string, unknown>;
+    if (!appearance || typeof appearance !== "object" || Array.isArray(appearance)) {
+      errors.push("appearance must be an object.");
+    } else {
+      unknownKeys(appearance, ["theme", "hiddenSections"], "appearance", errors);
+      const result: NonNullable<ContentOverrides["appearance"]> = {};
+      const theme = appearance["theme"];
+      if (theme !== undefined) {
+        if ((THEME_PRESET_IDS as readonly unknown[]).includes(theme)) {
+          result.theme = theme as ThemePresetId;
+        } else {
+          errors.push(`appearance.theme must be one of: ${THEME_PRESET_IDS.join(", ")}.`);
+        }
+      }
+      const hidden = appearance["hiddenSections"];
+      if (hidden !== undefined) {
+        if (
+          !Array.isArray(hidden) ||
+          !hidden.every(
+            (page) => (CONTENT_PAGES as readonly unknown[]).includes(page) && page !== "home",
+          ) ||
+          new Set(hidden).size !== hidden.length
+        ) {
+          errors.push("appearance.hiddenSections must list unique non-home section ids.");
+        } else {
+          result.hiddenSections = hidden as ContentPage[];
+        }
+      }
+      content.appearance = result;
     }
   }
 

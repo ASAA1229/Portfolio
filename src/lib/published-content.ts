@@ -14,6 +14,11 @@ import type { PersonPortfolio } from "@/lib/person-portfolios";
 const CACHE_MS = 60_000;
 const cache = new Map<string, { at: number; promise: Promise<ContentOverrides | null> }>();
 
+/** Drop cached published content (tests, and after an owner publishes in this tab). */
+export function clearPublishedContentCache(): void {
+  cache.clear();
+}
+
 export function fetchPublishedContent(profileId: string): Promise<ContentOverrides | null> {
   if (!isContentProfileId(profileId) || typeof fetch === "undefined") return Promise.resolve(null);
   const cached = cache.get(profileId);

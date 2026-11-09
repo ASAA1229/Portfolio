@@ -5,6 +5,7 @@ import { monogramFor } from "@/lib/monogram";
 import { PersonShell } from "@/components/PersonPortfolio";
 import { SiteShell } from "@/components/SiteShell";
 import { PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
+import { clearPublishedContentCache } from "@/lib/published-content";
 
 let mockPath = "/";
 
@@ -202,5 +203,35 @@ describe("PortfolioNavbar standardization", () => {
     expect(monogramFor(PERSON_PORTFOLIOS.ammu.name)).toBe("DA");
     expect(monogramFor(PERSON_PORTFOLIOS.bava.name)).toBe("EK");
     expect(monogramFor(PERSON_PORTFOLIOS.sai.name)).toBe("DR");
+  });
+});
+
+describe("PortfolioNavbar published appearance", () => {
+  it("hides owner-hidden sections and applies the published accent preset", async () => {
+    mockPath = "/people/ammu";
+    clearPublishedContentCache();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          profileId: "ammu",
+          content: { appearance: { theme: "emerald", hiddenSections: ["certifications"] } },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    try {
+      const person = PERSON_PORTFOLIOS["ammu"]!;
+      const { container, findByText } = render(<PortfolioNavbar person={person} />);
+      await vi.waitFor(() =>
+        expect(container.querySelector("style[data-profile-theme='emerald']")).not.toBeNull(),
+      );
+      const primaryNav = container.querySelector("nav.site-primary-nav")!;
+      expect(primaryNav.textContent).not.toContain("Certifications");
+      expect(primaryNav.textContent).toContain("Home");
+      expect(await findByText("Contact", { selector: "nav.site-primary-nav a" })).toBeTruthy();
+    } finally {
+      fetchMock.mockRestore();
+      clearPublishedContentCache();
+    }
   });
 });
