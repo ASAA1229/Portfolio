@@ -243,3 +243,9 @@ Maintain four-profile isolation and public/private data separation. JARVIS remai
 ## PORT-US-013 development note — 2026-11-09
 
 The publish-history validator now checks nested contact fields, structured section keys/entries, skill bounds, timestamps, profile ownership and rollback metadata before persisted history is accepted. Targeted malformed-record regression cases have been authored. **Testing remains paused; these tests have not been executed**, and runtime/object-storage partial-failure reconciliation remains open.
+
+
+
+## PORT-E04 resume lifecycle increment — 2026-11-09 13:30 IST
+
+The admin experience now includes per-profile append-only publish history and confirmed rollback, plus an authenticated consistency report comparing the public resume feed with the private index. An owner-confirmed reconciliation action can rebuild the public feed from the private index and report missing private original files. This is a recovery aid, not a full multi-store transaction: missing originals are not recreated and partial failures across index/file/feed writes still need compensation/recovery design. PORT-US-013 therefore remains PARTIAL. Regression tests are authored but unexecuted; testing remains paused.
