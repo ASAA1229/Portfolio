@@ -26,9 +26,8 @@ function Detail() {
   const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
   // Archived projects disappear; new published projects resolve by slug.
   const project = profile?.projects.find((item) => item.slug === slug);
-  return profile && project ? (
-    <PersonProjectDetail profile={profile} project={project} />
-  ) : (
-    <PersonUnavailable missing />
-  );
+  // A syntactically valid but unknown project slug is still a real 404.
+  // Keep the route's not-found boundary instead of rendering a missing page with HTTP 200.
+  if (!profile || !project) throw notFound();
+  return <PersonProjectDetail profile={profile} project={project} />;
 }
