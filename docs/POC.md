@@ -310,3 +310,20 @@ This section records the owner's consolidated answers to the 50-question develop
 ## Resume publishing integrity update — 2026-11-09
 
 A source-level hardening increment was added to `src/lib/resume-publish-history.ts`: persisted history validation now validates nested contact and structured-section records, allowed keys, per-field bounds, profile ownership, skill limits and timestamp/rollback metadata. Regression cases were authored in `src/test/resume-publish-history.test.ts`; **they were not executed because testing is paused**. This closes a validation gap only. It does not resolve object-storage non-transactionality or prove publish/unpublish/rollback recovery. PORT-US-013 remains partial until that work and later acceptance are complete.
+
+
+
+## Post-Claude source review — 2026-11-09 13:30 IST
+
+**Branch reviewed:** `new`. Compared with the previously recorded development baseline, the latest increment updates the resume publish-history admin panel and server-side resume APIs.
+
+### Newly implemented in source — not tested
+- The per-profile Publish History panel loads append-only history, displays the next rollback target, and requires explicit confirmation before rollback.
+- An authenticated consistency endpoint compares the public approved-resume feed with the private resume index and reports missing private resume files.
+- An owner-confirmed reconciliation endpoint rebuilds the public feed from the private index and reports whether the feed was already in sync and which indexed files are missing.
+- The history validator enforces profile ownership, timestamp/rollback metadata and bounded/allowed structured fields; targeted regression tests are authored.
+
+### Remaining work and acceptance
+- Feed reconciliation repairs the public feed only; it does not recreate missing private original files or make private-index, original-file and public-feed writes transactional.
+- Recoverable partial-failure handling across all storage writes remains incomplete. Keep PORT-US-013 **PARTIAL — NEEDS DEVELOPMENT / TESTING**.
+- Regression tests were not run. No tests, builds, typecheck, lint, audits, browser checks, CI/Jenkins or release validation were run for this increment. Four-profile isolation and private/public data separation remain mandatory.
