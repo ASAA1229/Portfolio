@@ -4,8 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/Reveal";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
 import { CONTACT } from "@/lib/portfolio-data";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 
 export function PortfolioContact() {
+  const published = usePublishedProfileResume("abhishek");
+  const email = published?.contact?.email || CONTACT.email;
+  const phone = published?.contact?.phone || CONTACT.phone;
+  const linkedin = published?.contact?.linkedin || CONTACT.linkedin;
+  const github = published?.contact?.github || CONTACT.github;
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -35,7 +41,7 @@ export function PortfolioContact() {
     setIsSubmitting(true);
     const data = result.data;
     const body = `${data.message}\n\n— ${data.name} (${data.email})`;
-    window.location.href = `mailto:${CONTACT.email}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(body)}`;
     setFeedback(
       "Email draft prepared. Send it in your email app; no message has been sent from this website.",
     );
@@ -44,7 +50,7 @@ export function PortfolioContact() {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(CONTACT.email);
+      await navigator.clipboard.writeText(email);
       setCopied(true);
       setCopyFeedback("Email copied to clipboard.");
       setTimeout(() => setCopied(false), 3000);
@@ -57,24 +63,24 @@ export function PortfolioContact() {
     "w-full rounded-md border border-input bg-background/60 px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] duration-200 focus:border-primary focus-visible:ring-2 focus-visible:ring-ring placeholder:text-muted-foreground";
 
   return (
-    <section id="contact" className="scroll-mt-24 border-t border-border px-5 py-14 sm:px-12">
+    <section
+      id="contact"
+      className="scroll-mt-24 overflow-x-clip border-t border-border px-5 py-14 sm:px-12"
+    >
       <div className="mx-auto max-w-7xl">
         <Reveal>
           <p className="mb-2 text-xs text-primary">LET’S BUILD WHAT COMES NEXT</p>
           <h2 className="mb-8 text-4xl font-bold sm:text-5xl">Ready for the Next Episode?</h2>
         </Reveal>
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2 [&>*]:min-w-0">
           <Reveal direction="left" delay={0.1}>
             <div className="space-y-5 py-4 font-sans text-sm">
               <p className="text-accent">LET’S CONNECT</p>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="min-w-0 break-all">
                   <span className="text-muted-foreground">email:</span>{" "}
-                  <a
-                    href={`mailto:${CONTACT.email}`}
-                    className="transition-colors hover:text-accent"
-                  >
-                    {CONTACT.email}
+                  <a href={`mailto:${email}`} className="transition-colors hover:text-accent">
+                    {email}
                   </a>
                 </span>
                 <Button
@@ -91,10 +97,10 @@ export function PortfolioContact() {
               <p>
                 <span className="text-muted-foreground">phone:</span>{" "}
                 <a
-                  href={`tel:${CONTACT.phone.replace(/\s/g, "")}`}
+                  href={`tel:${phone.replace(/[^+0-9]/g, "")}`}
                   className="transition-colors hover:text-accent"
                 >
-                  {CONTACT.phone}
+                  {phone}
                 </a>
               </p>
               <p>
@@ -104,24 +110,24 @@ export function PortfolioContact() {
                 {copyFeedback}
               </p>
               <div className="flex flex-wrap gap-3 pt-4">
-                {CONTACT.linkedin && (
+                {linkedin && (
                   <Button
                     variant="portfolio"
                     asChild
                     className="transition-transform duration-200 hover:-translate-y-0.5"
                   >
-                    <a href={CONTACT.linkedin} target="_blank" rel="noopener noreferrer">
+                    <a href={linkedin} target="_blank" rel="noopener noreferrer">
                       LinkedIn
                     </a>
                   </Button>
                 )}
-                {CONTACT.github && (
+                {github && (
                   <Button
                     variant="portfolio"
                     asChild
                     className="transition-transform duration-200 hover:-translate-y-0.5"
                   >
-                    <a href={CONTACT.github} target="_blank" rel="noopener noreferrer">
+                    <a href={github} target="_blank" rel="noopener noreferrer">
                       GitHub
                     </a>
                   </Button>

@@ -5,7 +5,12 @@ type SecretEnv = Record<string, unknown>;
 
 function secret(name: string, env?: unknown): string | undefined {
   const runtimeValue = env && typeof env === "object" ? (env as SecretEnv)[name] : undefined;
-  const value = typeof runtimeValue === "string" ? runtimeValue : typeof process !== "undefined" ? process.env[name] : undefined;
+  const value =
+    typeof runtimeValue === "string"
+      ? runtimeValue
+      : typeof process !== "undefined"
+        ? process.env[name]
+        : undefined;
   return value?.trim() || undefined;
 }
 
@@ -33,7 +38,9 @@ async function hmac(value: string, key: string): Promise<Uint8Array> {
     false,
     ["sign", "verify"],
   );
-  return new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(value)));
+  return new Uint8Array(
+    await crypto.subtle.sign("HMAC", cryptoKey, new TextEncoder().encode(value)),
+  );
 }
 
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
@@ -44,7 +51,9 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 export function adminAuthConfigured(env?: unknown): boolean {
-  return Boolean(secret("PORTFOLIO_ADMIN_PASSWORD", env) && secret("PORTFOLIO_ADMIN_SESSION_SECRET", env));
+  return Boolean(
+    secret("PORTFOLIO_ADMIN_PASSWORD", env) && secret("PORTFOLIO_ADMIN_SESSION_SECRET", env),
+  );
 }
 
 export async function verifyAdminPassword(password: string, env?: unknown): Promise<boolean> {
@@ -57,20 +66,42 @@ export async function verifyAdminPassword(password: string, env?: unknown): Prom
   return constantTimeEqual(new Uint8Array(actualHash), new Uint8Array(expectedHash));
 }
 
-export async function createAdminCookie(env?: unknown): Promise<string | null> {
-  const key = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!key) return null;
+/**
+ * Session epoch: "log out everywhere" increments a stored epoch, which changes the
+ * signing key and invalidates every previously issued admin cookie at once.
+ * Epoch "0" keeps the original key so existing sessions stay valid until then.
+ */
+function sessionKey(secretValue: string, epoch: string): string {
+  return epoch === "0" ? secretValue : `${secretValue}|epoch:${epoch}`;
+}
+
+export function isValidSessionEpoch(value: unknown): value is string {
+  return typeof value === "string" && /^(?:0|[1-9]\d{0,15})$/.test(value);
+}
+
+export async function createAdminCookie(env?: unknown, epoch = "0"): Promise<string | null> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !isValidSessionEpoch(epoch)) return null;
+  const key = sessionKey(secretValue, epoch);
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
   const payload = String(expires);
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 
-export async function isAdminRequest(request: Request, env?: unknown): Promise<boolean> {
-  const key = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!key) return false;
+export async function isAdminRequest(
+  request: Request,
+  env?: unknown,
+  epoch = "0",
+): Promise<boolean> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !isValidSessionEpoch(epoch)) return false;
+  const key = sessionKey(secretValue, epoch);
   const cookieHeader = request.headers.get("cookie") ?? "";
-  const cookie = cookieHeader.split(";").map((part) => part.trim())
-    .find((part) => part.startsWith(`${COOKIE_NAME}=`))?.slice(COOKIE_NAME.length + 1);
+  const cookie = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${COOKIE_NAME}=`))
+    ?.slice(COOKIE_NAME.length + 1);
   if (!cookie) return false;
 
   // A SHA-256 HMAC has a fixed 32-byte signature (43 unpadded base64url
@@ -79,6 +110,7 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
   const match = cookie.match(/^([1-9]\d{9,15})\.([A-Za-z0-9_-]{43})$/);
   if (!match) return false;
   const [, payload, encodedSignature] = match;
+  if (!payload || !encodedSignature) return false;
   const signature = base64UrlToBytes(encodedSignature);
   const expiry = Number(payload);
   if (
@@ -87,7 +119,8 @@ export async function isAdminRequest(request: Request, env?: unknown): Promise<b
     bytesToBase64Url(signature) !== encodedSignature ||
     !Number.isSafeInteger(expiry) ||
     expiry <= Math.floor(Date.now() / 1000)
-  ) return false;
+  )
+    return false;
   return constantTimeEqual(signature, await hmac(payload, key));
 }
 

@@ -36,7 +36,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <div className="flex flex-wrap items-center justify-between gap-8">
             <div>
               <p className="font-mono text-xs text-violet">THE NEXT CHAPTER</p>
-              <h2 className="mt-3 text-4xl font-semibold">Let&apos;s build something meaningful.</h2>
+              <h2 className="mt-3 text-4xl font-semibold">
+                Let&apos;s build something meaningful.
+              </h2>
               <a
                 href={`mailto:${CONTACT.email}`}
                 className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
@@ -51,9 +53,12 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
           <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
             <p>© 2026 Guda Abhishek. All rights reserved. Netflix-inspired portfolio concept.</p>
-            <Link to="/projects">
-              Explore The Series <ArrowUpRight className="inline size-3" />
-            </Link>
+            <span className="flex gap-4">
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/projects">
+                Explore The Series <ArrowUpRight className="inline size-3" />
+              </Link>
+            </span>
           </div>
         </div>
       </footer>

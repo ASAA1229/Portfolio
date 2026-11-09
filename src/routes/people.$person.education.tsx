@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useMergedPersonPortfolio } from "@/lib/published-content";
 import { getPersonPortfolio, isPerson } from "@/lib/person-portfolios";
 import { PersonContent, PersonUnavailable } from "@/components/PersonPortfolio";
 
@@ -13,7 +14,10 @@ export const Route = createFileRoute("/people/$person/education")({
   head: ({ params }) => ({
     meta: [
       { title: `Education — ${getPersonPortfolio(params.person)?.name ?? "Portfolio"}` },
-      { name: "description", content: "Academic education and training for this portfolio profile." },
+      {
+        name: "description",
+        content: "Academic education and training for this portfolio profile.",
+      },
       { name: "robots", content: "index, follow" },
     ],
   }),
@@ -23,6 +27,11 @@ export const Route = createFileRoute("/people/$person/education")({
 
 function EducationSection() {
   const { person } = Route.useParams();
-  const profile = getPersonPortfolio(person);
-  return profile ? <PersonContent profile={profile} section="education" /> : <PersonUnavailable missing />;
+  // Curated data with owner-published CMS overrides (PORT-US-035).
+  const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
+  return profile ? (
+    <PersonContent profile={profile} section="education" />
+  ) : (
+    <PersonUnavailable missing />
+  );
 }

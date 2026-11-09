@@ -1,4 +1,6 @@
+import { describeChatFailure } from "@/lib/ai-chat-errors";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ChatPrivacyNotice } from "@/components/ChatPrivacyNotice";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Minus, Send, X, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,30 +40,31 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-async function askAi(history: ChatMessage[], onDelta: (t: string) => void, signal: AbortSignal): Promise<string> {
+async function askAi(
+  history: ChatMessage[],
+  onDelta: (t: string) => void,
+  signal: AbortSignal,
+): Promise<string> {
   const res = await fetch("/api/chat", {
     method: "POST",
     signal,
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ person: "abhishek", page: window.location.pathname, mode: "chat", messages: history.map((m) => ({ role: m.role, content: m.content })) }),
+    body: JSON.stringify({
+      person: "abhishek",
+      page: window.location.pathname,
+      mode: "chat",
+      messages: history.map((m) => ({ role: m.role, content: m.content })),
+    }),
   });
   if (!res.ok || !res.body) {
     let detail = "";
     try {
-      const payload = await res.clone().json() as { error?: string };
+      const payload = (await res.clone().json()) as { error?: string };
       detail = payload.error ?? "";
     } catch {
       /* The server may return a non-JSON error page. */
     }
-    const reason = res.status === 503 && detail.toLowerCase().includes("not configured")
-      ? "The AI service is not configured on the server (missing LOVABLE_API_KEY)."
-      : res.status === 401 || res.status === 403
-        ? "The AI service rejected its server credentials (HTTP " + res.status + ")."
-        : res.status === 402
-          ? "The AI service has no available credits or billing access (HTTP 402)."
-          : res.status === 429
-            ? "The AI service rate limit was reached (HTTP 429). Please try again shortly."
-            : "The AI request failed (HTTP " + res.status + ").";
+    const reason = describeChatFailure(res.status, detail);
     throw new Error(reason);
   }
   const reader = res.body.getReader();
@@ -73,6 +76,11 @@ async function askAi(history: ChatMessage[], onDelta: (t: string) => void, signa
     const t = dec.decode(value, { stream: true });
     got += t;
     onDelta(t);
+  }
+  const finalText = dec.decode();
+  if (finalText) {
+    got += finalText;
+    onDelta(finalText);
   }
   if (!got.trim()) throw new Error("empty");
   return got;
@@ -95,9 +103,13 @@ export function PortfolioChat() {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.replace(/[*#`]/g, ""));
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find((item) => /male|david|guy|ryan|george|mark|daniel/i.test(item.name) && item.lang.startsWith("en"))
-      ?? voices.find((item) => item.lang === "en-IN")
-      ?? voices.find((item) => item.lang.startsWith("en"));
+    const voice =
+      voices.find(
+        (item) =>
+          /male|david|guy|ryan|george|mark|daniel/i.test(item.name) && item.lang.startsWith("en"),
+      ) ??
+      voices.find((item) => item.lang === "en-IN") ??
+      voices.find((item) => item.lang.startsWith("en"));
     if (voice) utterance.voice = voice;
     utterance.lang = voice?.lang ?? "en-IN";
     utterance.rate = 1.04;
@@ -138,19 +150,28 @@ export function PortfolioChat() {
     try {
       const answer = await askAi(
         history.slice(-12),
-        (d) => patch((m) => ({ ...m, content: m.content + d })),
+        (d) => {
+          if (abortRef.current === ctrl && !ctrl.signal.aborted) {
+            patch((m) => ({ ...m, content: m.content + d }));
+          }
+        },
         ctrl.signal,
       );
-      if (speakReplies) speak(answer);
+      if (speakReplies && abortRef.current === ctrl && !ctrl.signal.aborted) speak(answer);
     } catch (error) {
-      if (ctrl.signal.aborted) return;
+      if (ctrl.signal.aborted || abortRef.current !== ctrl) return;
       const fallback = fallbackAnswer(q);
-      const reason = error instanceof Error && error.message ? error.message : "The request failed.";
+      const reason =
+        error instanceof Error && error.message ? error.message : "The request failed.";
       const answer = `${fallback}\n\nLive AI status: ${reason}`;
       patch((m) => ({ ...m, content: answer, source: "fallback" }));
-      if (speakReplies) speak(answer);
+      if (speakReplies && abortRef.current === ctrl && !ctrl.signal.aborted) speak(answer);
     } finally {
-      setBusy(false);
+      // A cleared or superseded request must not change the state of a newer one.
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+        setBusy(false);
+      }
     }
   }
 
@@ -205,6 +226,7 @@ export function PortfolioChat() {
 
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
+            if (!first || !last) return;
             if (e.shiftKey && document.activeElement === first) {
               e.preventDefault();
               last.focus();
@@ -239,7 +261,10 @@ export function PortfolioChat() {
               className="min-h-11 min-w-11"
               aria-label={speakReplies ? "Turn off spoken replies" : "Turn on spoken replies"}
               aria-pressed={speakReplies}
-              onClick={() => { setSpeakReplies(!speakReplies); if (speakReplies) window.speechSynthesis?.cancel(); }}
+              onClick={() => {
+                setSpeakReplies(!speakReplies);
+                if (speakReplies) window.speechSynthesis?.cancel();
+              }}
             >
               {speakReplies ? <Volume2 /> : <VolumeX />}
             </Button>
@@ -259,6 +284,7 @@ export function PortfolioChat() {
               aria-label="Close and clear chat"
               onClick={() => {
                 abortRef.current?.abort();
+                abortRef.current = null;
                 setMessages([]);
                 setBusy(false);
                 close();
@@ -327,6 +353,14 @@ export function PortfolioChat() {
               </div>
             ))}
           </div>
+          <ChatPrivacyNotice
+            onClear={() => {
+              abortRef.current?.abort();
+              abortRef.current = null;
+              setMessages([]);
+              setBusy(false);
+            }}
+          />
           <form
             className="flex items-end gap-2 border-t border-border p-3"
             onSubmit={(e) => {

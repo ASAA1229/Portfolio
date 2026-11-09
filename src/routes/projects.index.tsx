@@ -1,8 +1,9 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PageBody, PageHeading, ProjectCard } from "@/components/SitePrimitives";
-import { pageHead, siteProjects } from "@/lib/site-data";
+import { pageHead } from "@/lib/site-data";
 export const Route = createFileRoute("/projects/")({
   head: () =>
     pageHead(
@@ -14,7 +15,8 @@ export const Route = createFileRoute("/projects/")({
 });
 function Projects() {
   const [filter, setFilter] = useState("All work");
-  const projects = siteProjects.filter(
+  const { projects: allProjects } = useAbhishekContent();
+  const projects = allProjects.filter(
     (p) => filter === "All work" || (filter === "AI & intelligence" ? p.index !== 3 : p.index >= 2),
   );
   return (

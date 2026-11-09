@@ -11,11 +11,12 @@ const env = {
   PORTFOLIO_ADMIN_SESSION_SECRET: "test-only-session-secret-that-is-long-enough",
 };
 
-
 describe("private admin authentication", () => {
   it("requires both server-side secrets", () => {
     expect(adminAuthConfigured(env)).toBe(true);
-    expect(adminAuthConfigured({ PORTFOLIO_ADMIN_PASSWORD: env.PORTFOLIO_ADMIN_PASSWORD })).toBe(false);
+    expect(adminAuthConfigured({ PORTFOLIO_ADMIN_PASSWORD: env.PORTFOLIO_ADMIN_PASSWORD })).toBe(
+      false,
+    );
   });
 
   it("accepts only the configured password", async () => {
@@ -31,7 +32,9 @@ describe("private admin authentication", () => {
       headers: { cookie: `portfolio_admin_session=${value}` },
     });
     expect(await isAdminRequest(request, env)).toBe(true);
-    expect(await isAdminRequest(new Request("https://portfolio.example/admin/resumes"), env)).toBe(false);
+    expect(await isAdminRequest(new Request("https://portfolio.example/admin/resumes"), env)).toBe(
+      false,
+    );
     const tampered = new Request("https://portfolio.example/admin/resumes", {
       headers: { cookie: `portfolio_admin_session=${value}x` },
     });

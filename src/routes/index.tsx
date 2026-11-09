@@ -1,10 +1,13 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Code2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import { Reveal } from "@/components/Reveal";
 import { ProjectCard, ResumeAction, SocialLinks } from "@/components/SitePrimitives";
-import { pageHead, siteProjects } from "@/lib/site-data";
+import { pageHead } from "@/lib/site-data";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import portrait from "@/assets/my_1.jpeg";
 
 export const Route = createFileRoute("/")({
@@ -17,11 +20,33 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 function Home() {
+  const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
+  const publishedResume = usePublishedProfileResume("abhishek");
+  // Owner CMS edits (headline, summary, projects) over curated content.
+  const content = useAbhishekContent();
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { images: [] }))
+      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
+        if (!active) return;
+        const portraits = (payload.images ?? []).filter(
+          (image) => image.profileId === "abhishek" && image.slot === "portrait",
+        );
+        setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
+      })
+      .catch(() => {
+        if (active) setPublishedPortrait(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   return (
     <>
       <section className="home-hero">
         <img
-          src={portrait}
+          src={publishedPortrait ?? portrait}
           alt="Existing AI-stylized portrait of Guda Abhishek"
           width={768}
           height={768}
@@ -42,14 +67,18 @@ function Home() {
                 <span className="text-primary">.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg font-semibold leading-7">
-                Software Engineer
-                <br />
-                <span className="text-violet">AI & Full-Stack Developer</span>
+                {content.headline || publishedResume?.headline || (
+                  <>
+                    Software Engineer
+                    <br />
+                    <span className="text-violet">AI & Full-Stack Developer</span>
+                  </>
+                )}
               </p>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                Building practical products with React, Java, REST APIs and Generative AI.
-                Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to
-                real experiences.
+                {content.summary ||
+                  publishedResume?.summary ||
+                  "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild className="min-h-11 px-5">
@@ -111,7 +140,7 @@ function Home() {
           </Button>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          {siteProjects
+          {content.projects
             .filter((p) => p.index === 0 || p.index === 2)
             .map((p) => (
               <ProjectCard key={p.slug} project={p} />

@@ -3,11 +3,10 @@ name: Portfolio CI and Artifact Integrity
 on:
   push:
     branches:
-      - devops-integrity-pipeline
+      - new
   pull_request:
     branches:
       - dev
-      - main
   workflow_dispatch:
 
 permissions:
@@ -25,9 +24,13 @@ jobs:
       PROJECT_NAME: portfolio
       GIT_COMMIT: ${{ github.sha }}
       BUILD_NUMBER: ${{ github.run_number }}
+      BUILD_REPOSITORY: ${{ github.repository }}
+      BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
+      BUILD_WORKFLOW: ${{ github.workflow }}
+      BUILD_RUN_ID: ${{ github.run_id }}
+      BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       REQUIRE_BUILD_PROVENANCE: 'true'
-      MANIFEST_IGNORE_PRIVATE_KEY: ${{ secrets.MANIFEST_IGNORE_PRIVATE_KEY }}
-      MANIFEST_IGNORE_PUBLIC_KEY: ${{ secrets.MANIFEST_IGNORE_PUBLIC_KEY }}
+      CUSTOMER_RELEASE_REPORT_PATH: customer-release-report.json
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,14 +41,21 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Generate CycloneDX dependency SBOM
+        run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
       - name: Build
         run: npm run build
-      - name: ESLint checks (existing Prettier-format debt tracked separately)
-        run: "npm run lint -- --rule 'prettier/prettier: off'"
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
       - name: Tests
         run: npm test
       - name: Create and verify SHA-256 build manifest
         shell: bash
+        env:
+          MANIFEST_IGNORE_PRIVATE_KEY: ${{ secrets.MANIFEST_IGNORE_PRIVATE_KEY }}
+          MANIFEST_IGNORE_PUBLIC_KEY: ${{ secrets.MANIFEST_IGNORE_PUBLIC_KEY }}
         run: |
           set -euo pipefail
           if [ -d .output ]; then
@@ -64,17 +74,22 @@ jobs:
           node scripts/customer-release-verifier.mjs create portfolio-manifest.json portfolio-build.tar.gz portfolio-manifest-ignore.json
           node scripts/artifact-integrity.mjs hash portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256
           TRUSTED_POLICY_HASH="$(cut -d' ' -f1 portfolio-manifest-ignore.json.sha256)"
-          node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" "$TRUSTED_POLICY_HASH"
+          node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$TRUSTED_POLICY_HASH"
           if [[ -n "${MANIFEST_IGNORE_PRIVATE_KEY:-}" && -n "${MANIFEST_IGNORE_PUBLIC_KEY:-}" ]]; then
-            private_key_file="$RUNNER_TEMP/manifest-ignore-private.pem"
-            public_key_file="$RUNNER_TEMP/manifest-ignore-public.pem"
-            trap 'rm -f "$private_key_file" "$public_key_file"' EXIT
+            umask 077
+            private_key_file="$(mktemp "$RUNNER_TEMP/manifest-ignore-private.XXXXXX.pem")"
+            public_key_file="$(mktemp "$RUNNER_TEMP/manifest-ignore-public.XXXXXX.pem")"
+            cleanup_signing_material() {
+              rm -f -- "$private_key_file" "$public_key_file"
+              unset MANIFEST_IGNORE_PRIVATE_KEY MANIFEST_IGNORE_PUBLIC_KEY
+            }
+            trap cleanup_signing_material EXIT
             printf '%s' "$MANIFEST_IGNORE_PRIVATE_KEY" > "$private_key_file"
             printf '%s' "$MANIFEST_IGNORE_PUBLIC_KEY" > "$public_key_file"
             chmod 600 "$private_key_file"
             node scripts/policy-signature.mjs sign portfolio-manifest-ignore.json portfolio-manifest-ignore.sig "$private_key_file"
             node scripts/policy-signature.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.sig "$public_key_file"
-            node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz "$ARTIFACT_DIR" - portfolio-manifest-ignore.sig "$public_key_file"
+            node scripts/customer-release-verifier.mjs verify portfolio-manifest-ignore.json portfolio-manifest-ignore.json.sha256 portfolio-manifest.json portfolio-build.tar.gz - portfolio-manifest-ignore.sig "$public_key_file"
           else
             echo "Signing secrets are not configured; SHA-256 trusted-digest verification ran. Configure MANIFEST_IGNORE_PRIVATE_KEY and MANIFEST_IGNORE_PUBLIC_KEY to enable release signatures."
           fi
@@ -88,8 +103,9 @@ jobs:
             portfolio-build.tar.gz.sha256
             portfolio-manifest-ignore.json
             portfolio-manifest-ignore.json.sha256
+            portfolio-dependencies.cdx.json
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
       - name: Upload signed manifest-ignore policy
         if: hashFiles('portfolio-manifest-ignore.sig') != ''
         uses: actions/upload-artifact@v4
@@ -97,4 +113,12 @@ jobs:
           name: portfolio-policy-signature-${{ github.run_number }}
           path: portfolio-manifest-ignore.sig
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
+      - name: Retain customer release failure report
+        if: always() && hashFiles('customer-release-report.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-release-failure-${{ github.run_number }}
+          path: customer-release-report.json
+          if-no-files-found: error
+          retention-days: 14

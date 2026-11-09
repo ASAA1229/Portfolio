@@ -23,6 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/Reveal";
 import { TechnologyList } from "@/components/TechLogo";
 import { PersonPortfolioAssistant } from "@/components/PersonPortfolioAssistant";
+import { ResumeEntryCard } from "@/components/ResumeEntryCard";
+import { ChapterHero, type ChapterVariant } from "@/components/ChapterHero";
+import { ProfileContactPanel } from "@/components/ProfileContactPanel";
+import { ProjectVisual } from "@/components/ProjectVisual";
 import {
   PERSON_SECTIONS,
   type PersonPortfolio,
@@ -30,6 +34,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
+import { usePublishedProfilePortrait, usePublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -71,27 +76,86 @@ export function PersonShell({
       </a>
       <PortfolioNavbar person={profile} />
       <div id="person-content">{children}</div>
-      <PersonPortfolioAssistant profile={profile} />
-      <footer className="site-footer">
-        <div className="site-container">
-          <p className="font-mono text-xs text-primary">THE NEXT CHAPTER</p>
-          <h2 className="mt-3 text-4xl">Let's connect.</h2>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <ContactActions profile={profile} />
-            <Button asChild variant="outline">
+      <PersonPortfolioAssistant key={profile.id} profile={profile} />
+      <PersonFooter profile={profile} />
+    </div>
+  );
+}
+/** Contact details for a person: a published resume, when present, is authoritative. */
+function usePersonContact(profile: PersonPortfolio) {
+  const published = usePublishedProfileResume(profile.id);
+  return {
+    email: published ? published.contact?.email : profile.email,
+    phone: published ? published.contact?.phone : profile.phone,
+    linkedin: published?.contact?.linkedin,
+    github: published?.contact?.github,
+  };
+}
+
+function SocialButtons({ profile }: { profile: PersonPortfolio }) {
+  const { linkedin, github } = usePersonContact(profile);
+  return (
+    <>
+      {linkedin && (
+        <Button asChild variant="outline" className="min-h-11">
+          <a href={linkedin} target="_blank" rel="noopener noreferrer">
+            <Linkedin /> LinkedIn
+          </a>
+        </Button>
+      )}
+      {github && (
+        <Button asChild variant="outline" className="min-h-11">
+          <a href={github} target="_blank" rel="noopener noreferrer">
+            <Github /> GitHub
+          </a>
+        </Button>
+      )}
+    </>
+  );
+}
+
+/** Same footer structure as Abhishek's site shell, with only this person's details. */
+function PersonFooter({ profile }: { profile: PersonPortfolio }) {
+  const { email } = usePersonContact(profile);
+  return (
+    <footer className="site-footer">
+      <div className="site-container">
+        <div className="flex flex-wrap items-center justify-between gap-8">
+          <div>
+            <p className="font-mono text-xs text-violet">THE NEXT CHAPTER</p>
+            <h2 className="mt-3 text-4xl font-semibold">Let&apos;s build something meaningful.</h2>
+            {email && (
+              <a
+                href={`mailto:${email}`}
+                className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
+              >
+                {email} <ArrowUpRight className="inline size-4" />
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <SocialButtons profile={profile} />
+            <Button asChild variant="outline" className="min-h-11">
               <Link to="/profiles">
                 Switch profiles <ArrowRight />
               </Link>
             </Button>
           </div>
-          <p className="mt-8 border-t border-border pt-5 text-xs text-muted-foreground">
-            © 2026 {profile.name}. Netflix-inspired portfolio concept.
-          </p>
         </div>
-      </footer>
-    </div>
+        <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
+          <p>© 2026 {profile.name}. All rights reserved. Netflix-inspired portfolio concept.</p>
+          <span className="flex gap-4">
+            <Link to="/privacy">Privacy</Link>
+            <PersonLink person={profile.id} section="projects">
+              Explore The Series <ArrowUpRight className="inline size-3" />
+            </PersonLink>
+          </span>
+        </div>
+      </div>
+    </footer>
   );
 }
+
 export function PersonUnavailable({
   person = "bava",
   missing = false,
@@ -128,18 +192,19 @@ export function PersonUnavailable({
   );
 }
 function ContactActions({ profile }: { profile: PersonPortfolio }) {
+  const { email, phone } = usePersonContact(profile);
   return (
     <>
-      {profile.email && (
+      {email && (
         <Button asChild className="min-h-11">
-          <a href={`mailto:${profile.email}`}>
+          <a href={"mailto:" + email}>
             <Mail /> Email {profile.displayName}
           </a>
         </Button>
       )}
-      {profile.phone && (
+      {phone && (
         <Button asChild variant="outline" className="min-h-11">
-          <a href={`tel:${profile.phone.replaceAll(" ", "")}`}>
+          <a href={"tel:" + phone.replace(/[^+0-9]/g, "")}>
             <Phone /> Call {profile.displayName}
           </a>
         </Button>
@@ -193,88 +258,49 @@ function ProjectTile({
     </article>
   );
 }
-type PublishedResume = { id: string; profileId: string; displayName: string; headline: string; summary: string; skills: string[] };
-
 function PublishedResumeHighlights({ profileId }: { profileId: string }) {
-  const [resumes, setResumes] = useState<PublishedResume[]>([]);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { headers: { accept: "application/json" } })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: { resumes?: PublishedResume[] } | null) => {
-        if (!active || !Array.isArray(payload?.resumes)) return;
-        setResumes(payload.resumes.filter((item) => item.profileId === profileId &&
-          typeof item.id === "string" && typeof item.displayName === "string" &&
-          typeof item.headline === "string" && typeof item.summary === "string" &&
-          Array.isArray(item.skills)));
-      })
-      .catch(() => { if (active) setResumes([]); });
-    return () => { active = false; };
-  }, [profileId]);
-
-  if (resumes.length === 0) return null;
+  const resume = usePublishedProfileResume(profileId);
+  if (!resume) return null;
   return (
     <section className="site-container py-10" aria-label="Published resume highlights">
       <div className="mb-6 border-t border-border pt-6">
-        <p className="font-mono text-xs text-primary">VERIFIED PROFILE UPDATES</p>
+        <p className="font-mono text-xs text-primary">VERIFIED PROFILE UPDATE</p>
         <h2 className="mt-3 text-3xl">Recently published.</h2>
       </div>
-      <div className="grid gap-5 md:grid-cols-2">
-        {resumes.map((resume) => (
-          <article key={resume.id} className="rounded-lg border border-border bg-card p-6">
-            <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
-            {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
-            {resume.summary && <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>}
-            {resume.skills.length > 0 && <div className="mt-5 flex flex-wrap gap-2">
-              {resume.skills.slice(0, 20).map((skill, index) => <span key={skill + index} className="rounded-full border border-border px-3 py-1 text-xs">{skill}</span>)}
-            </div>}
-          </article>
-        ))}
-      </div>
+      <article className="rounded-lg border border-border bg-card p-6">
+        <p className="font-mono text-xs text-muted-foreground">{resume.displayName}</p>
+        {resume.headline && <h3 className="mt-3 text-2xl">{resume.headline}</h3>}
+        {resume.summary && (
+          <p className="mt-4 text-sm leading-7 text-muted-foreground">{resume.summary}</p>
+        )}
+        {resume.skills.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {resume.skills.slice(0, 20).map((skill, index) => (
+              <span
+                key={skill + index}
+                className="rounded-full border border-border px-3 py-1 text-xs"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
+      </article>
     </section>
   );
 }
 
-type PublishedStructuredResume = {
-  id: string;
-  profileId: string;
-  structuredSections?: { experience?: string[]; education?: string[]; projects?: string[]; certifications?: string[] };
-};
-
-function PublishedStructuredSections({ profileId, section }: { profileId: string; section: "experience" | "education" | "projects" | "certifications" }) {
-  const [entries, setEntries] = useState<{ id: string; text: string }[]>([]);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-resumes", { headers: { accept: "application/json" }, cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((payload: { resumes?: PublishedStructuredResume[] } | null) => {
-        if (!active || !Array.isArray(payload?.resumes)) return;
-        setEntries(payload.resumes.filter((resume) => resume.profileId === profileId && typeof resume.id === "string")
-          .flatMap((resume) => (Array.isArray(resume.structuredSections?.[section]) ? resume.structuredSections[section] : [])
-            .filter((entry): entry is string => typeof entry === "string" && !!entry.trim())
-            .map((text, index) => ({ id: resume.id + "-" + index, text: text.trim() }))));
-      })
-      .catch(() => { if (active) setEntries([]); });
-    return () => { active = false; };
-  }, [profileId, section]);
-  if (entries.length === 0) return null;
-  return (
-    <section className="mt-12 border-t border-border pt-8" aria-label={"Published " + section}>
-      <p className="font-mono text-xs text-primary">VERIFIED RESUME ADDITIONS</p>
-      <h2 className="mt-3 text-3xl">Additional {section}.</h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {entries.map((entry) => <article key={entry.id} className="rounded-lg border border-border bg-card p-5"><p className="whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{entry.text}</p></article>)}
-      </div>
-    </section>
-  );
-}
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
+  const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedPortrait = usePublishedProfilePortrait(profile.id);
+  const headline = publishedResume?.headline || profile.headline;
+  const story = publishedResume?.summary || profile.story;
   return (
     <>
       <section className="person-hero">
         <img src={backdrop} alt="" className="person-hero-backdrop" aria-hidden="true" />
         <img
-          src={profile.portrait}
+          src={publishedPortrait ?? profile.portrait}
           alt={`${profile.name} portrait`}
           className="person-hero-portrait"
           fetchPriority="high"
@@ -290,8 +316,8 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
             </p>
             <h1 className="person-name mt-6">{profile.name}</h1>
-            <p className="mt-6 max-w-xl text-lg font-semibold leading-7">{profile.headline}</p>
-            <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{profile.story}</p>
+            <p className="mt-6 max-w-xl text-lg font-semibold leading-7">{headline}</p>
+            <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{story}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild className="min-h-11">
                 <PersonLink person={profile.id} section="projects">
@@ -303,6 +329,17 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
                   The full story <ArrowRight />
                 </PersonLink>
               </Button>
+              <Button
+                variant="outline"
+                className="min-h-11"
+                onClick={() => window.dispatchEvent(new Event("portfolio:open-ai-intro"))}
+              >
+                <Bot /> AI Intro
+              </Button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <ContactActions profile={profile} />
+              <SocialButtons profile={profile} />
             </div>
             <p className="mt-7 max-w-lg font-mono text-xs leading-6 text-muted-foreground">
               {profile.education.qualification} · {profile.education.period}
@@ -348,7 +385,9 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         <div className="site-container grid gap-6 py-12 md:grid-cols-[1fr_2fr]">
           <h2 className="text-4xl">Beyond the work.</h2>
           <div>
-            <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
+            <p className="text-sm leading-8 text-muted-foreground">
+              {publishedResume?.summary || profile.summary}
+            </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <PersonLink person={profile.id} section="experience">
                 Explore my experience <ArrowRight />
@@ -404,234 +443,449 @@ export function PersonContent({
   profile: PersonPortfolio;
   section: PortfolioSection;
 }) {
-  const [publishedImages, setPublishedImages] = useState<{ id: string; profileId: string; src: string; alt: string }[]>([]);
+  const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedPortrait = usePublishedProfilePortrait(profile.id);
+  const contact = usePersonContact(profile);
+  const [publishedImagesState, setPublishedImagesState] = useState<{
+    profileId: string;
+    images: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
+  }>(() => ({ profileId: profile.id, images: [] }));
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : { images: [] })
-      .then((payload: { images?: { id: string; profileId: string; src: string; alt: string }[] }) => {
-        if (active) setPublishedImages((payload.images ?? []).filter((image) => image.profileId === profile.id));
-      })
-      .catch(() => { if (active) setPublishedImages([]); });
-    return () => { active = false; };
+      .then((response) => (response.ok ? response.json() : { images: [] }))
+      .then(
+        (payload: {
+          images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
+        }) => {
+          if (active)
+            setPublishedImagesState({
+              profileId: profile.id,
+              images: (payload.images ?? []).filter(
+                (image) => image.profileId === profile.id && image.slot !== "portrait",
+              ),
+            });
+        },
+      )
+      .catch(() => {
+        if (active) setPublishedImagesState({ profileId: profile.id, images: [] });
+      });
+    return () => {
+      active = false;
+    };
   }, [profile.id]);
+  const publishedImages =
+    publishedImagesState.profileId === profile.id ? publishedImagesState.images : [];
   const galleryPhotos = [
     ...profile.gallery,
     ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
   ];
-  const title = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
-  const descriptions: Record<PortfolioSection, string> = {
-    about: profile.story,
-    skills: "Tools, disciplines, and the foundations behind the work.",
-    projects: "A closer look at the applications and technical projects.",
-    experience: "Hands-on work, responsibilities, and professional learning.",
-    certifications: "Credentials and continued learning.",
-    education: "Academic foundations and ongoing growth.",
-    contact: "Start a conversation.",
+  const sectionLabel = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
+  const name = profile.displayName.toUpperCase();
+  const publishedProjects = publishedResume?.structuredSections?.projects?.length ?? 0;
+  const featured = profile.projects[0];
+  // Same chapter sequence and visual language as Abhishek's section pages.
+  const chapters: Record<
+    PortfolioSection,
+    {
+      variant: ChapterVariant;
+      kicker: string;
+      title: string;
+      accent: string;
+      lede: string;
+      index: string;
+      image?: string;
+      scroll?: string;
+    }
+  > = {
+    about: {
+      variant: "about",
+      kicker: "01 / THE ORIGIN STORY",
+      title: "MEET",
+      accent: `${name}.`,
+      lede: publishedResume?.headline || profile.headline,
+      index: `${name}: THE SERIES · CHAPTER 01`,
+      image: backdrop,
+      scroll: "Read the story",
+    },
+    skills: {
+      variant: "skills",
+      kicker: "02 / THE TOOLKIT",
+      title: "A LIVING",
+      accent: "ECOSYSTEM.",
+      lede: "Tools, disciplines, and the foundations behind the work.",
+      index: "TOOLS IN PRACTICE · NO SCORES, JUST WORK",
+      image: backdrop,
+      scroll: "Explore the toolkit",
+    },
+    projects: {
+      variant: "projects",
+      kicker: "03 / ORIGINAL PRODUCTIONS",
+      title: "BUILT FROM",
+      accent: "AN IDEA.",
+      lede: "Applications and technical projects, from the first idea to working software.",
+      index: `SELECTED WORK · ${String(publishedProjects || profile.projects.length).padStart(2, "0")} PROJECTS`,
+      image: backdrop,
+    },
+    experience: {
+      variant: "experience",
+      kicker: "04 / PROFESSIONAL TIMELINE",
+      title: "LEARNING",
+      accent: "BY DOING.",
+      lede: "Hands-on work, responsibilities, and professional learning.",
+      index: "WORK IN PROGRESS · WORK THAT SHIPS",
+      scroll: "See the timeline",
+    },
+    certifications: {
+      variant: "certs",
+      kicker: "05 / THE LEARNING ARCHIVE",
+      title: "PROGRESS,",
+      accent: "DOCUMENTED.",
+      lede: "Credentials and continued learning.",
+      index: "CREDENTIALS · CONTINUED LEARNING",
+      scroll: "Open the archive",
+    },
+    education: {
+      variant: "experience",
+      kicker: "06 / THE FOUNDATION",
+      title: "BUILT ON",
+      accent: "FOUNDATIONS.",
+      lede: "Academic foundations and ongoing growth.",
+      index: "KNOWLEDGE · PRACTICE · PROGRESS",
+      scroll: "Read the record",
+    },
+    contact: {
+      variant: "contact",
+      kicker: "07 / THE FINALE",
+      title: "LET’S MAKE",
+      accent: "THE NEXT THING.",
+      lede: "For opportunities, collaborations, and conversations.",
+      index: `END CREDITS · ${name}`,
+      scroll: "Start a conversation",
+    },
   };
+  const chapter = chapters[section];
+  const contentId = `${section}-content`;
+  const projectsCta = publishedProjects ? (
+    <a href={`#${contentId}`} className="chapter-cta">
+      Published projects <ArrowUpRight />
+    </a>
+  ) : featured ? (
+    <Link
+      to="/people/$person/projects/$slug"
+      params={{ person: profile.id, slug: featured.slug }}
+      className="chapter-cta"
+    >
+      Featured work <ArrowUpRight />
+    </Link>
+  ) : null;
   return (
-    <article className="site-container py-12 sm:py-16">
-      <header className="person-section-heading mb-10">
-        <img src={backdrop} alt="" aria-hidden="true" className="person-section-backdrop" />
-        <div className="person-section-heading-copy">
-          <p className="site-page-kicker">{profile.name.toUpperCase()} / THE SERIES</p>
-          <h1 className="site-page-title mt-4">{title}</h1>
-          <p className="site-page-description mt-5">
-            {descriptions[section]}
-          </p>
-        </div>
-      </header>
-      {section === "about" && (
-        <>
-          <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
-            <div>
-              <h2 className="text-4xl">{profile.headline}</h2>
-              <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
-                <img
-                  src={profile.portrait}
-                  alt={`${profile.name} — portfolio portrait`}
-                  loading="lazy"
-                  className="max-h-[34rem] w-full object-cover object-center"
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                />
+    <>
+      <ChapterHero
+        variant={chapter.variant}
+        kicker={chapter.kicker}
+        title={chapter.title}
+        accent={chapter.accent}
+        lede={chapter.lede}
+        index={chapter.index}
+        image={chapter.image}
+        scrollTarget={chapter.scroll ? contentId : undefined}
+        scrollLabel={chapter.scroll}
+        action={section === "projects" ? projectsCta : null}
+      />
+      <article
+        id={contentId}
+        aria-label={`${profile.name} — ${sectionLabel}`}
+        className="site-container scroll-mt-24 py-12 sm:py-16"
+      >
+        {section === "about" && (
+          <>
+            <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
+              <div>
+                <h2 className="text-4xl">{publishedResume?.headline || profile.headline}</h2>
+                <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
+                  <img
+                    src={publishedPortrait ?? profile.portrait}
+                    alt={`${profile.name} — portfolio portrait`}
+                    loading="lazy"
+                    className="max-h-[34rem] w-full object-cover object-center"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-sm leading-8 text-muted-foreground">
+                  {publishedResume?.summary || profile.summary}
+                </p>
+                {galleryPhotos.length > 0 && (
+                  <div
+                    className="mt-8 grid grid-cols-2 gap-3"
+                    aria-label={`${profile.name} photo gallery`}
+                  >
+                    {galleryPhotos.map((photo) => (
+                      <img
+                        key={"id" in photo && typeof photo.id === "string" ? photo.id : photo.src}
+                        src={photo.src}
+                        alt={photo.alt}
+                        loading="lazy"
+                        className="aspect-[4/5] w-full rounded-md border border-border object-cover"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            <div>
-              <p className="text-sm leading-8 text-muted-foreground">{profile.summary}</p>
-              {galleryPhotos.length > 0 && (
-                <div className="mt-8 grid grid-cols-2 gap-3" aria-label={`${profile.name} photo gallery`}>
-                  {galleryPhotos.map((photo) => (
-                    <img
-                      key={"id" in photo ? photo.id : photo.src}
-                      src={photo.src}
-                      alt={photo.alt}
-                      loading="lazy"
-                      className="aspect-[4/5] w-full rounded-md border border-border object-cover"
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
+            <div className="mt-12">
+              {publishedResume?.structuredSections?.education?.length ? (
+                <div className="grid gap-5 md:grid-cols-2">
+                  {publishedResume.structuredSections.education.map((entry, index) => (
+                    <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
                   ))}
                 </div>
+              ) : (
+                <Education profile={profile} />
               )}
             </div>
+            {profile.leadership.length > 0 && (
+              <section className="mt-12">
+                <h2 className="text-4xl">Leadership & contribution.</h2>
+                <div className="mt-6 grid gap-8 md:grid-cols-2">
+                  {profile.leadership.map((item) => (
+                    <div key={item.title} className="border-l border-primary pl-5">
+                      <p className="font-mono text-xs text-muted-foreground">{item.period}</p>
+                      <h3 className="mt-3 text-2xl">{item.title}</h3>
+                      <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            <Training profile={profile} />
+          </>
+        )}
+        {section === "skills" && (
+          <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
+            {publishedResume?.skills.length ? (
+              <section className="border-t border-border pt-6">
+                <p className="font-mono text-xs text-primary">01 / UPLOADED RESUME</p>
+                <h2 className="mt-3 text-3xl">Skills & capabilities</h2>
+                <TechnologyList items={publishedResume.skills} />
+              </section>
+            ) : (
+              profile.skills.map((group, index) => (
+                <section key={group.category} className="border-t border-border pt-6">
+                  <p className="font-mono text-xs text-primary">0{index + 1}</p>
+                  <h2 className="mt-3 text-3xl">{group.category}</h2>
+                  <TechnologyList items={group.items} />
+                </section>
+              ))
+            )}
           </div>
-          <div className="mt-12">
-            <Education profile={profile} />
-          </div>
-          {profile.leadership.length > 0 && (
-            <section className="mt-12">
-              <h2 className="text-4xl">Leadership & contribution.</h2>
-              <div className="mt-6 grid gap-8 md:grid-cols-2">
-                {profile.leadership.map((item) => (
-                  <div key={item.title} className="border-l border-primary pl-5">
-                    <p className="font-mono text-xs text-muted-foreground">{item.period}</p>
-                    <h3 className="mt-3 text-2xl">{item.title}</h3>
-                    <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                      {item.description}
-                    </p>
+        )}
+        {section === "projects" &&
+          (publishedResume?.structuredSections?.projects?.length ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {publishedResume.structuredSections.projects.map((entry, index) => (
+                <ResumeEntryCard key={index} entry={entry} section="projects" index={index} />
+              ))}
+            </div>
+          ) : (
+            featured && (
+              <>
+                <section className="featured-project">
+                  <div className="featured-project-art">
+                    <ProjectVisual index={0} />
+                    <span>FEATURED PRODUCTION · 01</span>
                   </div>
+                  <div className="featured-project-copy">
+                    <p className="chapter-kicker">{featured.context}</p>
+                    <h2>{featured.title}</h2>
+                    <p>{featured.overview}</p>
+                    <Link
+                      to="/people/$person/projects/$slug"
+                      params={{ person: profile.id, slug: featured.slug }}
+                    >
+                      Explore the case study <ArrowUpRight />
+                    </Link>
+                  </div>
+                </section>
+                {profile.projects.length > 1 && (
+                  <>
+                    <div className="chapter-section-heading projects-list-heading">
+                      <div>
+                        <p className="chapter-kicker">MORE STORIES</p>
+                        <h2>Other work in the series.</h2>
+                      </div>
+                      <span>{String(profile.projects.length).padStart(2, "0")} PROJECTS</span>
+                    </div>
+                    <div className="project-showcase">
+                      {profile.projects.slice(1).map((project, i) => (
+                        <Reveal key={project.slug} delay={i * 0.05}>
+                          <Link
+                            to="/people/$person/projects/$slug"
+                            params={{ person: profile.id, slug: project.slug }}
+                            className="showcase-project"
+                          >
+                            <div className={`showcase-art showcase-art-${i % 3}`}>
+                              <ProjectVisual index={(i + 1) % 3} />
+                              <span>{project.context}</span>
+                            </div>
+                            <div className="showcase-copy">
+                              <p>ORIGINAL {String(i + 2).padStart(2, "0")}</p>
+                              <h3>{project.title}</h3>
+                              <span>{project.overview}</span>
+                              <TechnologyList items={project.tech.slice(0, 6)} />
+                              <ArrowUpRight className="showcase-arrow" />
+                            </div>
+                          </Link>
+                        </Reveal>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <p className="mt-8 max-w-3xl text-xs leading-6 text-muted-foreground">
+                  Project descriptions reflect documented scope and contributions. Repository, live
+                  demo, and implementation media appear when verified links or assets are available.
+                </p>
+              </>
+            )
+          ))}
+        {section === "experience" && (
+          <>
+            {publishedResume?.structuredSections?.experience?.length ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                {publishedResume.structuredSections.experience.map((entry, index) => (
+                  <ResumeEntryCard key={index} entry={entry} section="experience" index={index} />
                 ))}
               </div>
-            </section>
-          )}
-          <Training profile={profile} />
-        </>
-      )}
-      {section === "skills" && (
-        <div className="grid gap-x-12 gap-y-10 md:grid-cols-2">
-          {profile.skills.map((group, index) => (
-            <section key={group.category} className="border-t border-border pt-6">
-              <p className="font-mono text-xs text-primary">0{index + 1}</p>
-              <h2 className="mt-3 text-3xl">{group.category}</h2>
-              <TechnologyList items={group.items} />
-            </section>
-          ))}
-        </div>
-      )}
-      {section === "projects" && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {profile.projects.map((project, index) => (
-            <ProjectTile key={project.slug} profile={profile} project={project} index={index} />
-          ))}
-        </div>
-        <PublishedStructuredSections profileId={profile.id} section="projects" />
-      )}
-      {section === "experience" && (
-        <div className="person-timeline">
-          {profile.experience.map((job, index) => (
-            <section
-              key={job.role}
-              className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
-            >
-              <div>
-                <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
-                <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
-                <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
-                {job.company && <p className="mt-3 text-sm">{job.role}</p>}
-                {!job.company && (
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Employer not specified in the resume.
-                  </p>
-                )}
-                {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
+            ) : (
+              <div className="person-timeline">
+                {profile.experience.map((job, index) => (
+                  <section
+                    key={job.role}
+                    className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
+                  >
+                    <div>
+                      <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
+                      <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
+                      <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
+                      {job.company && <p className="mt-3 text-sm">{job.role}</p>}
+                      {!job.company && (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Employer not specified in the resume.
+                        </p>
+                      )}
+                      {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
+                    </div>
+                    <div>
+                      <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
+                        {job.points.map((point) => (
+                          <li key={point} className="flex gap-3">
+                            <span className="text-primary" aria-hidden="true">
+                              —
+                            </span>
+                            <span>{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <TechnologyList items={job.tech} />
+                    </div>
+                  </section>
+                ))}
               </div>
-              <div>
-                <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
-                  {job.points.map((point) => (
-                    <li key={point} className="flex gap-3">
-                      <span className="text-primary" aria-hidden="true">
-                        —
-                      </span>
-                      <span>{point}</span>
-                    </li>
+            )}
+          </>
+        )}
+        {section === "certifications" && (
+          <>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {publishedResume?.structuredSections?.certifications?.length
+                ? publishedResume.structuredSections.certifications.map((entry, index) => (
+                    <ResumeEntryCard
+                      key={index}
+                      entry={entry}
+                      section="certifications"
+                      index={index}
+                      compact
+                    />
+                  ))
+                : profile.certifications.map((cert) => (
+                    <article key={cert.title} className="cert-card">
+                      <Award className="size-7 text-gold" />
+                      <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
+                      <h2 className="mt-3 text-3xl leading-tight">{cert.title}</h2>
+                    </article>
                   ))}
-                </ul>
-                <TechnologyList items={job.tech} />
+            </div>
+            <Training profile={profile} />
+          </>
+        )}
+        {section === "education" && (
+          <>
+            {publishedResume?.structuredSections?.education?.length ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                {publishedResume.structuredSections.education.map((entry, index) => (
+                  <ResumeEntryCard key={index} entry={entry} section="education" index={index} />
+                ))}
               </div>
-            </section>
-          ))}
-        </div>
-        <PublishedStructuredSections profileId={profile.id} section="experience" />
-      )}
-      {section === "certifications" && (
-        <>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {profile.certifications.map((cert) => (
-              <article key={cert.title} className="cert-card">
-                <Award className="size-7 text-gold" />
-                <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
-                <h2 className="mt-3 text-3xl leading-tight">{cert.title}</h2>
-              </article>
-            ))}
-          </div>
-          <Training profile={profile} />
-          <PublishedStructuredSections profileId={profile.id} section="certifications" />
-        </>
-      )}
-      {section === "education" && (
-        <>
-          <Education profile={profile} />
-          <Training profile={profile} />
-          <PublishedStructuredSections profileId={profile.id} section="education" />
-        </>
-      )}
-      {section === "contact" && (
-        <div className="grid gap-10 md:grid-cols-2">
-          <section>
-            <h2 className="text-4xl">Let's talk.</h2>
-            <div className="mt-7 space-y-5">
-              {profile.email && (
-                <a className="person-contact-detail" href={`mailto:${profile.email}`}>
-                  <Mail />
-                  <span>{profile.email}</span>
+            ) : (
+              <Education profile={profile} />
+            )}
+            <Training profile={profile} />
+          </>
+        )}
+        {section === "contact" && (
+          <div className="contact-endcard">
+            <div>
+              <p className="chapter-kicker">A GOOD STORY STARTS SOMEWHERE</p>
+              <h2>Have a project in mind?</h2>
+              <p>
+                {contact.email
+                  ? `Send ${profile.displayName} a note by email.`
+                  : "Contact details will be added after the profile information is confirmed."}
+              </p>
+              {contact.email && (
+                <a href={`mailto:${contact.email}`} className="contact-email">
+                  {contact.email}
                 </a>
               )}
-              {profile.phone && (
-                <a className="person-contact-detail" href={`tel:${profile.phone.replaceAll(" ", "")}`}>
-                  <Phone />
-                  <span>{profile.phone}</span>
-                </a>
-              )}
-              {!profile.email && !profile.phone && (
-                <p className="max-w-md text-sm leading-7 text-muted-foreground">
-                  Contact details will be added after the profile information is confirmed.
+              {profile.socialLabels.some((item) => item.handle) && (
+                <p className="mt-4 font-mono text-xs text-muted-foreground">
+                  {profile.socialLabels
+                    .filter((item) => item.handle)
+                    .map((item) => `${item.platform}: ${item.handle}`)
+                    .join(" · ")}
                 </p>
               )}
             </div>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <ContactActions profile={profile} />
-            </div>
-            <p className="mt-5 text-xs leading-6 text-muted-foreground">
-              Email opens a draft in your email app. No message is sent from this website.
-            </p>
-          </section>
-          <section className="border-t border-border pt-6">
-            <h2 className="text-3xl">Elsewhere</h2>
-            <div className="mt-6 space-y-5">
-              {profile.socialLabels.map((social) => (
-                <div key={social.platform} className="flex items-start gap-3 text-muted-foreground">
-                  {social.platform === "GitHub" ? (
-                    <Github className="size-5" />
-                  ) : (
-                    <Linkedin className="size-5" />
-                  )}
-                  <div>
-                    <p className="text-sm">{social.platform}</p>
-                    {social.handle && (
-                      <p className="mt-2 break-all font-mono text-xs">{social.handle}</p>
-                    )}
-                    <p className="mt-2 text-xs">URL not provided</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+            <span className="endcard-mark" aria-hidden="true">
+              {profile.initials}
+              <span>.</span>
+            </span>
+          </div>
+        )}
+      </article>
+      {section === "contact" && (
+        <div className="contact-page cinematic-contact">
+          <ProfileContactPanel
+            contact={{
+              displayName: profile.displayName,
+              email: contact.email,
+              phone: contact.phone,
+              linkedin: contact.linkedin,
+              github: contact.github,
+            }}
+          />
         </div>
       )}
-    </article>
+    </>
   );
 }
 export function PersonProjectDetail({
