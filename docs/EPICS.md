@@ -249,3 +249,19 @@ The publish-history validator now checks nested contact fields, structured secti
 ## PORT-E04 resume lifecycle increment — 2026-11-09 13:30 IST
 
 The admin experience now includes per-profile append-only publish history and confirmed rollback, plus an authenticated consistency report comparing the public resume feed with the private index. An owner-confirmed reconciliation action can rebuild the public feed from the private index and report missing private original files. This is a recovery aid, not a full multi-store transaction: missing originals are not recreated and partial failures across index/file/feed writes still need compensation/recovery design. PORT-US-013 therefore remains PARTIAL. Regression tests are authored but unexecuted; testing remains paused.
+
+
+## Test-branch evidence refresh — 2026-11-09
+
+At `test` head `0f90a96c47a1a36826306ca5bd26a1f7b263acfe`, Antigravity's local report records 137/137 runnable tests passing, with one additional Win32 symlink-policy case skipped (22 suites, 138 cases; 100% runnable pass rate, 99.3% executed).
+
+Exact-head [GitHub Actions run #42591418653](https://github.com/ASAA1229/pixel-perfect-pixel/actions/runs/42591418653) passed build, typecheck and SBOM generation but failed ESLint/Prettier in five files; CI consequently skipped automated tests and SBOM upload.
+
+**Epic implications**
+- E01–E03 and E05 have useful local automated coverage, but still need exact-head CI and browser acceptance where their exit criteria require it.
+- E04 admin/resume/image lifecycle remains OPEN; PORT-US-013 is PARTIAL until cross-store compensation and missing-original recovery are implemented and tested.
+- E06 accessibility/responsive work still needs screen-reader, keyboard and device acceptance.
+- E07 production readiness remains OPEN pending performance/SEO, production configuration and release/rollback evidence.
+- E08 provenance/integrity remains OPEN until exact-head CI completes all gates and produces retained release evidence.
+
+Do not equate local test pass percentage with overall epic completion or mark any epic ACCEPTED while its exit criteria remain unmet.
