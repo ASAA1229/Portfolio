@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, existsSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -53,3 +53,20 @@ describe("local disk bucket (dev uploads)", () => {
     expect(isSafeStorageKey("private-admin/resumes/files/2b1c-uuid")).toBe(true);
   });
 });
+
+  
+  it.skipIf(process.platform === "win32")("does not follow a storage-key symlink outside the configured root", async () => {
+    const { root, bucket } = newBucket();
+    const outside = mkdtempSync(join(tmpdir(), "portfolio-outside-"));
+    try {
+      writeFileSync(join(outside, "secret.txt"), "must remain outside");
+      symlinkSync(outside, join(root, "linked"), "dir");
+      await expect(bucket.get("linked/secret.txt")).rejects.toThrow();
+      await expect(
+        bucket.put("linked/overwritten.txt", "outside write"),
+      ).rejects.toThrow();
+      expect(existsSync(join(outside, "overwritten.txt"))).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
