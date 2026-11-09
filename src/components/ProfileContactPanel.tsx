@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Check, Copy, Mail } from "lucide-react";
+import { Check, Copy, FileDown, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/Reveal";
 import { contactSchema } from "@/lib/contact-schema";
@@ -12,6 +12,8 @@ export interface ProfileContactDetails {
   location?: string | null | undefined;
   linkedin?: string | null | undefined;
   github?: string | null | undefined;
+  /** Public resume download, when a published PDF exists. */
+  resumeHref?: string | null | undefined;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface ProfileContactDetails {
  * exists. Nothing is sent from the website — the visitor's email app opens.
  */
 export function ProfileContactPanel({ contact }: { contact: ProfileContactDetails }) {
-  const { email, phone, location, linkedin, github, displayName } = contact;
+  const { email, phone, location, linkedin, github, resumeHref, displayName } = contact;
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -129,7 +131,7 @@ export function ProfileContactPanel({ contact }: { contact: ProfileContactDetail
               <p role="status" className="text-xs text-accent">
                 {copyFeedback}
               </p>
-              {(linkedin || github) && (
+              {(linkedin || github || resumeHref) && (
                 <div className="flex flex-wrap gap-3 pt-4">
                   {linkedin && (
                     <Button variant="portfolio" asChild>
@@ -142,6 +144,13 @@ export function ProfileContactPanel({ contact }: { contact: ProfileContactDetail
                     <Button variant="portfolio" asChild>
                       <a href={github} target="_blank" rel="noopener noreferrer">
                         GitHub
+                      </a>
+                    </Button>
+                  )}
+                  {resumeHref && (
+                    <Button variant="portfolio" asChild>
+                      <a href={resumeHref} download>
+                        <FileDown /> Resume
                       </a>
                     </Button>
                   )}
