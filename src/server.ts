@@ -28,6 +28,7 @@ import {
   type ContentProfileId,
 } from "@/lib/cms-content";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import { getPersonProject } from "@/lib/person-portfolios";
 import {
   appendHistory,
   emptyHistory,
@@ -140,6 +141,11 @@ function privateNotFound(): Response {
     },
   });
 }
+
+// Short public caching for published (already-approved) content. Unpublishing or
+// replacing takes effect within this window; private/admin responses stay no-store.
+const PUBLIC_FEED_CACHE = "public, max-age=60, must-revalidate";
+const PUBLIC_IMAGE_CACHE = "public, max-age=300, must-revalidate";
 
 function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Response {
   return Response.json(body, {
@@ -781,7 +787,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
       ? new Response(await published.arrayBuffer(), {
           headers: {
             "content-type": "application/json; charset=utf-8",
-            "cache-control": "no-store",
+            "cache-control": PUBLIC_FEED_CACHE,
             "x-content-type-options": "nosniff",
           },
         })
@@ -1421,7 +1427,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         slot: slot ?? "gallery",
         src: `/api/published-images/${id}`,
       }));
-    return jsonResponse({ images }, 200, { "cache-control": "no-store" });
+    return jsonResponse({ images }, 200, { "cache-control": PUBLIC_FEED_CACHE });
   }
   const publicImage = path.match(/^\/api\/published-images\/([a-f0-9-]+)$/);
   if (publicImage && request.method === "GET") {
@@ -1434,7 +1440,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     return new Response(await object.arrayBuffer(), {
       headers: {
         "content-type": record.contentType,
-        "cache-control": "no-store",
+        "cache-control": PUBLIC_IMAGE_CACHE,
         "x-content-type-options": "nosniff",
       },
     });
@@ -1914,7 +1920,7 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     if (!bucket) return jsonResponse({ profileId, content: null }, 200);
     try {
       const content = publishedContent(await readContentDocument(bucket, profileId));
-      return jsonResponse({ profileId, content }, 200);
+      return jsonResponse({ profileId, content }, 200, { "cache-control": PUBLIC_FEED_CACHE });
     } catch (error) {
       console.error("Could not read published portfolio content.", error);
       // Pages fall back to curated static content.
@@ -2193,8 +2199,42 @@ async function auditAdminMutation(request: Request, env: unknown, response: Resp
   }
 }
 
+let runtimeConfigChecked = false;
+
+/**
+ * One-time startup check of deployment configuration. Logs only the NAMES of
+ * missing settings, never their values, and never blocks requests.
+ */
+function checkRuntimeConfig(env: unknown): void {
+  if (runtimeConfigChecked) return;
+  runtimeConfigChecked = true;
+  const bindings = (env ?? {}) as Record<string, unknown>;
+  const has = (name: string) => {
+    const value = bindings[name] ?? (typeof process !== "undefined" ? process.env[name] : undefined);
+    return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null;
+  };
+  const missing: string[] = [];
+  if (!has("JARVIS_AI_URL") || !has("JARVIS_AI_KEY")) missing.push("JARVIS_AI_URL/JARVIS_AI_KEY (live AI chat)");
+  if (!import.meta.env["VITE_SITE_URL"]) missing.push("VITE_SITE_URL (canonical URLs, sitemap)");
+  if (import.meta.env.PROD) {
+    if (!has("RESUME_BUCKET")) missing.push("RESUME_BUCKET R2 binding (admin storage)");
+    if (!has("PORTFOLIO_ADMIN_PASSWORD") || !has("PORTFOLIO_ADMIN_SESSION_SECRET")) {
+      missing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login)");
+    }
+  }
+  if (has("OPENAI_API_KEY") && !has("PORTFOLIO_AI_ALLOW_PAID_FALLBACK")) {
+    console.info("OPENAI_API_KEY is set but unused: paid fallback is not enabled.");
+  }
+  if (missing.length) {
+    console.warn("Portfolio configuration incomplete; affected features fall back safely.", {
+      missing,
+    });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    checkRuntimeConfig(env);
     const method = request.method;
     const auditRequest = new Request(request.url, { method });
     const response = await routeRequest(request, env, ctx);
