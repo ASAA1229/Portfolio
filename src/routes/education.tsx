@@ -5,6 +5,7 @@ import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 
 export const Route = createFileRoute("/education")({
   head: () =>
@@ -18,6 +19,15 @@ export const Route = createFileRoute("/education")({
 
 function Education() {
   const publishedResume = usePublishedProfileResume("abhishek");
+  // Precedence: published resume section → owner CMS record → curated record.
+  const { education: cms } = useAbhishekContent();
+  const record = {
+    college: cms?.college || "TKR College of Engineering & Technology",
+    qualification: cms?.qualification || "Bachelor of Technology (B.Tech) · Information Technology",
+    period: cms?.period || "2022 – 2026",
+    location: cms?.location || "Hyderabad, India",
+    score: cms ? cms.score : "CGPA: 7.6",
+  };
   return (
     <>
       <section className="chapter-hero experience-hero">
@@ -60,25 +70,29 @@ function Education() {
                     <i />
                   </div>
                   <div className="career-content">
-                    <p className="chapter-kicker">2022 – 2026</p>
-                    <h2>TKR College of Engineering &amp; Technology</h2>
+                    <p className="chapter-kicker">{record.period}</p>
+                    <h2>{record.college}</h2>
                     <p className="career-role">
-                      <GraduationCap /> Bachelor of Technology (B.Tech) · Information Technology
+                      <GraduationCap /> {record.qualification}
                     </p>
                     <div className="mt-5 flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <span>
                         <CalendarDays className="mr-2 inline size-4" />
-                        2022 – 2026
+                        {record.period}
                       </span>
                       <span>
                         <MapPin className="mr-2 inline size-4" />
-                        Hyderabad, India
+                        {record.location}
                       </span>
                     </div>
-                    <div className="mt-6 border-t border-border pt-5">
-                      <p className="chapter-kicker">ACADEMIC HIGHLIGHT</p>
-                      <p className="mt-2 text-sm leading-7 text-muted-foreground">CGPA: 7.6</p>
-                    </div>
+                    {record.score && (
+                      <div className="mt-6 border-t border-border pt-5">
+                        <p className="chapter-kicker">ACADEMIC HIGHLIGHT</p>
+                        <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                          {record.score}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </article>
               </Reveal>

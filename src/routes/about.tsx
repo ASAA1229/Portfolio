@@ -5,6 +5,7 @@ import { PageBody, ResumeAction } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
 import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/about")({
@@ -18,6 +19,12 @@ export const Route = createFileRoute("/about")({
 });
 
 function About() {
+  // Owner-published CMS basics replace the curated copy; curated text is the fallback.
+  const { headline, summary, story } = useAbhishekContent();
+  const storyParagraphs = story
+    ?.split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
   return (
     <>
       <section className="chapter-hero about-hero">
@@ -38,8 +45,9 @@ function About() {
               <span>CURIOSITY.</span>
             </h1>
             <p className="chapter-lede">
-              I’m Guda Abhishek — a software engineer drawn to the point where thoughtful interfaces
-              meet intelligent systems.
+              {headline ||
+                summary ||
+                "I’m Guda Abhishek — a software engineer drawn to the point where thoughtful interfaces meet intelligent systems."}
             </p>
             <a className="chapter-scroll" href="#story">
               <ArrowDown /> Read my story
@@ -61,21 +69,31 @@ function About() {
             </div>
           </Reveal>
           <div className="about-story-copy">
-            <p className="story-lead">
-              My work spans responsive React interfaces, MERN platforms, REST API integration, and
-              practical AI experiences.
-            </p>
-            <p>
-              At Paves Technologies, I build enterprise finance and employee workflow interfaces.
-              Before that, at Bilvantis Technologies, I contributed to the NEO AI product interface.
-              Across both, I’ve learned to value clear states, reliable integration, and close
-              collaboration as much as the code itself.
-            </p>
-            <p>
-              I’m completing a B.Tech in Information Technology at TKR College of Engineering &
-              Technology. I’m especially interested in generative AI, RAG, and AI agents when they
-              solve real product problems.
-            </p>
+            {storyParagraphs?.length ? (
+              storyParagraphs.map((paragraph, index) => (
+                <p key={index} className={index === 0 ? "story-lead" : undefined}>
+                  {paragraph}
+                </p>
+              ))
+            ) : (
+              <>
+                <p className="story-lead">
+                  My work spans responsive React interfaces, MERN platforms, REST API integration,
+                  and practical AI experiences.
+                </p>
+                <p>
+                  At Paves Technologies, I build enterprise finance and employee workflow
+                  interfaces. Before that, at Bilvantis Technologies, I contributed to the NEO AI
+                  product interface. Across both, I’ve learned to value clear states, reliable
+                  integration, and close collaboration as much as the code itself.
+                </p>
+                <p>
+                  I’m completing a B.Tech in Information Technology at TKR College of Engineering &
+                  Technology. I’m especially interested in generative AI, RAG, and AI agents when
+                  they solve real product problems.
+                </p>
+              </>
+            )}
             <div className="about-facts">
               <span>
                 <GraduationCap /> B.Tech Information Technology · 2022–2026

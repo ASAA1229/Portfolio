@@ -1350,6 +1350,42 @@ function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
   );
 }
 
+/** Size, type/extension and magic-byte checks shared by image upload and replace. */
+async function checkImageFile(file: File): Promise<Response | { extension: string }> {
+  if (file.size <= 0 || file.size > MAX_IMAGE_BYTES)
+    return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
+  const expectedExtension = IMAGE_TYPES.get(file.type);
+  if (
+    !expectedExtension ||
+    !(file.type === "image/jpeg"
+      ? /\.jpe?g$/i.test(file.name)
+      : file.name.toLowerCase().endsWith(expectedExtension))
+  )
+    return jsonResponse(
+      { error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." },
+      415,
+    );
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const validSignature =
+    file.type === "image/jpeg"
+      ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+      : file.type === "image/png"
+        ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+        : file.type === "image/webp"
+          ? String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
+            String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+          : file.type === "image/avif"
+            ? String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavif") ||
+              String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavis")
+            : false;
+  if (!validSignature)
+    return jsonResponse(
+      { error: "The file signature does not match its declared image type." },
+      415,
+    );
+  return { extension: expectedExtension };
+}
+
 async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageRecord[]> {
   const object = await bucket.get(IMAGE_INDEX_KEY);
   if (!object) return [];
@@ -1363,6 +1399,35 @@ async function readImageIndex(bucket: PrivateBucket): Promise<PortfolioImageReco
   }
   return records;
 }
+/** List keys under a prefix on R2 (paged `list`) or the local disk bucket (`list(prefix)`). */
+async function listBucketKeys(bucket: PrivateBucket, prefix: string): Promise<string[]> {
+  const lister = (bucket as unknown as { list?: (arg: unknown) => Promise<unknown> }).list;
+  if (typeof lister !== "function") {
+    throw new Error("This storage binding cannot list files, so cleanup is unavailable.");
+  }
+  // The local disk bucket takes a prefix string and returns keys; R2 takes options.
+  if ("root" in (bucket as object)) {
+    const result = (await lister.call(bucket, prefix)) as unknown;
+    return Array.isArray(result)
+      ? result.filter((key): key is string => typeof key === "string")
+      : [];
+  }
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < 20; page += 1) {
+    const result = (await lister.call(bucket, {
+      prefix,
+      limit: 1000,
+      ...(cursor ? { cursor } : {}),
+    })) as unknown;
+    const listing = result as { objects?: { key: string }[]; truncated?: boolean; cursor?: string };
+    keys.push(...(listing.objects ?? []).map((object) => object.key));
+    if (!listing.truncated || !listing.cursor) break;
+    cursor = listing.cursor;
+  }
+  return keys;
+}
+
 async function writeImageIndex(
   bucket: PrivateBucket,
   records: PortfolioImageRecord[],
@@ -1482,37 +1547,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         { error: "Choose an image, profile, image placement and descriptive alt text." },
         400,
       );
-    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES)
-      return jsonResponse({ error: "Image must be between 1 byte and 10 MB." }, 413);
-    const expectedExtension = IMAGE_TYPES.get(file.type);
-    if (
-      !expectedExtension ||
-      !(file.type === "image/jpeg"
-        ? /\.jpe?g$/i.test(file.name)
-        : file.name.toLowerCase().endsWith(expectedExtension))
-    )
-      return jsonResponse(
-        { error: "Only JPEG, PNG, WebP and AVIF images with matching extensions are allowed." },
-        415,
-      );
-    const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
-    const validSignature =
-      file.type === "image/jpeg"
-        ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
-        : file.type === "image/png"
-          ? bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
-          : file.type === "image/webp"
-            ? String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
-              String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
-            : file.type === "image/avif"
-              ? String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavif") ||
-                String.fromCharCode(...bytes.slice(4, 12)).includes("ftypavis")
-              : false;
-    if (!validSignature)
-      return jsonResponse(
-        { error: "The file signature does not match its declared image type." },
-        415,
-      );
+    const checked = await checkImageFile(file);
+    if (checked instanceof Response) return checked;
+    const expectedExtension = checked.extension;
     const id = crypto.randomUUID();
     const filename =
       file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
@@ -1587,6 +1624,114 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       );
     }
   }
+  // Remove private files no longer referenced by the index, superseded versions,
+  // and public copies of images that are not currently published.
+  if (path === "/api/admin/images/cleanup" && request.method === "POST") {
+    const records = await readImageIndex(bucket);
+    const ids = new Set(records.map((item) => item.id));
+    const approved = new Set(
+      records.filter((item) => item.status === "approved").map((item) => item.id),
+    );
+    let removed = 0;
+    try {
+      for (const key of await listBucketKeys(bucket, "private-admin/images/superseded/")) {
+        await bucket.delete(key);
+        removed += 1;
+      }
+      for (const key of await listBucketKeys(bucket, "private-admin/images/files/")) {
+        if (!ids.has(key.slice("private-admin/images/files/".length))) {
+          await bucket.delete(key);
+          removed += 1;
+        }
+      }
+      for (const key of await listBucketKeys(bucket, "public/profile-images/")) {
+        if (!approved.has(key.slice("public/profile-images/".length))) {
+          await bucket.delete(key);
+          removed += 1;
+        }
+      }
+    } catch (error) {
+      return imageStorageFailure(error, "clean up");
+    }
+    return jsonResponse({ removed }, 200);
+  }
+
+  // Owner-only preview of the private original (works for unpublished images too).
+  const previewMatch = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)\/file$/);
+  if (previewMatch && request.method === "GET") {
+    const id = previewMatch[1]!;
+    const record = (await readImageIndex(bucket)).find((item) => item.id === id);
+    if (!record) return privateNotFound();
+    const object = await bucket.get(`private-admin/images/files/${id}`);
+    if (!object) return privateNotFound();
+    return new Response(await object.arrayBuffer(), {
+      headers: {
+        "content-type": record.contentType,
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+        "x-robots-tag": "noindex",
+      },
+    });
+  }
+
+  // Replace an image's file in place (same id, placement and alt text). The previous
+  // file is kept privately as a superseded version until cleanup; on failure the
+  // previous private and public files are restored.
+  const replaceMatch = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)\/replace$/);
+  if (replaceMatch && request.method === "POST") {
+    const id = replaceMatch[1]!;
+    const boundedRequest = await limitRequestBody(request, MAX_IMAGE_BYTES + 1024 * 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    const form = await boundedRequest.formData().catch(() => null);
+    const file = form?.get("file") ?? null;
+    if (!isUploadedImageFile(file))
+      return jsonResponse({ error: "Choose a replacement image." }, 400);
+    const checked = await checkImageFile(file);
+    if (checked instanceof Response) return checked;
+    const records = await readImageIndex(bucket);
+    const index = records.findIndex((item) => item.id === id);
+    const record = index < 0 ? undefined : records[index];
+    if (!record) return privateNotFound();
+    const privateKey = `private-admin/images/files/${id}`;
+    const publicKey = `public/profile-images/${id}`;
+    const previous = await bucket.get(privateKey);
+    if (!previous) return privateNotFound();
+    const previousBytes = await previous.arrayBuffer();
+    const supersededKey = `private-admin/images/superseded/${id}/${Date.now()}`;
+    const bytes = await file.arrayBuffer();
+    const filename =
+      file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${checked.extension}`;
+    try {
+      await bucket.put(supersededKey, previousBytes, {
+        httpMetadata: { contentType: record.contentType },
+      });
+      await bucket.put(privateKey, bytes, { httpMetadata: { contentType: file.type } });
+      if (record.status === "approved") {
+        await bucket.put(publicKey, bytes, { httpMetadata: { contentType: file.type } });
+      }
+      records[index] = {
+        ...record,
+        filename,
+        contentType: file.type,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      };
+      await writeImageIndex(bucket, records);
+    } catch (error) {
+      // Compensate: put the previous file back so the index and files stay consistent.
+      await bucket
+        .put(privateKey, previousBytes, { httpMetadata: { contentType: record.contentType } })
+        .catch(() => undefined);
+      if (record.status === "approved") {
+        await bucket
+          .put(publicKey, previousBytes, { httpMetadata: { contentType: record.contentType } })
+          .catch(() => undefined);
+      }
+      return imageStorageFailure(error, "replace");
+    }
+    return jsonResponse({ image: records[index], replaced: true }, 200);
+  }
+
   const match = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)(?:\/(publish|unpublish))?$/);
   if (match) {
     const [, id, action] = match;
@@ -2088,7 +2233,9 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
  * Storage adapters available to this runtime: the R2 binding (deployed or via the
  * platform proxy) and, in `vite dev` only, the local disk bucket.
  */
-function availableStorageAdapters(env: unknown): Partial<Record<"r2" | "local-disk", PrivateBucket>> {
+function availableStorageAdapters(
+  env: unknown,
+): Partial<Record<"r2" | "local-disk", PrivateBucket>> {
   const adapters: Partial<Record<"r2" | "local-disk", PrivateBucket>> = {};
   const r2 = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (r2) adapters.r2 = r2;
@@ -2115,7 +2262,11 @@ async function handleStorageMigration(request: Request, env: unknown): Promise<R
   } | null;
   const from = payload?.from;
   const to = payload?.to;
-  if ((from !== "r2" && from !== "local-disk") || (to !== "r2" && to !== "local-disk") || from === to) {
+  if (
+    (from !== "r2" && from !== "local-disk") ||
+    (to !== "r2" && to !== "local-disk") ||
+    from === to
+  ) {
     return jsonResponse({ error: "Choose two different storage adapters (r2, local-disk)." }, 400);
   }
   if (payload?.confirm !== "MIGRATE") {
@@ -2188,8 +2339,7 @@ async function auditAdminMutation(request: Request, env: unknown, response: Resp
       action,
       targets,
       status: response.status,
-      outcome:
-        response.status < 400 ? "success" : response.status < 500 ? "rejected" : "failed",
+      outcome: response.status < 400 ? "success" : response.status < 500 ? "rejected" : "failed",
     });
   } catch (error) {
     console.error("Admin audit entry could not be written.", {
@@ -2210,11 +2360,15 @@ function checkRuntimeConfig(env: unknown): void {
   runtimeConfigChecked = true;
   const bindings = (env ?? {}) as Record<string, unknown>;
   const has = (name: string) => {
-    const value = bindings[name] ?? (typeof process !== "undefined" ? process.env[name] : undefined);
-    return typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null;
+    const value =
+      bindings[name] ?? (typeof process !== "undefined" ? process.env[name] : undefined);
+    return typeof value === "string"
+      ? value.trim().length > 0
+      : value !== undefined && value !== null;
   };
   const missing: string[] = [];
-  if (!has("JARVIS_AI_URL") || !has("JARVIS_AI_KEY")) missing.push("JARVIS_AI_URL/JARVIS_AI_KEY (live AI chat)");
+  if (!has("JARVIS_AI_URL") || !has("JARVIS_AI_KEY"))
+    missing.push("JARVIS_AI_URL/JARVIS_AI_KEY (live AI chat)");
   if (!import.meta.env["VITE_SITE_URL"]) missing.push("VITE_SITE_URL (canonical URLs, sitemap)");
   if (import.meta.env.PROD) {
     if (!has("RESUME_BUCKET")) missing.push("RESUME_BUCKET R2 binding (admin storage)");

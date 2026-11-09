@@ -1,3 +1,4 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, BriefcaseBusiness, MapPin } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
@@ -5,7 +6,6 @@ import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { TechnologyList } from "@/components/TechLogo";
-import { MISSIONS } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
 
 export const Route = createFileRoute("/experience")({
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/experience")({
 });
 function Experience() {
   const publishedResume = usePublishedProfileResume("abhishek");
+  const { missions } = useAbhishekContent();
   return (
     <>
       <section className="chapter-hero experience-hero">
@@ -61,7 +62,7 @@ function Experience() {
               </p>
             </section>
             <div id="timeline" className="career-timeline">
-              {MISSIONS.map((job, i) => (
+              {missions.map((job, i) => (
                 <Reveal key={job.id} delay={i * 0.08}>
                   <article className="career-chapter">
                     <div className="career-rail">

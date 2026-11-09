@@ -1,3 +1,4 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, Github } from "lucide-react";
 import { PageIntro } from "@/components/PageIntro";
@@ -35,8 +36,20 @@ export const Route = createFileRoute("/projects/$slug")({
 
 function ProjectDetailPage() {
   const { slug } = Route.useParams();
-  const project = getProject(slug);
-  if (!project) return null;
+  const { overrides } = useAbhishekContent();
+  const base = getProject(slug);
+  // Owner CMS edits apply over the curated project page; archived hides it.
+  const edit = overrides?.projects?.find((item) => item.slug === slug);
+  if (!base || edit?.archived) return <ProjectArchived />;
+  const project = edit
+    ? {
+        ...base,
+        title: edit.title,
+        overview: edit.overview,
+        ...(edit.context ? { problem: edit.context } : {}),
+        ...(edit.tech?.length ? { tech: edit.tech } : {}),
+      }
+    : base;
   const index = PROJECT_PAGES.findIndex((item) => item.slug === slug);
   return (
     <article className="page-content project-detail">
@@ -104,6 +117,23 @@ function ProjectDetailPage() {
           </Button>
         )}
       </div>
+    </article>
+  );
+}
+
+function ProjectArchived() {
+  return (
+    <article className="page-content">
+      <PageIntro
+        eyebrow="Projects"
+        title="Project not available"
+        description="This project is no longer part of the portfolio."
+      />
+      <Button asChild variant="ghost" className="min-h-11 px-0">
+        <Link to="/projects">
+          <ArrowLeft /> All projects
+        </Link>
+      </Button>
     </article>
   );
 }

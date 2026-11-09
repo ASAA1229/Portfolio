@@ -58,8 +58,7 @@ export function describeAdminAction(
 ): { action: string; targets: string[] } {
   const segments = path.split("/").filter(Boolean);
   const targets = segments.filter(
-    (segment) =>
-      /^[a-f0-9-]{8,64}$/i.test(segment) || /^(abhishek|ammu|bava|sai)$/.test(segment),
+    (segment) => /^[a-f0-9-]{8,64}$/i.test(segment) || /^(abhishek|ammu|bava|sai)$/.test(segment),
   );
   const generic = segments
     .map((segment) => (targets.includes(segment) ? ":id" : segment))

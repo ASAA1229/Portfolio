@@ -1,3 +1,4 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Code2, Sparkles } from "lucide-react";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import { Reveal } from "@/components/Reveal";
 import { ProjectCard, ResumeAction, SocialLinks } from "@/components/SitePrimitives";
-import { pageHead, siteProjects } from "@/lib/site-data";
+import { pageHead } from "@/lib/site-data";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import portrait from "@/assets/my_1.jpeg";
 
@@ -21,6 +22,8 @@ export const Route = createFileRoute("/")({
 function Home() {
   const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
   const publishedResume = usePublishedProfileResume("abhishek");
+  // Owner CMS edits (headline, summary, projects) over curated content.
+  const content = useAbhishekContent();
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { cache: "no-store" })
@@ -64,7 +67,7 @@ function Home() {
                 <span className="text-primary">.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg font-semibold leading-7">
-                {publishedResume?.headline || (
+                {content.headline || publishedResume?.headline || (
                   <>
                     Software Engineer
                     <br />
@@ -73,7 +76,8 @@ function Home() {
                 )}
               </p>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                {publishedResume?.summary ||
+                {content.summary ||
+                  publishedResume?.summary ||
                   "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
@@ -136,7 +140,7 @@ function Home() {
           </Button>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          {siteProjects
+          {content.projects
             .filter((p) => p.index === 0 || p.index === 2)
             .map((p) => (
               <ProjectCard key={p.slug} project={p} />

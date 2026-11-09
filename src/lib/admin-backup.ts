@@ -202,7 +202,8 @@ export async function validateBackup(
   if (backup.format !== BACKUP_FORMAT) errors.push("This is not a portfolio admin backup.");
   if (backup.version !== 1 && backup.version !== 2) errors.push("Unsupported backup version.");
   if (!isPlainObject(backup.entries)) errors.push("Backup entries are missing.");
-  if (backup.files !== undefined && !isPlainObject(backup.files)) errors.push("Backup files are invalid.");
+  if (backup.files !== undefined && !isPlainObject(backup.files))
+    errors.push("Backup files are invalid.");
   if (errors.length) return { ok: false, errors };
 
   const validators = backupKeyValidators();
@@ -238,7 +239,9 @@ export async function validateBackup(
       key,
       {
         bytes,
-        ...(typeof file.contentType === "string" ? { contentType: file.contentType.slice(0, 100) } : {}),
+        ...(typeof file.contentType === "string"
+          ? { contentType: file.contentType.slice(0, 100) }
+          : {}),
       },
     ]);
   }
@@ -301,7 +304,9 @@ export async function restoreBackup(
       try {
         if (snapshot.bytes) {
           await storage.put(snapshot.key, snapshot.bytes, {
-            ...(snapshot.contentType ? { httpMetadata: { contentType: snapshot.contentType } } : {}),
+            ...(snapshot.contentType
+              ? { httpMetadata: { contentType: snapshot.contentType } }
+              : {}),
           });
         } else {
           await storage.delete(snapshot.key);

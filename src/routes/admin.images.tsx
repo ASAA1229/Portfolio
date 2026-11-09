@@ -63,6 +63,8 @@ function ImageManager() {
   const [alt, setAlt] = useState("");
   const [slot, setSlot] = useState<"gallery" | "portrait">("gallery");
   const [publishOnUpload, setPublishOnUpload] = useState(false);
+  // Bumped after a replacement so preview thumbnails refetch the new file.
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [storageMode, setStorageMode] = useState<"local-disk" | "persistent" | null>(null);
 
   async function loadImages(signal?: AbortSignal) {
@@ -194,6 +196,50 @@ function ImageManager() {
     }
   }
 
+  async function replaceImage(id: string, replacement: File | undefined) {
+    if (!replacement) return;
+    if (!window.confirm(`Replace this image's file with "${replacement.name}"?`)) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const form = new FormData();
+      form.set("file", replacement);
+      const response = await fetch(`/api/admin/images/${id}/replace`, {
+        method: "POST",
+        body: form,
+        credentials: "same-origin",
+      });
+      await readApiResponse<{ error?: string }>(response);
+      await loadImages();
+      setPreviewVersion((value) => value + 1);
+      setMessage("Image file replaced. The previous file is kept privately until cleanup.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not replace image.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cleanupStorage() {
+    if (!window.confirm("Permanently delete superseded and orphaned image files?")) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/images/cleanup", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      const payload = await readApiResponse<{ error?: string; removed?: number }>(response);
+      setMessage(`Cleanup removed ${payload.removed ?? 0} unused file(s).`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Cleanup failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (checking) {
     return <main className="site-container py-16">Checking private image manager…</main>;
   }
@@ -320,7 +366,16 @@ function ImageManager() {
 
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl">Uploaded images</h2>
-        <span className="text-sm text-muted-foreground">{images.length} total</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">{images.length} total</span>
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded border border-border px-3 text-sm disabled:opacity-50"
+            disabled={busy}
+            onClick={() => void cleanupStorage()}
+          >
+            <Trash2 className="size-4" /> Clean up unused files
+          </button>
+        </div>
       </div>
 
       {images.length === 0 ? (
@@ -331,6 +386,16 @@ function ImageManager() {
         <div className="grid gap-4 md:grid-cols-2">
           {images.map((image) => (
             <article key={image.id} className="rounded-lg border border-border bg-card p-4">
+              <img
+                src={`/api/admin/images/${image.id}/file?v=${previewVersion}`}
+                alt={image.alt || `Preview of ${image.filename}`}
+                loading="lazy"
+                className="mb-3 aspect-[4/3] w-full rounded border border-border object-cover"
+                onError={(event) => {
+                  // Missing private file: hide the broken thumbnail instead of showing an icon.
+                  event.currentTarget.hidden = true;
+                }}
+              />
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="break-words font-semibold">{image.filename}</h3>
@@ -371,6 +436,20 @@ function ImageManager() {
                 >
                   <Trash2 className="size-4" /> Delete
                 </button>
+                <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded border border-border px-3 text-sm">
+                  <UploadCloud className="size-4" aria-hidden="true" /> Replace file
+                  <input
+                    type="file"
+                    className="sr-only"
+                    disabled={busy}
+                    accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif"
+                    onChange={(event) => {
+                      const replacement = event.target.files?.[0];
+                      event.target.value = "";
+                      void replaceImage(image.id, replacement);
+                    }}
+                  />
+                </label>
               </div>
             </article>
           ))}

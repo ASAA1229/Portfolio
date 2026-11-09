@@ -1,10 +1,10 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Award, BadgeCheck } from "lucide-react";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
-import { CERTS } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
 
 export const Route = createFileRoute("/certifications")({
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/certifications")({
 });
 function Certifications() {
   const publishedResume = usePublishedProfileResume("abhishek");
+  const { certs } = useAbhishekContent();
   return (
     <>
       <section className="chapter-hero certs-hero">
@@ -52,7 +53,7 @@ function Certifications() {
               </p>
             </div>
             <div className="certificate-archive">
-              {CERTS.map(([title, issuer], i) => (
+              {certs.map(([title, issuer], i) => (
                 <Reveal key={title} delay={i * 0.035}>
                   <article className="certificate-item">
                     <div className="certificate-art" aria-hidden="true">
