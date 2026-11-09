@@ -2503,6 +2503,37 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       request = contextualRequest;
     }
 
+    // ---------- Content update with basic transactional safety ----------
+    async function safeWriteDocument(profileId: ContentProfileId, newDoc: ContentDocument): Promise<boolean> {
+      const key = contentKey(profileId);
+      const backupKey = `${key}.bak`;
+      try {
+        // Backup current content
+        const existing = await bucket.get(key);
+        if (existing) {
+          await bucket.put(backupKey, existing.body, { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+        }
+        // Write new content
+        await bucket.put(key, JSON.stringify(newDoc), { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+        // Cleanup backup
+        await bucket.delete(backupKey).catch(() => {});
+        return true;
+      } catch (e) {
+        console.error('Content write failed, attempting restore', e);
+        // Attempt to restore from backup if possible
+        try {
+          const backup = await bucket.get(backupKey);
+          if (backup) {
+            await bucket.put(key, backup.body, { httpMetadata: { contentType: "application/json; charset=utf-8" } });
+            await bucket.delete(backupKey).catch(() => {});
+          }
+        } catch (restoreErr) {
+          console.error('Restore also failed', restoreErr);
+        }
+        return false;
+      }
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await normalizeCatastrophicSsrResponse(
