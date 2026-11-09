@@ -39,6 +39,12 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 - Differences are limited to intentional profile content/media.
 - Desktop/tablet/mobile visual review is recorded and accepted.
 
+
+
+## 2026-11-09 development update — PORT-E02
+
+**Status:** IMPLEMENTED IN SOURCE — TESTING PAUSED. `src/routes/people.$person.projects.$slug.tsx` now throws the route-level `notFound()` result when a syntactically valid project slug is absent from the merged profile data. This changes the missing-project path from an unavailable component rendered under HTTP 200 to the configured route not-found boundary. Exact HTTP 404 behavior, including CMS-published project slugs and all four profile routes, still requires verification after testing resumes.
+
 ## PORT-E02 — Routes, Navigation and Portfolio Content
 **Goal:** Ensure all portfolio content is reachable, correct and isolated by profile.
 
