@@ -1,7 +1,7 @@
 # Portfolio POC — Status Baseline, Constraints and Future Scope
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
-**Branch:** `new` (local commits not yet pushed)
+**Branch:** `test`
 **Status snapshot:** 2026-11-09
 **Overall status:** IN PROGRESS — core product works locally and passes all automated checks; production configuration, deployment and some lifecycle features remain.
 
