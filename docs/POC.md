@@ -30,7 +30,7 @@
 - Keep the product deployable without mandatory paid services or a JARVIS runtime.
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
-**Branch:** `test`
+**Active branch:** `new`
 **Status snapshot:** 2026-11-09
 **Overall status:** IN PROGRESS — core product works locally and passes all automated checks; production configuration, deployment and some lifecycle features remain.
 
@@ -40,7 +40,7 @@
 
 ## Current status refresh — 2026-11-09 (authoritative)
 
-**Latest inspected commit before this refresh:** `9f4a923143eeb2deab4b3288a3e9e067f4f8edd3`. The project remains IN PROGRESS. Development is active; **testing is PAUSED**. Do not treat older local test/build/browser evidence as evidence for the latest code.
+**Latest inspected commit before this refresh:** `9f4a923143eeb2deab4b3288a3e9e067f4f8edd3`. The project remains IN PROGRESS. Development and testing are ACTIVE on `new`. Do not treat older local test/build/browser evidence as evidence for the latest code.
 
 ### Newly implemented source changes — not tested
 - Profile route has a dedicated recoverable error screen with retry and profile-selection navigation.
