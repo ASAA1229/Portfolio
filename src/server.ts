@@ -953,6 +953,57 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     );
   }
 
+  // Consistency report: the private index is the source of truth for the public feed.
+  if (
+    (path === "/api/admin/resumes/consistency" && request.method === "GET") ||
+    (path === "/api/admin/resumes/reconcile" && request.method === "POST")
+  ) {
+    const records = await readResumeIndex(bucket);
+    const expected = records
+      .filter((item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned")
+      .map((item) => item.id)
+      .sort();
+    const feedObject = await bucket.get("public/approved-resumes.json");
+    const feed = feedObject
+      ? ((await feedObject.json<unknown>().catch(() => null)) as { resumes?: Array<{ id?: unknown }> } | null)
+      : null;
+    const feedIds = Array.isArray(feed?.resumes)
+      ? feed.resumes.map((item) => (typeof item?.id === "string" ? item.id : "")).sort()
+      : null;
+    const missingFiles: string[] = [];
+    for (const record of records) {
+      if (!(await bucket.get(`private-admin/resumes/files/${record.id}`))) missingFiles.push(record.id);
+    }
+    const feedInSync =
+      feedIds !== null &&
+      feedIds.length === expected.length &&
+      feedIds.every((id, index) => id === expected[index]);
+    if (request.method === "GET") {
+      return jsonResponse(
+        {
+          feedInSync,
+          feedReadable: feedIds !== null || !feedObject,
+          expectedPublished: expected,
+          feedPublished: feedIds ?? [],
+          missingFiles,
+        },
+        200,
+      );
+    }
+    const boundedRequest = await limitRequestBody(request, 1024);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    try {
+      await writePublishedResumeFeed(bucket, records);
+    } catch (error) {
+      return storageFailure(error, "reconcile");
+    }
+    console.info("Portfolio resume feed reconciled from the private index.", {
+      published: expected.length,
+      wasInSync: feedInSync,
+    });
+    return jsonResponse({ reconciled: true, wasInSync: feedInSync, published: expected, missingFiles }, 200);
+  }
+
   // Restore the previously published version for a profile.
   if (path === "/api/admin/resumes/rollback" && request.method === "POST") {
     const boundedRequest = await limitRequestBody(request, 4 * 1024);

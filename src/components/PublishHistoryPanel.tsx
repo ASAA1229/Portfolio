@@ -100,6 +100,48 @@ export function PublishHistoryPanel({
     }
   }
 
+  const [consistency, setConsistency] = useState("");
+
+  async function checkConsistency(repair: boolean) {
+    if (repair && !window.confirm("Rebuild the public resume feed from the private index?")) return;
+    setLoading(true);
+    setError("");
+    setConsistency("");
+    try {
+      const response = await fetch(
+        repair ? "/api/admin/resumes/reconcile" : "/api/admin/resumes/consistency",
+        repair
+          ? {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "content-type": "application/json" },
+              body: "{}",
+            }
+          : { credentials: "same-origin", cache: "no-store" },
+      );
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        feedInSync?: boolean;
+        wasInSync?: boolean;
+        missingFiles?: string[];
+      } | null;
+      if (!response.ok || !payload) throw new Error(payload?.error ?? "Consistency check failed.");
+      const missing = payload.missingFiles?.length
+        ? ` ${payload.missingFiles.length} indexed resume file(s) are missing from storage.`
+        : "";
+      setConsistency(
+        repair
+          ? `Public feed rebuilt from the private index${payload.wasInSync ? " (it was already in sync)" : ""}.${missing}`
+          : `${payload.feedInSync ? "Public feed matches the private index." : "Public feed is out of sync with the private index."}${missing}`,
+      );
+      if (repair) await onRolledBack("Public resume feed reconciled.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Consistency check failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const entries = history?.entries ?? [];
   // History is append-only; the rollback button sits on the newest publication
   // entry of the version the server would restore.
@@ -202,6 +244,29 @@ export function PublishHistoryPanel({
           })}
         </ol>
       )}
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+        <button
+          type="button"
+          disabled={busy || loading}
+          onClick={() => void checkConsistency(false)}
+          className="inline-flex min-h-10 items-center border border-white/15 px-3 text-sm disabled:opacity-50"
+        >
+          Check storage consistency
+        </button>
+        <button
+          type="button"
+          disabled={busy || loading}
+          onClick={() => void checkConsistency(true)}
+          className="inline-flex min-h-10 items-center border border-amber-300/30 px-3 text-sm text-amber-100 disabled:opacity-50"
+        >
+          Rebuild public feed
+        </button>
+        {consistency && (
+          <p role="status" className="text-sm text-white/60">
+            {consistency}
+          </p>
+        )}
+      </div>
     </section>
   );
 }
