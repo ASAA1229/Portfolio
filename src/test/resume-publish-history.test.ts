@@ -126,7 +126,7 @@ describe("resume publish history", () => {
       snapshotOf(record("v1"), "2026-11-01T00:00:00.000Z"),
     );
     const withPrivateField = structuredClone(valid);
-    (withPrivateField.entries[0] as unknown as Record<string, unknown>).privateReviewNotes =
+    (withPrivateField.entries[0] as unknown as Record<string, unknown>)["privateReviewNotes"] =
       "confidential reviewer comment";
     expect(isPublishHistory(withPrivateField, "ammu")).toBe(false);
   });

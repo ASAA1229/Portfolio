@@ -53,6 +53,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const CONTACT_FIELDS = new Set(["email", "phone", "linkedin", "github"]);
+const SNAPSHOT_FIELDS = new Set([
+  "resumeId",
+  "profileId",
+  "publishedAt",
+  "displayName",
+  "headline",
+  "summary",
+  "skills",
+  "contact",
+  "structuredSections",
+  "kind",
+  "restoredPublishedAt",
+]);
 const STRUCTURED_FIELDS = new Set([
   "title", "organization", "role", "location", "startDate", "endDate",
   "description", "technologies", "url", "credentialId", "grade",
@@ -94,33 +107,36 @@ function isValidStructuredSections(value: unknown): boolean {
 
 function isValidHistoryEntry(entry: unknown, profileId: ProfileId): entry is PublishedResumeSnapshot {
   if (!isRecord(entry)) return false;
+  if (Object.keys(entry).some((key) => !SNAPSHOT_FIELDS.has(key))) return false;
+  const e = entry as any;
   if (
-    typeof entry.resumeId !== "string" || !entry.resumeId.trim() || entry.resumeId.length > 160
-    || entry.profileId !== profileId
-    || typeof entry.publishedAt !== "string" || !Number.isFinite(Date.parse(entry.publishedAt))
-    || typeof entry.displayName !== "string" || entry.displayName.length > 120
-    || typeof entry.headline !== "string" || entry.headline.length > 240
-    || typeof entry.summary !== "string" || entry.summary.length > 6000
-    || !Array.isArray(entry.skills) || entry.skills.length > 20
-    || !entry.skills.every((skill) => typeof skill === "string" && skill.trim().length > 0 && skill.length <= 80)
-    || (entry.kind !== undefined && entry.kind !== "publish" && entry.kind !== "rollback")
-    || (entry.kind === "rollback" && (typeof entry.restoredPublishedAt !== "string"
-      || !Number.isFinite(Date.parse(entry.restoredPublishedAt))))
-    || (entry.restoredPublishedAt !== undefined && typeof entry.restoredPublishedAt !== "string")
-    || !isValidContact(entry.contact)
-    || !isValidStructuredSections(entry.structuredSections)
+    typeof e.resumeId !== "string" || !e.resumeId.trim() || e.resumeId.length > 160
+    || e.profileId !== profileId
+    || typeof e.publishedAt !== "string" || !Number.isFinite(Date.parse(e.publishedAt))
+    || typeof e.displayName !== "string" || e.displayName.length > 120
+    || typeof e.headline !== "string" || e.headline.length > 240
+    || typeof e.summary !== "string" || e.summary.length > 6000
+    || !Array.isArray(e.skills) || e.skills.length > 20
+    || !e.skills.every((skill: unknown) => typeof skill === "string" && skill.trim().length > 0 && skill.length <= 80)
+    || (e.kind !== undefined && e.kind !== "publish" && e.kind !== "rollback")
+    || (e.kind === "rollback" && (typeof e.restoredPublishedAt !== "string"
+      || !Number.isFinite(Date.parse(e.restoredPublishedAt))))
+    || (e.restoredPublishedAt !== undefined && typeof e.restoredPublishedAt !== "string")
+    || !isValidContact(e.contact)
+    || !isValidStructuredSections(e.structuredSections)
   ) return false;
   return true;
 }
 
 export function isPublishHistory(value: unknown, profileId: ProfileId): value is PublishHistory {
   if (!isRecord(value)) return false;
+  const v = value as any;
   return (
-    value.version === 1
-    && value.profileId === profileId
-    && Array.isArray(value.entries)
-    && value.entries.length <= MAX_HISTORY_ENTRIES
-    && value.entries.every((entry) => isValidHistoryEntry(entry, profileId))
+    v.version === 1
+    && v.profileId === profileId
+    && Array.isArray(v.entries)
+    && v.entries.length <= MAX_HISTORY_ENTRIES
+    && v.entries.every((entry: unknown) => isValidHistoryEntry(entry, profileId))
   );
 }
 
