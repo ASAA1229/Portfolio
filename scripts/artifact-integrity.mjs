@@ -244,9 +244,7 @@ function validateManifestStructure(manifest, requireArtifact = false) {
   ) {
     invalid.push("project");
   }
-  if (
-    !manifest.source || typeof manifest.source !== "object" || Array.isArray(manifest.source)
-  ) {
+  if (!manifest.source || typeof manifest.source !== "object" || Array.isArray(manifest.source)) {
     invalid.push("source");
   } else {
     if (typeof manifest.source.gitCommit !== "string") {
@@ -256,9 +254,7 @@ function validateManifestStructure(manifest, requireArtifact = false) {
       invalid.push("source.buildNumber");
     }
   }
-  if (
-    typeof manifest.createdAt !== "string" || Number.isNaN(Date.parse(manifest.createdAt))
-  ) {
+  if (typeof manifest.createdAt !== "string" || Number.isNaN(Date.parse(manifest.createdAt))) {
     invalid.push("createdAt");
   }
   if (invalid.length) {
