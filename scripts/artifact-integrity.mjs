@@ -233,10 +233,7 @@ function validateManifestStructure(manifest, requireArtifact = false) {
   if (!Array.isArray(manifest.files)) invalid.push("files");
   if (!Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 0) {
     invalid.push("fileCount");
-  } else if (
-    Array.isArray(manifest.files) &&
-    manifest.fileCount !== manifest.files.length
-  ) {
+  } else if (Array.isArray(manifest.files) && manifest.fileCount !== manifest.files.length) {
     invalid.push("fileCount/files.length");
   }
   if (
@@ -248,9 +245,7 @@ function validateManifestStructure(manifest, requireArtifact = false) {
     invalid.push("project");
   }
   if (
-    !manifest.source ||
-    typeof manifest.source !== "object" ||
-    Array.isArray(manifest.source)
+    !manifest.source || typeof manifest.source !== "object" || Array.isArray(manifest.source)
   ) {
     invalid.push("source");
   } else {
@@ -262,16 +257,13 @@ function validateManifestStructure(manifest, requireArtifact = false) {
     }
   }
   if (
-    typeof manifest.createdAt !== "string" ||
-    Number.isNaN(Date.parse(manifest.createdAt))
+    typeof manifest.createdAt !== "string" || Number.isNaN(Date.parse(manifest.createdAt))
   ) {
     invalid.push("createdAt");
   }
   if (invalid.length) {
     throw new Error(
-      "Unsupported or invalid artifact manifest metadata: " +
-        invalid.join(", ") +
-        ".",
+      "Unsupported or invalid artifact manifest metadata: " + invalid.join(", ") + ".",
     );
   }
 
