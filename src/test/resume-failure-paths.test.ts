@@ -44,7 +44,10 @@ function failingBucket() {
           if (state.failFeed && key === "public/approved-resumes.json") {
             throw new Error("simulated storage outage");
           }
-          const result = await (target.put as (...args: unknown[]) => Promise<unknown>)(key, ...rest);
+          const result = await (target.put as (...args: unknown[]) => Promise<unknown>)(
+            key,
+            ...rest,
+          );
           if (state.failFeedAfterWrite && key === "public/approved-resumes.json") {
             state.failFeedAfterWrite = false;
             throw new Error("simulated ambiguous write failure after persistence");
