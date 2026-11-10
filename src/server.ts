@@ -714,14 +714,18 @@ async function commitResumeState(
       undo: () => writePublishHistory(bucket, history.before),
     });
   }
-  const applied: typeof steps = [];
+  const attempted: typeof steps = [];
   for (const step of steps) {
+    // Include the current step before awaiting it: an object-store operation can
+    // commit its write and still reject (for example, a transport error after the
+    // provider accepted the object). Compensate that ambiguous write as well as
+    // every earlier successful step, in reverse order.
+    attempted.push(step);
     try {
       await step.apply();
-      applied.push(step);
     } catch (error) {
       let restored = true;
-      for (const done of applied.reverse()) {
+      for (const done of attempted.reverse()) {
         try {
           await done.undo();
         } catch (undoError) {
