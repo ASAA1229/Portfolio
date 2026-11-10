@@ -55,7 +55,9 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
         current = path.join(current, segment);
         try {
           const stat = await fs.lstat(current);
-          if (stat.isSymbolicLink()) throw new Error("Storage path must not traverse symbolic links.");
+          if (stat.isSymbolicLink()) {
+            throw new Error("Storage path must not traverse symbolic links.");
+          }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
           throw error;
