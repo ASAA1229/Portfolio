@@ -240,7 +240,7 @@ function validateManifestStructure(manifest, requireArtifact = false) {
     typeof manifest.project !== "string" ||
     !manifest.project.trim() ||
     manifest.project !== manifest.project.trim() ||
-    /[\\x00-\\x1f\\x7f]/.test(manifest.project)
+    /[\x00-\x1f\x7f]/.test(manifest.project)
   ) {
     invalid.push("project");
   }
