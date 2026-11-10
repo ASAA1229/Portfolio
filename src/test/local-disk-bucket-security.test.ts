@@ -28,6 +28,7 @@ describe("local disk bucket storage-root boundary", () => {
     await expect(bucket.delete("private/file.txt")).rejects.toThrow(/symbolic link/i);
     await expect(bucket.list("")).rejects.toThrow(/symbolic link/i);
   });
+
   it("rejects a storage root located beneath a symlinked parent directory", async () => {
     const parent = mkdtempSync(path.join(os.tmpdir(), "portfolio-disk-parent-"));
     temporaryRoots.push(parent);
@@ -42,5 +43,4 @@ describe("local disk bucket storage-root boundary", () => {
     await expect(bucket.put("private/file.txt", "data")).rejects.toThrow(/symbolic link/i);
     await expect(bucket.list("")).rejects.toThrow(/symbolic link/i);
   });
-
 });
