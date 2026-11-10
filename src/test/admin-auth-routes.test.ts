@@ -38,11 +38,7 @@ const env = (bucket: MemoryBucket) => ({
   RESUME_BUCKET: bucket,
 });
 
-function request(
-  bucketEnv: ReturnType<typeof env>,
-  pathname: string,
-  init: RequestInit = {},
-) {
+function request(bucketEnv: ReturnType<typeof env>, pathname: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   if (init.method && init.method !== "GET") headers.set("origin", origin);
   return server.fetch(new Request(origin + pathname, { ...init, headers }), bucketEnv, {});
