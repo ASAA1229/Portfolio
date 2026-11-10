@@ -42,6 +42,9 @@ function failingBucket() {
       if (property === "put") {
         return async (key: string, ...rest: unknown[]) => {
           if (state.failFeed && key === "public/approved-resumes.json") {
+            // Model a transient provider failure: the failed write is rejected,
+            // but a compensating restore is allowed to reach the object store.
+            state.failFeed = false;
             throw new Error("simulated storage outage");
           }
           const result = await (target.put as (...args: unknown[]) => Promise<unknown>)(
@@ -171,7 +174,7 @@ describe("resume partial persistence failures", () => {
     expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
     const publicFeed = (await bucket.get("public/approved-resumes.json"))!;
     expect(await publicFeed.json()).toMatchObject({ resumes: [] });
-    const history = (await bucket.get("private-admin/resumes/history/bava.json"))!;
-    expect(await history.json()).toMatchObject({ profileId: "bava", entries: [] });
+    // The public-feed write failed before the history step was attempted.
+    expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
   });
 });

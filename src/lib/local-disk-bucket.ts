@@ -45,14 +45,33 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       if (!target.startsWith(base + path.sep)) throw new Error("Unsafe storage key.");
       return target;
     };
-    return { fs, path, resolve };
+    // Lexical containment alone does not stop a key from traversing a symlink
+    // located inside the storage root. Reject symlinks in every existing path
+    // component before any read, write, or delete.
+    const assertNoSymlink = async (target: string) => {
+      let current = base;
+      const relative = path.relative(base, target);
+      for (const segment of relative.split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        try {
+          const stat = await fs.lstat(current);
+          if (stat.isSymbolicLink()) throw new Error("Storage path must not traverse symbolic links.");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+          throw error;
+        }
+      }
+    };
+    return { fs, path, resolve, assertNoSymlink };
   };
 
   return {
     root,
     async get(key) {
-      const { fs, resolve } = await load();
+      const { fs, resolve, assertNoSymlink } = await load();
       const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
       let bytes: Uint8Array;
       try {
         bytes = new Uint8Array(await fs.readFile(file));
@@ -75,8 +94,10 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       };
     },
     async put(key, value, options) {
-      const { fs, path, resolve } = await load();
+      const { fs, path, resolve, assertNoSymlink } = await load();
       const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
       const bytes =
         typeof value === "string"
           ? new TextEncoder().encode(value)
@@ -84,6 +105,8 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
             ? value
             : new Uint8Array(value);
       await fs.mkdir(path.dirname(file), { recursive: true });
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
       // Write-then-rename so a crash never leaves a half-written index or file.
       const temporary = `${file}.${process.pid}.tmp`;
       await fs.writeFile(temporary, bytes);
@@ -120,8 +143,10 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       return keys.sort();
     },
     async delete(key) {
-      const { fs, resolve } = await load();
+      const { fs, resolve, assertNoSymlink } = await load();
       const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
       await fs.rm(file, { force: true });
       await fs.rm(file + META_SUFFIX, { force: true });
     },
