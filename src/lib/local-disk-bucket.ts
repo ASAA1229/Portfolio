@@ -49,6 +49,16 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
     // located inside the storage root. Reject symlinks in every existing path
     // component before any read, write, or delete.
     const assertNoSymlink = async (target: string) => {
+      // The configured root itself may be a symlink; checking only descendants
+      // would still allow every operation to escape through that root.
+      try {
+        const rootStat = await fs.lstat(base);
+        if (rootStat.isSymbolicLink()) {
+          throw new Error("Storage root must not be a symbolic link.");
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
       let current = base;
       const relative = path.relative(base, target);
       for (const segment of relative.split(path.sep).filter(Boolean)) {
@@ -118,8 +128,9 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       else await fs.rm(file + META_SUFFIX, { force: true });
     },
     async list(prefix) {
-      const { fs, path } = await load();
+      const { fs, path, assertNoSymlink } = await load();
       const base = path.resolve(root);
+      await assertNoSymlink(base);
       const keys: string[] = [];
       const walk = async (dir: string) => {
         let entries: import("node:fs").Dirent[];
