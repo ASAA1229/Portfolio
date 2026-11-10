@@ -231,23 +231,48 @@ function validateManifestStructure(manifest, requireArtifact = false) {
   if (manifest.schemaVersion !== 1) invalid.push("schemaVersion");
   if (manifest.algorithm !== "SHA256") invalid.push("algorithm");
   if (!Array.isArray(manifest.files)) invalid.push("files");
-  if (!Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 0) invalid.push("fileCount");
-  else if (Array.isArray(manifest.files) && manifest.fileCount !== manifest.files.length) invalid.push("fileCount/files.length");
+  if (!Number.isSafeInteger(manifest.fileCount) || manifest.fileCount < 0) {
+    invalid.push("fileCount");
+  } else if (
+    Array.isArray(manifest.files) &&
+    manifest.fileCount !== manifest.files.length
+  ) {
+    invalid.push("fileCount/files.length");
+  }
   if (
     typeof manifest.project !== "string" ||
     !manifest.project.trim() ||
     manifest.project !== manifest.project.trim() ||
-    /[\x00-\x1f\x7f]/.test(manifest.project)
-  ) invalid.push("project");
-  if (!manifest.source || typeof manifest.source !== "object" || Array.isArray(manifest.source)) {
+    /[\\x00-\\x1f\\x7f]/.test(manifest.project)
+  ) {
+    invalid.push("project");
+  }
+  if (
+    !manifest.source ||
+    typeof manifest.source !== "object" ||
+    Array.isArray(manifest.source)
+  ) {
     invalid.push("source");
   } else {
-    if (typeof manifest.source.gitCommit !== "string") invalid.push("source.gitCommit");
-    if (typeof manifest.source.buildNumber !== "string") invalid.push("source.buildNumber");
+    if (typeof manifest.source.gitCommit !== "string") {
+      invalid.push("source.gitCommit");
+    }
+    if (typeof manifest.source.buildNumber !== "string") {
+      invalid.push("source.buildNumber");
+    }
   }
-  if (typeof manifest.createdAt !== "string" || Number.isNaN(Date.parse(manifest.createdAt))) invalid.push("createdAt");
+  if (
+    typeof manifest.createdAt !== "string" ||
+    Number.isNaN(Date.parse(manifest.createdAt))
+  ) {
+    invalid.push("createdAt");
+  }
   if (invalid.length) {
-    throw new Error("Unsupported or invalid artifact manifest metadata: " + invalid.join(", ") + ".");
+    throw new Error(
+      "Unsupported or invalid artifact manifest metadata: " +
+        invalid.join(", ") +
+        ".",
+    );
   }
 
   if (
