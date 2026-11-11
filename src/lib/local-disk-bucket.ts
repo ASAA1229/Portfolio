@@ -50,8 +50,14 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
     // component before any read, write, or delete.
     const assertNoSymlink = async (target: string) => {
       // Check every component from the filesystem root: the configured storage
-      // root or one of its parent directories may itself be a symlink.
+      // root or one of its parent directories may itself be a symlink. Verify
+      // both the directory entry and its canonical path to defend against
+      // symlink traversal even when an ancestor is resolved by the OS.
       const filesystemRoot = path.parse(base).root;
+      const canonicalBase = await fs.realpath(base).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return base;
+        throw error;
+      });
       const segments = [
         ...path.relative(filesystemRoot, base).split(path.sep).filter(Boolean),
         ...path.relative(base, target).split(path.sep).filter(Boolean),
@@ -63,6 +69,13 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
           const stat = await fs.lstat(current);
           if (stat.isSymbolicLink()) {
             throw new Error("Storage path must not traverse symbolic links.");
+          }
+          const canonicalCurrent = await fs.realpath(current);
+          if (
+            canonicalCurrent !== canonicalBase &&
+            !canonicalCurrent.startsWith(canonicalBase + path.sep)
+          ) {
+            throw new Error("Storage path resolves outside the configured root.");
           }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
