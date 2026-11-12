@@ -559,6 +559,12 @@ export function mergePersonPortfolio(
     if (basics.phone) merged.phone = basics.phone;
     if (basics.socials) merged.socialLabels = basics.socials.map((social) => ({ ...social }));
   }
+  if (overrides.skills) {
+    merged.skills = overrides.skills.map((group) => ({
+      category: group.cat,
+      items: [...group.items],
+    }));
+  }
   if (overrides.projects) {
     const bySlug = new Map<string, PersonProject>(
       profile.projects.map((project) => [project.slug, project]),
