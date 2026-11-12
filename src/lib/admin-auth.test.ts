@@ -62,10 +62,10 @@ describe("private admin authentication", () => {
   });
 
   it("accepts only bounded canonical session epochs", () => {
-    for (const valid of ["0", "1", "7", "9999999999999999"]) {
+    for (const valid of ["0", "1", "7", "9007199254740991"]) {
       expect(isValidSessionEpoch(valid)).toBe(true);
     }
-    for (const invalid of ["", "-1", "01", "1.0", "1e3", "10000000000000000", 1, null]) {
+    for (const invalid of ["", "-1", "01", "1.0", "1e3", "10000000000000000", "9999999999999999", 1, null]) {
       expect(isValidSessionEpoch(invalid)).toBe(false);
     }
   });
