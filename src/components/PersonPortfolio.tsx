@@ -323,6 +323,12 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
   const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const educationTitle = resumeEducation?.title || profile.education.qualification;
+  const educationOrganization = resumeEducation?.organization || profile.education.college;
+  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || profile.education.period;
+  const educationScore = resumeEducation?.grade || profile.education.score;
+  const educationLocation = resumeEducation?.location || profile.location || profile.education.location;
   const headline = publishedResume?.headline || profile.headline;
   const story = publishedResume?.summary || profile.story;
   return (
@@ -373,10 +379,10 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               <SocialButtons profile={profile} />
             </div>
             <p className="mt-7 max-w-lg font-mono text-xs leading-6 text-muted-foreground">
-              {profile.education.qualification} · {profile.education.period}
+              {educationTitle} · {educationPeriod}
               <br />
-              {profile.education.score}
-              {profile.location && <><br />{profile.location}</>}
+              {educationOrganization}{educationScore ? " · " + educationScore : ""}
+              {educationLocation && <><br />{educationLocation}</>}
             </p>
           </Reveal>
         </div>
