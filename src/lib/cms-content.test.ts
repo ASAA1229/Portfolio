@@ -44,6 +44,32 @@ describe("CMS content model (PORT-US-035)", () => {
     expect(publishedContent(unpublishContent(doc))).toBeNull();
   });
 
+  it("merges profile contact location and socials and permits empty managed collections", () => {
+    const base = PERSON_PORTFOLIOS.ammu;
+    const merged = mergePersonPortfolio(base, {
+      basics: {
+        location: "Remote",
+        socials: [{ platform: "GitHub", handle: "amulya-custom" }],
+      },
+      skills: [],
+      projects: [],
+      experience: [],
+      education: {
+        college: "Owner College",
+        qualification: "Owner Degree",
+        period: "2024–2028",
+      },
+      certifications: [],
+    });
+    expect(merged.location).toBe("Remote");
+    expect(merged.socialLabels).toEqual([{ platform: "GitHub", handle: "amulya-custom" }]);
+    expect(merged.skills).toEqual([]);
+    expect(merged.projects).toEqual([]);
+    expect(merged.experience).toEqual([]);
+    expect(merged.education.college).toBe("Owner College");
+    expect(merged.certifications).toEqual([]);
+  });
+
   it("merges overrides over curated data without mutating it", () => {
     const base = PERSON_PORTFOLIOS.ammu;
     const firstSlug = base.projects[0]!.slug;
