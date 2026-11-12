@@ -556,3 +556,8 @@ Implementation and test source only. No tests, builds, typechecks, lint, browser
 - Remaining: distributed login throttling, production secret rotation/configuration verification, full route/mutation inventory and production-like session acceptance.
 
 **Validation boundary:** no tests, build, typecheck, lint, audit, browser, accessibility, CI or R2 checks were run. Source implementation and authored tests are not verified behavior. No merge or deployment.
+
+
+### PORT-US-045 follow-up — resume binary write boundaries (2026-11-12)
+
+Resume upload now journals the private original and index together. Resume deletion now journals the private index, public approved feed, history redaction and original binary deletion as one recoverable transaction. Added failure-injection test source for ambiguous upload-index and original-delete failures. These changes remain unvalidated; distributed concurrency and hosted R2 acceptance remain open.
