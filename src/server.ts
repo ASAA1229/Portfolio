@@ -2163,23 +2163,45 @@ async function attachPublishedResumeContext(
     }
   }
 
+  // Attach only the selected profile's currently published CMS content.
+  // Drafts and unpublished versions remain private and are never sent to AI.
+  let cmsContent: Record<string, unknown> | null = null;
+  if (bucket && isContentProfileId(profileId)) {
+    try {
+      const published = publishedContent(await readContentDocument(bucket, profileId));
+      if (published) {
+        const candidate = JSON.stringify(published);
+        if (new TextEncoder().encode(candidate).byteLength <= 20 * 1024) cmsContent = published;
+      }
+    } catch (error) {
+      console.error("Could not load published CMS context for portfolio chat.", error);
+    }
+  }
+
   // Only the selected profile's *published* persona is attached (PORT-US-038).
   const persona = await loadPublishedPersona(env, profileId);
 
   // Discard any client-supplied internal fields before adding trusted data.
   const clientPayload = { ...payload };
   delete clientPayload["_publishedResume"];
+  delete clientPayload["_publishedContent"];
   delete clientPayload["_persona"];
   let body = JSON.stringify({
     ...clientPayload,
     _publishedResume: publishedResume,
+    _publishedContent: cmsContent,
     _persona: persona,
   });
   const encoder = new TextEncoder();
   if (encoder.encode(body).byteLength > 70 * 1024) {
     // Preserve a valid user request when its body leaves no room for resume
     // context; the chat route will then use its static verified profile data.
-    body = JSON.stringify({ ...clientPayload, _publishedResume: null, _persona: persona });
+    body = JSON.stringify({
+      ...clientPayload,
+      _publishedResume: null,
+      _publishedContent: null,
+      _persona: persona,
+    });
   }
   if (encoder.encode(body).byteLength > 70 * 1024) {
     return jsonResponse({ error: "Request body exceeds the allowed size." }, 413);
