@@ -23,7 +23,7 @@ export function mergeAbhishekContact(overrides: ContentOverrides | null) {
   const socials = basics?.socials ?? [];
   const secureSocial = (platform: string, fallback: string | null) => {
     const candidate = socials.find((item) => item.platform.trim().toLowerCase() === platform)?.handle.trim();
-    if (!candidate) return fallback;
+    if (!candidate) return basics?.socials === undefined ? fallback : null;
     try {
       const url = new URL(candidate);
       return url.protocol === "https:" &&
@@ -47,7 +47,7 @@ type Cert = readonly [string, string];
 
 export function mergeSiteProjects(overrides: ContentOverrides | null): SiteProject[] {
   const edits = overrides?.projects;
-  if (!edits?.length) return siteProjects;
+  if (!edits) return siteProjects;
   const bySlug = new Map(edits.map((edit) => [edit.slug, edit]));
   const merged: SiteProject[] = [];
   for (const project of siteProjects) {
@@ -88,7 +88,7 @@ export function mergeSiteProjects(overrides: ContentOverrides | null): SiteProje
 
 export function mergeSkills(overrides: ContentOverrides | null) {
   const groups = overrides?.skills;
-  if (!groups?.length) return SKILLS;
+  if (!groups) return SKILLS;
   return groups.map((group) => ({
     cat: group.cat,
     desc: group.desc,
@@ -98,7 +98,7 @@ export function mergeSkills(overrides: ContentOverrides | null) {
 
 export function mergeMissions(overrides: ContentOverrides | null): Mission[] {
   const experience = overrides?.experience;
-  if (!experience?.length) return MISSIONS;
+  if (!experience) return MISSIONS;
   return experience.map(
     (entry, i) =>
       ({
@@ -120,7 +120,7 @@ export function mergeMissions(overrides: ContentOverrides | null): Mission[] {
 
 export function mergeCerts(overrides: ContentOverrides | null): readonly Cert[] {
   const certifications = overrides?.certifications;
-  if (!certifications?.length) return CERTS as readonly Cert[];
+  if (!certifications) return CERTS as readonly Cert[];
   return certifications.map((cert) => [cert.title, cert.issuer] as const);
 }
 
