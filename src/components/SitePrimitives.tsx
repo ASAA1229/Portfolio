@@ -14,10 +14,16 @@ import { PORTFOLIO_FILES } from "@/lib/contact-schema";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { siteProjects } from "@/lib/site-data";
 
-export function SocialLinks() {
+export function SocialLinks({
+  github = CONTACT.github,
+  linkedin = CONTACT.linkedin,
+}: {
+  github?: string | null;
+  linkedin?: string | null;
+} = {}) {
   const socials = [
-    { url: CONTACT.github, Icon: Github, label: "GitHub" },
-    { url: CONTACT.linkedin, Icon: Linkedin, label: "LinkedIn" },
+    { url: github, Icon: Github, label: "GitHub" },
+    { url: linkedin, Icon: Linkedin, label: "LinkedIn" },
   ];
   return (
     <div className="flex gap-2">
