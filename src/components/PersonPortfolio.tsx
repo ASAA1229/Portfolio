@@ -34,7 +34,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { usePublishedProfilePortrait, usePublishedProfileResume } from "@/lib/published-resume";
+import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -292,7 +292,8 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
 
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
-  const publishedPortrait = usePublishedProfilePortrait(profile.id);
+  const publishedImages = usePublishedProfileImages(profile.id);
+  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait")?.src ?? null;
   const headline = publishedResume?.headline || profile.headline;
   const story = publishedResume?.summary || profile.story;
   return (
@@ -444,42 +445,13 @@ export function PersonContent({
   section: PortfolioSection;
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
-  const publishedPortrait = usePublishedProfilePortrait(profile.id);
+  const publishedImages = usePublishedProfileImages(profile.id);
+  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait")?.src ?? null;
   const contact = usePersonContact(profile);
-  const [publishedImagesState, setPublishedImagesState] = useState<{
-    profileId: string;
-    images: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
-  }>(() => ({ profileId: profile.id, images: [] }));
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { images: [] }))
-      .then(
-        (payload: {
-          images?: { id: string; profileId: string; src: string; alt: string; slot?: string }[];
-        }) => {
-          if (active)
-            setPublishedImagesState({
-              profileId: profile.id,
-              images: (payload.images ?? []).filter(
-                (image) => image.profileId === profile.id && image.slot !== "portrait",
-              ),
-            });
-        },
-      )
-      .catch(() => {
-        if (active) setPublishedImagesState({ profileId: profile.id, images: [] });
-      });
-    return () => {
-      active = false;
-    };
-  }, [profile.id]);
-  const publishedImages =
-    publishedImagesState.profileId === profile.id ? publishedImagesState.images : [];
-  const galleryPhotos = [
-    ...profile.gallery,
-    ...publishedImages.map((image) => ({ src: image.src, alt: image.alt, id: image.id })),
-  ];
+  const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
+  const galleryPhotos = publishedGallery.length
+    ? publishedGallery
+    : profile.gallery;
   const sectionLabel = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
   const name = profile.displayName.toUpperCase();
   const publishedProjects = publishedResume?.structuredSections?.projects?.length ?? 0;
