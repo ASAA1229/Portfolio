@@ -65,6 +65,14 @@ describe("admin authentication route lifecycle", () => {
     expect(session.status).toBe(200);
     await expect(session.json()).resolves.toEqual({ authenticated: true });
 
+    const renewal = await request(runtime, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+      body: "{}",
+    });
+    expect(renewal.status).toBe(200);
+    expect(renewal.headers.get("set-cookie")).toContain("portfolio_admin_session=");
+
     const logoutAll = await request(runtime, "/api/admin/logout-all", {
       method: "POST",
       headers: { cookie },
@@ -104,6 +112,20 @@ describe("admin authentication route lifecycle", () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(response.headers.get("x-robots-tag")).toContain("noindex");
+  });
+
+  it("fails closed when the stored session epoch is malformed", async () => {
+    const bucket = new MemoryBucket();
+    const runtime = env(bucket);
+    const login = await request(runtime, "/api/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": "bad-epoch-test" },
+      body: JSON.stringify({ password: "test-admin-password" }),
+    });
+    const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+    await bucket.put("private-admin/session-epoch.json", JSON.stringify({ epoch: "not-an-epoch" }));
+    const session = await request(runtime, "/api/admin/session", { headers: { cookie } });
+    expect(session.status).toBe(404);
   });
 
   it("rejects cross-origin admin mutations even with a valid session", async () => {
