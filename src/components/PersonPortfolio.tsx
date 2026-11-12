@@ -350,7 +350,6 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         <div className="person-hero-shade" aria-hidden="true" />
         <div className="site-container relative z-10 py-14 sm:py-20">
           <Reveal>
-            <div className="person-hero-glass">
             <p className="font-mono text-xs text-primary">
               {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
             </p>
@@ -387,7 +386,6 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               {educationOrganization}{educationScore ? " · " + educationScore : ""}
               {educationLocation && <><br />{educationLocation}</>}
             </p>
-            </div>
           </Reveal>
         </div>
       </section>
