@@ -50,7 +50,7 @@
 
 ### Remaining development
 1. **Implemented in source (2026-11-12):** Abhishek's root portfolio now consumes published CMS contact details, secure GitHub/LinkedIn overrides and editable skill groups; the CMS editor exposes skill groups, and shared profile merging applies them to the four profile experiences. Remaining: published SEO/navigation overrides and route-by-route acceptance evidence.
-2. Finish resume publish/rollback/unpublish failure reconciliation and durable-storage behavior.
+2. **Partially implemented in source (2026-11-12):** resume reconciliation now refuses to rebuild the public feed when an indexed original is missing, returning a 409 with the missing IDs and leaving the existing feed untouched. Remaining: broader failure-injection coverage for publish/rollback/unpublish, concurrent updates and hosted R2 durability.
 3. **Implemented in source (2026-11-12):** backup/restore now requires every referenced resume/image binary, validates SHA-256 before writes, and rejects incomplete source migrations before destination writes. Regression tests are authored but not run; storage failure-injection and hosted R2 verification remain open.
 4. Complete admin authentication/session hardening and production R2 configuration readiness.
 5. Complete JARVIS gateway production integration without silently enabling paid fallback.
@@ -431,3 +431,12 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Abhishek's root Skills page renders published CMS skill groups. Shared person-profile merging also applies skill overrides to the other profile experiences.
 - Added regression tests for contact fallback/URL validation, skill override/fallback and skill schema validation/profile merge.
 - **Validation:** tests are authored only and remain unrun. No build, typecheck, lint, browser, accessibility or production result is claimed.
+
+
+## Current development increment — resume reconciliation guard (2026-11-12)
+
+- **Branch:** `new`
+- Resume consistency remains observable through the admin consistency endpoint, including missing original IDs.
+- The reconcile mutation now returns HTTP 409 with `RESUME_ORIGINALS_MISSING` when any indexed original is absent. It does not rewrite the public approved-resume feed in that state.
+- Added a route-level failure-path regression test that publishes a resume, removes its private original, attempts reconciliation, and asserts the public feed remains byte-for-byte unchanged.
+- **Validation:** test authored but not executed. Storage behavior under hosted R2 and other publish/rollback/unpublish failure combinations remains unverified.
