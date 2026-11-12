@@ -1656,14 +1656,14 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
   if (path === "/api/published-images" && request.method === "GET") {
     const images = (await readImageIndex(bucket))
       .filter((item) => item.status === "approved")
-      .map(({ id, profileId, alt, filename, contentType, slot }) => ({
+      .map(({ id, profileId, alt, filename, contentType, slot, projectSlug }) => ({
         id,
         profileId,
         alt,
         filename,
         contentType,
         slot: slot ?? "gallery",
-        ...(slot === "project" && item.projectSlug ? { projectSlug: item.projectSlug } : {}),
+        ...(slot === "project" && projectSlug ? { projectSlug } : {}),
         src: `/api/published-images/${id}`,
       }));
     return jsonResponse({ images }, 200, { "cache-control": PUBLIC_FEED_CACHE });
