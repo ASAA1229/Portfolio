@@ -209,6 +209,52 @@ export function normalizePublishedPortrait(payload: unknown, profileId: string):
     : null;
 }
 
+
+export type PublishedProfileImage = {
+  id: string;
+  profileId: string;
+  src: string;
+  alt: string;
+  slot: "portrait" | "gallery";
+};
+
+export function normalizePublishedProfileImages(payload: unknown, profileId: string): PublishedProfileImage[] {
+  if (!isRecord(payload) || !Array.isArray(payload["images"])) return [];
+  return payload["images"]
+    .filter((item): item is Record<string, unknown> =>
+      isRecord(item) &&
+      item["profileId"] === profileId &&
+      typeof item["id"] === "string" &&
+      typeof item["src"] === "string" &&
+      /^\/api\/published-images\/[0-9a-f-]{36}$/i.test(item["src"]) &&
+      (item["slot"] === "portrait" || item["slot"] === "gallery") &&
+      typeof item["alt"] === "string"
+    )
+    .map((item) => ({
+      id: item["id"] as string,
+      profileId,
+      src: item["src"] as string,
+      alt: (item["alt"] as string).trim().slice(0, 300),
+      slot: item["slot"] as "portrait" | "gallery",
+    }));
+}
+
+/** Shared client hook for all currently published images belonging to a profile. */
+export function usePublishedProfileImages(profileId: string): PublishedProfileImage[] {
+  const [state, setState] = useState<{ profileId: string; images: PublishedProfileImage[] }>(() => ({ profileId, images: [] }));
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: unknown) => {
+        if (active) setState({ profileId, images: normalizePublishedProfileImages(payload, profileId) });
+      })
+      .catch(() => { if (active) setState({ profileId, images: [] }); });
+    return () => { active = false; };
+  }, [profileId]);
+  return state.profileId === profileId ? state.images : [];
+}
+
 /** Shared client hook: every profile consumes the same validated, latest-published resume feed. */
 export function usePublishedProfileResume(profileId: string): PublishedProfileResume | null {
   const [state, setState] = useState<{ profileId: string; resume: PublishedProfileResume | null }>(
