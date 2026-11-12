@@ -841,3 +841,30 @@ No story is closed solely because the local test report is green. The local test
 - Extended `src/test/resume-failure-paths.test.ts` with an ambiguous persisted-write failure at the resume publish-history step. The scenario asserts that compensation restores the pending resume index, empty public feed and empty prior history state.
 - This supplements existing publish-feed failure tests and the missing-original reconciliation guard. Tests remain authored but unexecuted.
 - Remaining P0 work: durable recovery when compensation itself fails, concurrency control across overlapping requests/instances, and safe cleanup/recovery for post-commit original-file deletion. Hosted R2 acceptance is also open.
+
+
+### PORT-US-049 — Admin control room and unified workspace navigation
+
+**Priority:** P1  
+**Status:** IMPLEMENTED IN SOURCE — NEEDS TESTING / OWNER ACCEPTANCE PENDING.
+
+**As the owner,** I want one admin control room that summarizes the operational state of all four profiles and gives me consistent navigation to every management area, so that I can identify pending work and manage the complete portfolio without hunting through individual routes.
+
+**Acceptance criteria**
+- The private dashboard summarizes pending/approved resume and image records, content drafts and AI persona drafts.
+- Each of the four profile cards shows content/persona publication state and profile-scoped resume/image counts.
+- The dashboard reports whether private storage and audit history can currently be read; unavailable sources are disclosed and counts are marked incomplete rather than silently shown as authoritative.
+- Recent audit actions are visible with a link to the complete audit history.
+- Every admin manager has consistent navigation to the dashboard, content, personas, resumes, images, backup/restore and audit pages.
+- The dashboard provides direct links to each public profile and its primary editing workflows.
+- Session sign-out and sign-out-everywhere remain available, with confirmation before terminating all sessions.
+- Dashboard data is read-only; status aggregation must never publish, mutate, restore or delete portfolio data.
+- All pages remain private/noindex and server-side authorization remains authoritative.
+- Responsive, keyboard and screen-reader behavior is accepted after validation resumes.
+
+**Implementation increment — admin control room (2026-11-12)**
+- Added a shared `AdminNavigation` component and integrated it into the content, persona, resume, image, backup and audit workspaces.
+- Replaced the basic admin landing page with a four-profile control room that reads the existing admin APIs for resume/image review queues, content/persona draft and published versions, storage availability and recent audit activity.
+- The dashboard reports unavailable status sources and marks the resulting counts as potentially incomplete; it does not perform writes.
+- Added profile shortcuts, manager links, refresh and session sign-out controls.
+- **Validation:** no tests, build, typecheck, lint, browser/accessibility checks or CI were run. This is source implementation only; route behavior, API aggregation, responsive layout and accessibility remain unverified.
