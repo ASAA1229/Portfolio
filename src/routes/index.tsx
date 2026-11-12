@@ -41,7 +41,7 @@ function Home() {
         <div className="hero-shade" aria-hidden="true" />
         <div className="site-container relative z-10 py-12 sm:py-20">
           <Reveal>
-            <div className="hero-copy">
+            <div className="hero-copy home-hero-glass">
               <p className="mb-6 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
                 <span className="h-px w-8 bg-primary" /> SOFTWARE / INTELLIGENCE / IMPACT
               </p>
@@ -100,7 +100,7 @@ function Home() {
           ].map(([number, title, sub, Icon]) => {
             const Symbol = Icon as typeof Code2;
             return (
-              <div key={String(number)} className="flex items-start gap-4">
+              <div key={String(number)} className="discipline-card flex items-start gap-4">
                 <span className="font-mono text-xs text-primary">{String(number)}</span>
                 <div>
                   <p className="text-sm font-semibold">{String(title)}</p>
