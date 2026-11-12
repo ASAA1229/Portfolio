@@ -3,7 +3,6 @@ import { ArrowDown, GraduationCap, MapPin, Sparkles } from "lucide-react";
 import { AiIntro } from "@/components/AiIntro";
 import { PageBody, ResumeAction } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
-import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
 import { useAbhishekContent } from "@/lib/abhishek-content";
 import { usePublishedProfileImages } from "@/lib/published-resume";
@@ -20,7 +19,7 @@ export const Route = createFileRoute("/about")({
 
 function About() {
   // Owner-published CMS basics replace the curated copy; curated text is the fallback.
-  const { headline, summary, story } = useAbhishekContent();
+  const { headline, summary, story, education, contact, missions } = useAbhishekContent();
   const publishedImages = usePublishedProfileImages("abhishek");
   const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
   const publishedHero = [...publishedImages].reverse().find((image) => image.slot === "portrait");
@@ -99,10 +98,10 @@ function About() {
             )}
             <div className="about-facts">
               <span>
-                <GraduationCap /> B.Tech Information Technology · 2022–2026
+                <GraduationCap /> {education?.qualification || "B.Tech Information Technology"} · {education?.period || "2022–2026"}
               </span>
               <span>
-                <MapPin /> Hyderabad, India
+                <MapPin /> {education?.location || contact.location || "Hyderabad, India"}
               </span>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -144,15 +143,15 @@ function About() {
             <Sparkles aria-hidden="true" />
           </div>
           <div className="milestone-list">
-            {MILESTONES.map(([period, title, description], i) => (
-              <Reveal key={title} delay={i * 0.04}>
+            {missions.map((item, i) => (
+              <Reveal key={item.id} delay={i * 0.04}>
                 <article className="milestone">
-                  <span>{period}</span>
+                  <span>{item.period}</span>
                   <div>
-                    <h3>{title}</h3>
-                    <p>{description}</p>
+                    <h3>{item.company}</h3>
+                    <p>{item.role}{item.projects.length ? ` · ${item.projects.map((project) => project.name).join(" · ")}` : ""}</p>
                   </div>
-                  <span className="milestone-number">0{i + 1}</span>
+                  <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
                 </article>
               </Reveal>
             ))}
