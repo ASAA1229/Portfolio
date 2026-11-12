@@ -369,3 +369,16 @@ Remaining work: verify all placement rules and profile surfaces; provide explici
 - Publish and unpublish refresh the inventory/public-feed comparison after confirmed API success.
 
 Remaining work: add safe image-version restoration with version metadata, extend image placement support for project-specific media, audit every public media slot/profile route, and validate complete publish/replace/unpublish/rollback behavior. No tests, builds, typecheck, lint, browser, accessibility or CI checks were run; validation remains paused.
+
+
+### PORT-E04 / PORT-US-050 — safe image version restoration (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+- Image replacements now create private version snapshots with a metadata sidecar containing filename, content type, size and upload timestamp.
+- Added an authenticated version-list endpoint that only exposes snapshots with valid metadata and matching stored bytes.
+- Added a restore endpoint that validates the version ID, metadata, exact byte length and image file signature; snapshots the current image before restoring; and uses compensating storage writes for private bytes, public bytes (when approved), index and snapshot metadata.
+- Admin UI now exposes per-image version history and restore controls, refreshes the preview and history after restore, and warns that cleanup removes old versions.
+- Legacy byte-only snapshots are not offered because their original metadata cannot be safely reconstructed.
+
+Still open: validate lifecycle and injected storage failures when validation resumes; add durable recovery for compensation failure/concurrent writers; verify R2 and local-disk listing semantics. No tests/build/typecheck/lint/browser/accessibility/CI were run; do not mark acceptance complete.
