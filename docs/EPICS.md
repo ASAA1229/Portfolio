@@ -382,3 +382,15 @@ Remaining work: add safe image-version restoration with version metadata, extend
 - Legacy byte-only snapshots are not offered because their original metadata cannot be safely reconstructed.
 
 Still open: validate lifecycle and injected storage failures when validation resumes; add durable recovery for compensation failure/concurrent writers; verify R2 and local-disk listing semantics. No tests/build/typecheck/lint/browser/accessibility/CI were run; do not mark acceptance complete.
+
+### PORT-E04 / PORT-US-050 — project-specific image placements (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+- Added project image placement metadata scoped by profile ID and project URL slug.
+- Admin upload captures the exact slug and inventory labels the project assignment.
+- Public feed includes project metadata; public normalization filters by profile and validates the slug.
+- Shared person-project detail pages render approved images assigned to that exact profile/project pair.
+- Published project images are included in active-resource visibility.
+
+Remaining: inspect Abhishek's project route family and every project detail route; validate all four profiles, publication/unpublication/delete/restore lifecycle, slug changes and storage/cache behavior. No checks were run because validation remains paused. Do not mark PORT-US-050 or PORT-E04 accepted.
