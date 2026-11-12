@@ -30,6 +30,9 @@ One storage adapter contract supports R2, local disk and in-memory development/t
 
 Profile portraits/galleries are profile-scoped; project media is scoped by profile ID and exact project slug. Public pages use approved published feeds with curated assets as deliberate fallback. Static series artwork and logos are brand assets, not personal profile images.
 
+## Visual system
+The shared Series visual language uses profile-scoped theme tokens, responsive spacing, strong image-led hero sections and selective glass surfaces. Glassmorphism is reserved for navigation, profile-selection cards, the home hero copy panel and private admin entry/navigation. Content-heavy reading surfaces remain solid or high-opacity to preserve contrast and reduce visual noise. Translucent treatments include opaque fallbacks and reduced-transparency handling; profile theme variables remain scoped to each shell.
+
 ## Architecture guardrails
 - Never represent generated portraits as authentic likenesses.
 - CMS customization cannot inject scripts, unsafe markup or untrusted external resources.
