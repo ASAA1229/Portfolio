@@ -422,6 +422,9 @@ function ContentManager() {
       </section>
 
       <div className="mt-6 flex flex-wrap gap-3">
+        <button type="button" className="inline-flex min-h-11 items-center gap-2 rounded border border-border px-4" onClick={() => setPreviewOpen((open) => !open)}>
+          <FileText className="size-4" aria-hidden="true" /> {previewOpen ? "Hide draft preview" : "Preview current draft"}
+        </button>
         <button
           className="inline-flex min-h-11 items-center gap-2 rounded border border-border px-4"
           disabled={busy}
