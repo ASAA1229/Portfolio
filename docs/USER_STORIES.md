@@ -868,3 +868,12 @@ No story is closed solely because the local test report is green. The local test
 - The dashboard reports unavailable status sources and marks the resulting counts as potentially incomplete; it does not perform writes.
 - Added profile shortcuts, manager links, refresh and session sign-out controls.
 - **Validation:** no tests, build, typecheck, lint, browser/accessibility checks or CI were run. This is source implementation only; route behavior, API aggregation, responsive layout and accessibility remain unverified.
+
+### PORT-US-049 follow-up — dynamic admin workflows (2026-11-12)
+
+- Resume inventory now supports profile-scoped filtering in addition to existing text search and publication-status filtering, including unassigned records.
+- Image inventory now supports text search plus profile and publication-status filtering; its count reflects the filtered result set.
+- Audit history now supports text search across action, actor, outcome and target IDs, plus outcome filtering.
+- Content manager now provides an in-page preview of current editor values, including summary/story, projects, skills, experience, education/certification counts and SEO data. The preview is explicitly unpublished and does not mutate public content.
+- Existing persona prompt preview, draft/publish/rollback/unpublish, structured resume editing/extraction, image lifecycle, backup export/restore and storage migration workflows remain connected to their existing server APIs.
+- **Validation:** no tests, build, typecheck, lint, browser, accessibility or CI were run. Dynamic workflows are implemented in source only and remain unverified.
