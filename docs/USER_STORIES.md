@@ -751,7 +751,7 @@ No story is closed solely because the local test report is green. The local test
 #### PORT-US-045 — Recoverable media and resume storage operations
 
 **Priority:** P0  
-**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+**Status:** PARTIAL — IMAGE COMPENSATION IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN; RESUME RECOVERY AND CONCURRENCY REMAIN OPEN.
 
 **As the owner,** I want resume and image operations to recover safely from partial storage failures, so that the private source, approved index and public feed cannot silently diverge.
 
@@ -820,3 +820,17 @@ No story is closed solely because the local test report is green. The local test
 8. **P2:** PORT-US-039 privacy/retention confirmation and PORT-US-040/041 reusable-template/storage portability refinement.
 
 **Definition of objective completion:** All four profiles contain owner-approved and isolated content; every public route and CMS-managed field behaves consistently; resume/image publishing and recovery are safe; owner admin is secure; JARVIS behavior is privacy-safe and accurately reports availability; SEO, accessibility, responsiveness and performance meet documented acceptance; exact-head engineering/CI evidence is green; backup/restore and rollback are rehearsed; and the owner explicitly approves release. A source change alone does not satisfy this definition.
+
+
+### PORT-US-045 implementation increment — image lifecycle compensation (2026-11-12)
+
+**Branch:** `new`  
+**Status:** IMAGE OPERATIONS IMPLEMENTED IN SOURCE / FAILURE TESTS AUTHORED / NOT RUN
+
+- Added a shared compensating storage-write helper for image lifecycle operations. It snapshots every affected key before the first mutation and compensates the attempted operation, including an ambiguous provider write that persists and then rejects.
+- Applied the helper to image upload (including publish-on-upload), replacement, publish, unpublish and delete. A failed commit now attempts to restore private originals, public copies, the image index and superseded-image state.
+- Image API failure responses now report whether compensation completed; callers are told to inspect consistency before retrying if rollback itself failed.
+- Added `src/test/image-failure-paths.test.ts` with failure-injection cases for ambiguous index writes during upload, replacement, publish, unpublish and delete.
+- Resume lifecycle already has a compensating index/feed/history commit helper, but still lacks distributed concurrency protection and a durable recovery journal for compensation failures. Missing originals remain non-recoverable without a verified backup/source.
+
+**Validation:** no tests, build, typecheck, lint, browser checks or CI were run. All new image regression tests are authored only. PORT-US-045 remains open until validation resumes and resume/image recovery, concurrency and hosted R2 acceptance are complete.
