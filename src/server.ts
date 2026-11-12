@@ -144,8 +144,8 @@ function privateNotFound(): Response {
 
 // Short public caching for published (already-approved) content. Unpublishing or
 // replacing takes effect within this window; private/admin responses stay no-store.
-const PUBLIC_FEED_CACHE = "public, max-age=60, must-revalidate";
-const PUBLIC_IMAGE_CACHE = "public, max-age=300, must-revalidate";
+const PUBLIC_FEED_CACHE = "public, max-age=0, must-revalidate";
+const PUBLIC_IMAGE_CACHE = "public, max-age=0, must-revalidate";
 
 function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Response {
   return Response.json(body, {
