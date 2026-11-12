@@ -455,6 +455,56 @@ function ContentManager() {
         </button>
       </div>
 
+
+      {previewOpen && (
+        <section className="mt-6 rounded-lg border border-primary/30 bg-card p-5 sm:p-7" aria-label="Draft preview">
+          <p className="font-mono text-xs uppercase tracking-widest text-primary">Unpublished preview</p>
+          <h2 className="mt-2 text-2xl font-semibold">{previewTitle}</h2>
+          <p className="mt-3 text-lg">{basics.summary || "No summary entered yet."}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{basics.story || "No story/about text entered yet."}</p>
+          {previewError ? (
+            <p role="alert" className="mt-4 text-sm text-red-300">{previewError} Fix it before saving or publishing.</p>
+          ) : (
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded border border-border p-4">
+                <h3 className="font-semibold">Projects ({previewLists.projects?.length ?? 0})</h3>
+                <ul className="mt-2 space-y-2 text-sm">
+                  {(previewLists.projects ?? []).slice(0, 5).map((project) => (
+                    <li key={project.slug} className="border-b border-border pb-2">
+                      <span className="font-medium">{project.title}</span>
+                      <p className="text-xs text-muted-foreground">{project.overview}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded border border-border p-4">
+                <h3 className="font-semibold">Skills</h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(previewLists.skills ?? []).flatMap((group) => group.items).slice(0, 18).map((skill) => (
+                    <span key={skill} className="rounded border border-border px-2 py-1 text-xs">{skill}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded border border-border p-4">
+                <h3 className="font-semibold">Experience ({previewLists.experience?.length ?? 0})</h3>
+                {(previewLists.experience ?? []).slice(0, 4).map((item, index) => (
+                  <p key={index} className="mt-2 text-sm">{item.role} · {item.company} <span className="text-xs text-muted-foreground">{item.period}</span></p>
+                ))}
+              </div>
+              <div className="rounded border border-border p-4">
+                <h3 className="font-semibold">Education &amp; certifications</h3>
+                <p className="mt-2 text-sm">{previewLists.education?.qualification || "Education not entered"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{previewLists.certifications?.length ?? 0} certifications</p>
+              </div>
+            </div>
+          )}
+          <div className="mt-4 rounded border border-border p-4">
+            <h3 className="font-semibold">Search metadata</h3>
+            <pre className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify(previewLists.seo ?? {}, null, 2)}</pre>
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">Preview reflects current editor values and does not change the public profile. Save and publish to make these changes live.</p>
+        </section>
+      )}
       <section className="mt-10">
         <h2 className="flex items-center gap-2 text-2xl">
           <History className="size-5" aria-hidden="true" /> Version history
