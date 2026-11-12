@@ -7,7 +7,6 @@ import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
 import { useAbhishekContent } from "@/lib/abhishek-content";
 import { usePublishedProfileImages } from "@/lib/published-resume";
-import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/about")({
   head: () =>
@@ -33,7 +32,7 @@ function About() {
     <>
       <section className="chapter-hero about-hero">
         <img
-          src={publishedHero?.src ?? hero}
+          src={publishedHero?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
           alt={publishedHero?.alt ?? "Cinematic portrait artwork from Abhishek's portfolio"}
           width={1536}
           height={1024}
@@ -136,18 +135,6 @@ function About() {
             ))}
           </div>
         </section>
-        <Reveal>
-          <figure className="about-illustration">
-            <img
-              src="/images/profiles/abhishek/abhishek_2.jpeg"
-              alt="Illustration of developers collaborating on code"
-              width={836}
-              height={800}
-              loading="lazy"
-            />
-            <figcaption>COLLABORATION / A SHARED ENGINEERING MINDSET</figcaption>
-          </figure>
-        </Reveal>
         <section className="chapter-timeline">
           <div className="chapter-section-heading">
             <div>
