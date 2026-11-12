@@ -116,6 +116,7 @@ function ContentManager() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const applyDocument = useCallback((next: ContentDocument) => {
     setDoc(next);
@@ -242,6 +243,10 @@ function ContentManager() {
     if (content) void act("draft", { content });
   }
 
+  let previewLists: ListPart = {};
+  let previewError = "";
+  try { previewLists = JSON.parse(listsJson || "{}") as ListPart; } catch { previewError = "List data contains invalid JSON."; }
+  const previewTitle = basics.headline?.trim() || PROFILES.find((profile) => profile.id === profileId)?.label || profileId;
   const input = "mt-2 w-full rounded border border-border bg-background p-2 text-sm";
 
   return (
