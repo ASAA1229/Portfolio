@@ -256,6 +256,20 @@ export function usePublishedProjectImages(profileId: string, projectSlug: string
   );
 }
 
+/** Shared validated public image feed for profile selectors and cross-profile views. */
+export function usePublishedImageFeed(): PublishedProfileImage[] {
+  const [images, setImages] = useState<PublishedProfileImage[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/published-images", { headers: { accept: "application/json" }, cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: unknown) => { if (active) setImages(normalizePublishedImageFeed(payload)); })
+      .catch(() => { if (active) setImages([]); });
+    return () => { active = false; };
+  }, []);
+  return images;
+}
+
 /** Shared client hook for all currently published images belonging to a profile. */
 export function usePublishedProfileImages(profileId: string): PublishedProfileImage[] {
   const [state, setState] = useState<{ profileId: string; images: PublishedProfileImage[] }>(() => ({ profileId, images: [] }));
