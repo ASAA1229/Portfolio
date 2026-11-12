@@ -346,3 +346,15 @@ No tests, builds, typecheck, lint, browser checks, CI or R2 verification were ru
 - Defined PORT-US-050 acceptance for profile isolation, draft privacy, publish/replace/unpublish/restore behavior, resource placement and no-code-change public updates.
 
 Still open: inspect every profile route and every media placement; verify runtime cache behavior on publish/replace/unpublish/rollback (source now sends max-age=0, must-revalidate); ensure active-resource state and version controls are clear in Admin; prove storage failure and missing-original behavior; test the complete four-profile lifecycle. No tests, build, typecheck, lint, browser, accessibility or CI checks were run because validation remains paused. Do not mark PORT-US-050 or PORT-E04 accepted.
+
+
+### PORT-US-050 — Admin active-resource visibility increment (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+- Image inventory reads both private admin records and the public published-image feed.
+- Admin distinguishes the currently selected portrait/gallery resources from approved-but-not-selected records.
+- Filtered inventory now has a deliberate no-results state.
+- Public feed errors remain an unknown state; they are not presented as successful publication.
+
+Remaining work: verify all placement rules and profile surfaces; provide explicit version restore for images where supported; surface active published resume/version in the resume inventory; validate publish/unpublish/replacement and storage recovery when validation resumes.
