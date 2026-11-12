@@ -501,3 +501,8 @@ Admin-managed resumes and images are intended to be the source of truth for publ
 - Existing resume metadata continues to populate published profile headline, summary, skills, structured experience, education, projects, certifications and contact surfaces where supported.
 
 The endpoint has not been tested. Published feed and media responses now require immediate revalidation (`max-age=0`); runtime cache behavior, storage failures, profile isolation, browser download behavior and all four profile journeys remain unverified. Validation is still paused.
+
+
+## Admin image inventory — active public resource visibility (2026-11-12)
+
+The image manager now compares private inventory records with the public published-image feed. It identifies the currently selected portrait per profile and published gallery items as “Live on profile”, while distinguishing other approved images as “Published · not selected”. It also displays a specific empty state when the active search/profile/status filters return no results. If the public feed cannot be read, Admin does not claim that a resource is live. This is source implementation only; runtime behavior has not been validated.
