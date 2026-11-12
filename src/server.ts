@@ -2663,6 +2663,11 @@ function checkRuntimeConfig(env: unknown): void {
           : "";
     if (
       !has("PORTFOLIO_ADMIN_PASSWORD") ||
+      (typeof bindings["PORTFOLIO_ADMIN_PASSWORD"] === "string"
+        ? (bindings["PORTFOLIO_ADMIN_PASSWORD"] as string).trim().length
+        : typeof process !== "undefined"
+          ? (process.env["PORTFOLIO_ADMIN_PASSWORD"] ?? "").trim().length
+          : 0) < 12 ||
       new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
     ) {
       missing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)");
