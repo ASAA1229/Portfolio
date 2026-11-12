@@ -757,11 +757,15 @@ function storageFailure(error: unknown, operation: string): Response {
 }
 
 function imageStorageFailure(error: unknown, operation: string): Response {
-  console.error(`Portfolio image ${operation} failed while writing the index.`, error);
+  const restored = !(error instanceof StorageCommitError) || error.restored;
+  console.error(`Portfolio image ${operation} failed while writing storage.`, error);
   return jsonResponse(
     {
-      error: `The image ${operation} could not be saved. The previous state was restored; please retry.`,
+      error: restored
+        ? `The image ${operation} could not be saved. Nothing was changed; please retry.`
+        : `The image ${operation} failed part-way and could not be fully reverted. Refresh and review the published state before retrying.`,
       code: "IMAGE_STORAGE_COMMIT_FAILED",
+      restored,
       ...(import.meta.env.DEV === true
         ? { detail: error instanceof Error ? error.message : "Unknown storage error." }
         : {}),
@@ -1697,9 +1701,6 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${expectedExtension}`;
     const privateKey = `private-admin/images/files/${id}`;
     const publicKey = `public/profile-images/${id}`;
-    let storedPrivate = false;
-    let storedPublic = false;
-    let indexed = false;
     try {
       const records = await readImageIndex(bucket);
       const record: PortfolioImageRecord = {
@@ -1727,31 +1728,11 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
           contentType: "application/json; charset=utf-8",
         },
       ]);
-      indexed = true;
       return jsonResponse({ image: record }, 201);
     } catch (error) {
       // Keep the API failure actionable during local development instead of
       // allowing the framework to replace it with an opaque HTTPError response.
       console.error("Portfolio image upload failed while storing or indexing the image.", error);
-      const cleanupFailures: string[] = [];
-      if (!indexed) {
-        if (storedPublic) {
-          try {
-            await bucket.delete(publicKey);
-          } catch (cleanupError) {
-            cleanupFailures.push("public image cleanup failed");
-            console.error("Failed to clean up an incomplete public image upload.", cleanupError);
-          }
-        }
-        if (storedPrivate) {
-          try {
-            await bucket.delete(privateKey);
-          } catch (cleanupError) {
-            cleanupFailures.push("private image cleanup failed");
-            console.error("Failed to clean up an incomplete private image upload.", cleanupError);
-          }
-        }
-      }
       return jsonResponse(
         {
           error:
