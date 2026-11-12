@@ -22,6 +22,11 @@ describe("private admin authentication", () => {
     );
   });
 
+  it("rejects weak configured owner passwords", () => {
+    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_PASSWORD: "short" })).toBe(false);
+    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_PASSWORD: "long-enough-password" })).toBe(true);
+  });
+
   it("rejects missing or weak session-signing secrets", () => {
     expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "too-short" })).toBe(false);
     expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(31) })).toBe(false);
