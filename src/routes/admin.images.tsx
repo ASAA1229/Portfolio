@@ -429,7 +429,7 @@ function ImageManager() {
               <input
                 className="min-h-11 rounded border border-border bg-background px-3"
                 value={projectSlug}
-                onChange={(event) => setProjectSlug(event.target.value.toLowerCase().replace(/\\s+/g, "-"))}
+                onChange={(event) => setProjectSlug(event.target.value.toLowerCase().replace(/\s+/g, "-"))}
                 maxLength={80}
                 pattern="[a-z0-9][a-z0-9-]{0,79}"
                 placeholder="e.g. data-analysis-ai"
