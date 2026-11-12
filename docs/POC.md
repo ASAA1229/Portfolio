@@ -460,3 +460,14 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Existing tests also cover public-feed failures before and after persistence and rejection of reconciliation when a private original is missing.
 - **Still open:** durable recovery records when compensation itself fails, cross-request/distributed concurrency, post-commit private-original cleanup failure handling and hosted R2 acceptance.
 - **Validation:** tests authored only; no tests/build/typecheck/lint/browser/CI executed. Validation remains paused.
+
+
+## Current development increment — admin control room and unified navigation (2026-11-12)
+
+- Added `src/components/AdminNavigation.tsx` as the shared navigation for the private owner workspace.
+- Integrated consistent navigation into the content, AI persona, resume, image, backup/restore and audit managers.
+- Rebuilt `/admin` as a control room for all four profiles. It reads the existing admin APIs and summarizes resume/image review queues, content/persona draft and published states, storage availability and recent audit actions.
+- Added direct public-profile and editor shortcuts, manual refresh, and local/all-device session sign-out controls.
+- Dashboard aggregation is read-only. When an API source is unavailable, the dashboard identifies it and warns that counts may be incomplete rather than implying a complete inventory.
+- Added PORT-US-049 to `docs/USER_STORIES.md`; the admin experience is implemented in source but is not accepted or complete until validation and owner review.
+- **Validation:** no tests, build, typecheck, lint, browser/device/accessibility checks or CI were run. Testing remains paused.
