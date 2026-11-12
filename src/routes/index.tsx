@@ -1,14 +1,12 @@
 import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Code2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import { Reveal } from "@/components/Reveal";
 import { ProjectCard, ResumeAction, SocialLinks } from "@/components/SitePrimitives";
 import { pageHead } from "@/lib/site-data";
-import { usePublishedProfileResume } from "@/lib/published-resume";
-import portrait from "@/assets/my_1.jpeg";
+import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/")({
   head: () =>
@@ -20,25 +18,12 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 function Home() {
-  const [publishedPortrait, setPublishedPortrait] = useState<string | null>(null);
   const publishedResume = usePublishedProfileResume("abhishek");
+  const publishedImages = usePublishedProfileImages("abhishek");
+  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   // Owner CMS edits (headline, summary, projects) over curated content.
   const content = useAbhishekContent();
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { images: [] }))
-      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
-        if (!active) return;
-        const portraits = (payload.images ?? []).filter(
-          (image) => image.profileId === "abhishek" && image.slot === "portrait",
-        );
-        setPublishedPortrait(portraits.slice(-1)[0]?.src ?? null);
-      })
-      .catch(() => {
-        if (active) setPublishedPortrait(null);
-      });
-    return () => {
+  return () => {
       active = false;
     };
   }, []);
@@ -46,8 +31,8 @@ function Home() {
     <>
       <section className="home-hero">
         <img
-          src={publishedPortrait ?? portrait}
-          alt="Existing AI-stylized portrait of Guda Abhishek"
+          src={publishedPortrait?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
+          alt={publishedPortrait?.alt ?? "Portrait of Guda Abhishek"}
           width={768}
           height={768}
           fetchPriority="high"
