@@ -3,6 +3,14 @@
 ## Product objective
 Deliver **ABHISHEK: THE SERIES**, a polished, accessible, cinematic portfolio platform for four people. Each profile must be factually accurate, individually complete, visually coherent, independently manageable and isolated. The owner manages content, images, resumes and personas through Admin and publishes changes without editing application code.
 
+## Current execution constraints — 2026-11-12
+
+- Active development branch: `new` only.
+- **Validation is paused** until the owner explicitly resumes it. Do not run tests, builds, typechecks, lint, audits, browser/device/accessibility checks, CI/Jenkins or release validation during this pause.
+- Test source may be authored; test results must not be claimed until explicitly run.
+- No merge to `dev`/`main`, production changes, deployment or release without separate explicit approval.
+- Older historical status notes below are retained as history and do not override these current constraints.
+
 ## Product principles
 - Facts must be grounded in owner-approved content or approved resumes; never invent credentials or achievements.
 - Public content is published deliberately; drafts, private originals, review notes and secrets remain private.
@@ -48,6 +56,36 @@ Public multi-section profile pages; profile picker and navigation; owner Admin c
 - Admin now provides a nine-point owner checklist and records reviewer, server timestamp, exact published content version and accepted exceptions in the private CMS document.
 - A new publish/rollback makes the prior sign-off stale; sign-off cannot be recorded until content is published and every review item is explicitly checked.
 - Record completeness and sign-off per profile, including reviewer/date, approved versions and exceptions.
+
+## PORT-US-051 — Resource lifecycle integrity validation (P1; inspector implemented, validation pending)
+
+- A read-only authenticated Admin inspection compares resume and image indexes with their private originals and public copies.
+- Report missing resume originals, orphaned resume files, invalid/out-of-sync published resume feeds, missing image originals, orphaned image originals, missing approved public copies, stale/orphaned public copies and incomplete immutable image-version byte/metadata pairs.
+- The Admin Image Manager exposes the report and clearly states that inspection does not mutate storage.
+- Pure lifecycle inspection test source covers healthy state, missing files, feed drift, orphaned/stale files, incomplete version pairs and unreadable feeds. Tests have not been executed.
+- Remediation remains an explicit owner-controlled action. Inspection must never silently delete, republish or rewrite resources.
+- Remaining acceptance: verify every finding against real storage, exercise recovery and failed-write scenarios, check resume/image history and cleanup behavior, and obtain owner acceptance for all four profiles.
+
+## Visitor journeys, accessibility, performance and release readiness (P1; acceptance work open)
+
+### Visitor journeys
+- Verify first-visit discovery, profile selection, each profile's navigation, project discovery/detail, resume access, contact actions, cross-profile isolation, unknown routes and return navigation.
+- Cover desktop, tablet and mobile; include keyboard-only journeys and reduced-motion preferences.
+- Confirm each journey has meaningful loading, empty, unavailable and error states.
+
+### Accessibility
+- Meet WCAG 2.2 AA for applicable public and Admin experiences.
+- Verify semantic landmarks/headings, accessible names and descriptions, image alternatives, keyboard operation, visible focus, focus order, dialogs, form errors, contrast, zoom/reflow and reduced motion.
+- Include automated checks plus manual keyboard and assistive-technology review. Automated checks alone do not close the story.
+
+### Performance
+- Establish representative desktop/mobile measurements for LCP, INP and CLS, plus route bundle size and image payload.
+- Optimize responsive image formats/sizes, lazy loading, font loading, caching and route/data work without weakening privacy or freshness.
+- Record baseline and post-change evidence on the exact candidate commit and realistic device/network profiles.
+
+### Release readiness
+- Require a complete owner-approved four-profile content and asset review; current-head automated checks and CI evidence; accessibility and performance acceptance; SEO/sitemap correctness; storage backup/restore and rollback rehearsal; admin/security review; operational monitoring and recovery instructions; dependency/SBOM/provenance evidence; and a documented rollback plan.
+- Release readiness is a report and gate, not permission to deploy. Production release requires separate explicit owner approval.
 
 ## Definition of done
 All four profiles contain approved and isolated content; every public route and CMS field behaves consistently; resume/image publishing and recovery are safe; Admin is secure; JARVIS is privacy-safe and reports availability honestly; SEO, accessibility, responsiveness and performance meet acceptance; exact-head engineering/CI evidence is green; backup/restore and rollback are rehearsed; owner explicitly approves release. Source changes alone do not satisfy completion.
