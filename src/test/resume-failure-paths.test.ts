@@ -36,7 +36,11 @@ function failingBucket() {
   const dir = mkdtempSync(path.join(os.tmpdir(), "portfolio-failure-"));
   temps.push(dir);
   const disk = createLocalDiskBucket(dir);
-  const state = { failFeed: false, failFeedAfterWrite: false };
+  const state = {
+    failFeed: false,
+    failFeedAfterWrite: false,
+    failHistoryAfterWrite: false,
+  };
   const bucket = new Proxy(disk, {
     get(target, property) {
       if (property === "put") {
@@ -54,6 +58,13 @@ function failingBucket() {
           if (state.failFeedAfterWrite && key === "public/approved-resumes.json") {
             state.failFeedAfterWrite = false;
             throw new Error("simulated ambiguous write failure after persistence");
+          }
+          if (
+            state.failHistoryAfterWrite &&
+            key.startsWith("private-admin/resumes/history/")
+          ) {
+            state.failHistoryAfterWrite = false;
+            throw new Error("simulated ambiguous history write failure after persistence");
           }
           return result;
         };
@@ -231,4 +242,51 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
   });
   const feedAfter = await (await bucket.get("public/approved-resumes.json"))!.text();
   expect(feedAfter).toBe(feedBefore);
+  it("reverts index, public feed and history when the history write fails ambiguously", async () => {
+    const { bucket, state } = failingBucket();
+    const env = {
+      ENVIRONMENT: "development",
+      PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+      RESUME_BUCKET: bucket,
+    };
+    const form = new FormData();
+    form.set("profileId", "bava");
+    form.set(
+      "file",
+      new File([encoder.encode("%PDF-1.4 resume")], "bava.pdf", { type: PDF }),
+      "bava.pdf",
+    );
+    const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+    expect(uploaded.status).toBe(201);
+    const { resume } = (await uploaded.json()) as { resume: { id: string } };
+    state.failHistoryAfterWrite = true;
+
+    const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profileId: "bava",
+        displayName: "Bava",
+        headline: "Engineer",
+        summary: "Summary",
+        skills: ["TypeScript"],
+      }),
+    });
+    expect(published.status).toBe(500);
+    expect(await published.json()).toMatchObject({
+      code: "RESUME_STORAGE_COMMIT_FAILED",
+      restored: true,
+    });
+
+    const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
+      resumes: Array<{ id: string; status: string }>;
+    };
+    expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
+    const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
+      resumes: unknown[];
+    }>();
+    expect(feed.resumes).toEqual([]);
+    expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
+  });
+
 });
