@@ -49,7 +49,7 @@
 - **2026-11-09 development increment:** valid-format but unknown profile project slugs now throw the route's not-found result and use the route's 404 boundary rather than rendering a missing page with HTTP 200. Commit: `96e2a4ca65605aef92b3cea737b7312641d601fb`.
 
 ### Remaining development
-1. Complete CMS coverage for Abhishek's root pages and ensure all profile routes consume published overrides consistently.
+1. **Implemented in source (2026-11-12):** Abhishek's root portfolio now consumes published CMS contact details, secure GitHub/LinkedIn overrides and editable skill groups; the CMS editor exposes skill groups, and shared profile merging applies them to the four profile experiences. Remaining: published SEO/navigation overrides and route-by-route acceptance evidence.
 2. Finish resume publish/rollback/unpublish failure reconciliation and durable-storage behavior.
 3. **Implemented in source (2026-11-12):** backup/restore now requires every referenced resume/image binary, validates SHA-256 before writes, and rejects incomplete source migrations before destination writes. Regression tests are authored but not run; storage failure-injection and hosted R2 verification remain open.
 4. Complete admin authentication/session hardening and production R2 configuration readiness.
@@ -420,3 +420,14 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Restore has a second defensive check and performs no writes for an incomplete payload.
 - Migration stops before destination writes when the source is incomplete.
 - **Validation:** NOT RUN by instruction. The tests are authored only; no build, typecheck, lint, test, browser, audit or CI result is claimed.
+
+
+## Current development increment — root CMS coverage (2026-11-12)
+
+- **Branch:** `new`
+- Root contact panel and contact landing page now prefer approved published resume contact details, then owner-published CMS details, then curated defaults.
+- Homepage GitHub/LinkedIn links consume CMS social overrides. Only HTTPS URLs on the expected LinkedIn/GitHub domains are accepted for those links; invalid or mismatched URLs fall back to curated destinations.
+- CMS supports validated skill groups (unique categories, unique items, bounded text/list sizes); the admin content editor exposes the new field.
+- Abhishek's root Skills page renders published CMS skill groups. Shared person-profile merging also applies skill overrides to the other profile experiences.
+- Added regression tests for contact fallback/URL validation, skill override/fallback and skill schema validation/profile merge.
+- **Validation:** tests are authored only and remain unrun. No build, typecheck, lint, browser, accessibility or production result is claimed.
