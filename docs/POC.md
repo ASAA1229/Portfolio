@@ -561,3 +561,6 @@ Implementation and test source only. No tests, builds, typechecks, lint, browser
 ### PORT-US-045 follow-up — resume binary write boundaries (2026-11-12)
 
 Resume upload now journals the private original and index together. Resume deletion now journals the private index, public approved feed, history redaction and original binary deletion as one recoverable transaction. Added failure-injection test source for ambiguous upload-index and original-delete failures. These changes remain unvalidated; distributed concurrency and hosted R2 acceptance remain open.
+
+
+PORT-US-046 configuration note: owner password minimum is 12 characters and session signing secret minimum is 32 UTF-8 bytes. Session epoch values must be safe integers. The login attempt throttle is currently isolate-local, not distributed; hosting-level rate limiting and secret rotation remain production-readiness work.
