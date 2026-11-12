@@ -121,8 +121,15 @@ export async function runStorageTransaction(bucket: RecoveryBucket, mutations: S
       await writeJournal(bucket, journal);
     } catch (error) {
       let restored = false;
-      try { await recoverUnsafe(bucket); restored = true; }
-      catch (recoveryError) { console.error("Durable storage recovery remains pending.", recoveryError); }
+      try {
+        const recovery = await recoverUnsafe(bucket);
+        // A provider may persist the committed marker and then reject the
+        // response. In that case the data is committed, not rolled back.
+        if (recovery.state === "committed") return;
+        restored = recovery.recovered;
+      } catch (recoveryError) {
+        console.error("Durable storage recovery remains pending.", recoveryError);
+      }
       throw new StorageTransactionError(restored, error);
     }
     // A committed journal is cleanup-only; cleanup failure is safe to retry later.
