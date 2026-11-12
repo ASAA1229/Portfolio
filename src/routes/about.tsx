@@ -22,6 +22,7 @@ function About() {
   const { headline, summary, story, education, contact, missions } = useAbhishekContent();
   const publishedResume = usePublishedProfileResume("abhishek");
   const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const resumeExperience = publishedResume?.structuredSections?.experience ?? [];
   const educationTitle = resumeEducation?.title || education?.qualification || "B.Tech Information Technology";
   const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || education?.period || "2022–2026";
   const educationLocation = resumeEducation?.location || education?.location || contact.location || "Hyderabad, India";
@@ -148,7 +149,29 @@ function About() {
             <Sparkles aria-hidden="true" />
           </div>
           <div className="milestone-list">
-            {missions.length === 0 ? (
+            {resumeExperience.length > 0 ? (
+              resumeExperience.map((entry, i) => {
+                const title = typeof entry === "string"
+                  ? entry
+                  : entry.organization || entry.title || entry.role || "Experience";
+                const period = typeof entry === "string"
+                  ? ""
+                  : [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
+                const description = typeof entry === "string" ? "" : entry.description || "";
+                return (
+                  <Reveal key={i} delay={i * 0.04}>
+                    <article className="milestone">
+                      <span>{period}</span>
+                      <div>
+                        <h3>{title}</h3>
+                        {description && <p>{description}</p>}
+                      </div>
+                      <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
+                    </article>
+                  </Reveal>
+                );
+              })
+            ) : missions.length === 0 ? (
               <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
                 No experience milestones have been published yet.
               </p>
