@@ -62,7 +62,11 @@ function Experience() {
               </p>
             </section>
             <div id="timeline" className="career-timeline">
-              {missions.map((job, i) => (
+              {missions.length === 0 ? (
+                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                  No experience entries have been published yet.
+                </p>
+              ) : missions.map((job, i) => (
                 <Reveal key={job.id} delay={i * 0.08}>
                   <article className="career-chapter">
                     <div className="career-rail">
