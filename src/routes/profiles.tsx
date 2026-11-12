@@ -51,8 +51,8 @@ function ProfileSelect() {
   };
 
   return (
-    <div className="relative flex min-h-svh flex-col bg-background px-5 py-8 sm:px-12">
-      <header className="flex items-center justify-between">
+    <div className="profile-selector-page relative flex min-h-svh flex-col bg-background px-5 py-8 sm:px-12">
+      <header className="profile-selector-header flex items-center justify-between gap-4">
         <Link
           to="/"
           aria-label="Return to Abhishek's portfolio home"
@@ -97,13 +97,13 @@ function ProfileSelect() {
                 asChild
                 variant="bare"
                 size="auto"
-                className="group block text-center"
+                className="profile-selector-card group block text-center"
               >
                 <Link to="/people/$person" params={{ person: profile.id }} className="min-w-0">
-                  <span className="block rounded ring-2 ring-transparent transition-all duration-200 group-hover:scale-[1.04] group-hover:ring-foreground group-focus-visible:ring-foreground group-active:scale-95">
+                  <span className="block rounded-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-primary/50 group-focus-visible:ring-primary/70 group-active:scale-[0.985]">
                     <span
                       aria-hidden="true"
-                      className={`${profile.color} relative flex aspect-square w-full items-center justify-center overflow-hidden rounded font-display text-6xl text-primary-foreground shadow-2xl ring-1 ring-white/10 sm:text-7xl`}
+                      className={`profile-selector-portrait ${profile.color} relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg font-display text-6xl text-primary-foreground shadow-2xl ring-1 ring-white/10 sm:text-7xl`}
                     >
                       <span className="absolute inset-0 flex items-center justify-center">
                         {profile.initials}
@@ -126,7 +126,7 @@ function ProfileSelect() {
                       <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
                     </span>
                   </span>
-                  <span className="mt-4 block min-h-10 text-sm text-foreground transition-colors group-hover:text-primary sm:text-base">
+                  <span className="profile-selector-meta mt-2 block min-h-10 text-sm text-foreground transition-colors group-hover:text-primary sm:text-base">
                     {profile.name}
                     {profile.nickname && (
                       <span className="mt-1 block text-xs text-muted-foreground">
