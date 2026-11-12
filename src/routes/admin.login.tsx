@@ -64,7 +64,6 @@ function AdminLogin() {
             type="password"
             autoComplete="current-password"
             required
-            minLength={12}
             maxLength={1024}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -78,7 +77,7 @@ function AdminLogin() {
           )}
           <button
             type="submit"
-            disabled={busy || password.length < 12}
+            disabled={busy || Array.from(password).length < 12}
             className="flex min-h-12 w-full items-center justify-center gap-2 bg-violet-300 px-4 text-sm font-semibold text-black transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ShieldCheck className="size-4" /> {busy ? "Verifying…" : "Authenticate"}
