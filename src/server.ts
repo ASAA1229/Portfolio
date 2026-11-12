@@ -1417,7 +1417,8 @@ type PortfolioImageRecord = {
   status: "pending" | "approved";
   profileId: "abhishek" | "ammu" | "bava" | "sai";
   alt: string;
-  slot?: "gallery" | "portrait";
+  slot?: "gallery" | "portrait" | "project";
+  projectSlug?: string;
 };
 const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -1448,7 +1449,9 @@ function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
     typeof record.alt === "string" &&
     record.alt.trim().length > 0 &&
     record.alt.length <= 300 &&
-    (record.slot === undefined || record.slot === "gallery" || record.slot === "portrait")
+    (record.slot === undefined || ["gallery", "portrait", "project"].includes(record.slot)) &&
+    (record.projectSlug === undefined || (typeof record.projectSlug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(record.projectSlug))) &&
+    (record.slot !== "project" || typeof record.projectSlug === "string")
   );
 }
 
@@ -1660,6 +1663,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         filename,
         contentType,
         slot: slot ?? "gallery",
+        ...(slot === "project" && item.projectSlug ? { projectSlug: item.projectSlug } : {}),
         src: `/api/published-images/${id}`,
       }));
     return jsonResponse({ images }, 200, { "cache-control": PUBLIC_FEED_CACHE });
@@ -1702,8 +1706,11 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const profileId = form?.get("profileId");
     const alt = form?.get("alt");
     const requestedSlot = form?.get("slot");
-    const slot =
-      requestedSlot === "portrait" ? "portrait" : requestedSlot === "gallery" ? "gallery" : null;
+    const slot = ["portrait", "gallery", "project"].includes(String(requestedSlot))
+      ? (requestedSlot as "portrait" | "gallery" | "project")
+      : null;
+    const requestedProjectSlug = form?.get("projectSlug");
+    const projectSlug = typeof requestedProjectSlug === "string" ? requestedProjectSlug.trim() : "";
     const publishOnUpload = form?.get("publishOnUpload") === "true";
     if (
       !isUploadedImageFile(file) ||
@@ -1711,7 +1718,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       !["abhishek", "ammu", "bava", "sai"].includes(profileId) ||
       typeof alt !== "string" ||
       !alt.trim() ||
-      !slot
+      !slot ||
+      (slot === "project" && !/^[a-z0-9][a-z0-9-]{0,79}$/.test(projectSlug)) ||
+      (slot !== "project" && projectSlug !== "")
     )
       return jsonResponse(
         { error: "Choose an image, profile, image placement and descriptive alt text." },
@@ -1737,6 +1746,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         profileId: profileId as PortfolioImageRecord["profileId"],
         alt: alt.trim().slice(0, 300),
         slot,
+        ...(slot === "project" ? { projectSlug } : {}),
       };
       const bytes = await file.arrayBuffer();
       records.push(record);
