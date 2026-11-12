@@ -21,8 +21,29 @@ describe("SEO head helper", () => {
       "og:description": "Bio",
       "og:url": "/about",
       "twitter:card": "summary_large_image",
+      "og:site_name": "ABHISHEK: THE SERIES",
+      "og:image": "/images/profiles/abhishek/abhishek_main.jpeg",
+      "twitter:image": "/images/profiles/abhishek/abhishek_main.jpeg",
     });
     expect(head.links).toEqual([{ rel: "canonical", href: "/about" }]);
+  });
+
+  it("uses profile-scoped social images and absolute social URLs", () => {
+    const head = seoHead({
+      title: "Amulya — Portfolio",
+      description: "Profile",
+      path: "/people/ammu",
+      image: "/images/profiles/amulya/amulya_main.webp",
+      imageAlt: "Amulya profile portrait",
+    });
+    expect(head.meta).toContainEqual({
+      property: "og:image",
+      content: "/images/profiles/amulya/amulya_main.webp",
+    });
+    expect(head.meta).toContainEqual({
+      name: "twitter:image:alt",
+      content: "Amulya profile portrait",
+    });
   });
 
   it("marks private pages noindex and omits their canonical link", () => {

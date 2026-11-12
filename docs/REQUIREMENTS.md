@@ -20,8 +20,9 @@ Deliver **ABHISHEK: THE SERIES**, a polished, accessible, cinematic portfolio pl
 Public multi-section profile pages; profile picker and navigation; owner Admin control room; CMS draft/preview/publish/unpublish/history/rollback; profile-scoped image/resume feeds; image version restore; resume processing and structured editing; persona management; audit; backup/restore/recovery; profile-grounded JARVIS AI; SEO/canonical/social metadata/sitemap/robots/404; privacy controls; CI/CD provenance, artifact integrity, SBOM, signing and customer verification.
 
 ## Priority owner-directed stories
-### PORT-US-044 — Published SEO and social metadata (P1; partial, development/testing required)
+### PORT-US-044 — Published SEO and social metadata (P1; partial implementation, validation pending)
 - Emit published metadata in server-rendered HTML for root, profile, section and project routes.
+- Shared metadata now emits the branded site name, locale, Open Graph image and alt text, and Twitter image tags; profile pages use their own local portrait image.
 - Validate canonical URL, title, description, Open Graph and social image; enforce correct profile scope.
 - Use safe profile-specific defaults when fields are absent.
 - Sitemap and robots reflect routes actually public.

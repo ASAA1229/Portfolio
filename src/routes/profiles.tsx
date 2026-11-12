@@ -4,26 +4,19 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { PEOPLE } from "@/lib/person-portfolios";
+import { seoHead } from "@/lib/seo-head";
 import { MOTION_TOKENS } from "@/lib/motion";
 
 export const Route = createFileRoute("/profiles")({
-  head: () => ({
-    meta: [
-      { title: "Who's Watching? — Choose Your Portfolio" },
-      {
-        name: "description",
-        content:
-          "Choose Abhishek, Amulya (Ammu), Anjini (Bava), or Sai (Darling) and explore their individual portfolios.",
-      },
-      { property: "og:title", content: "Who's Watching? — Choose Your Portfolio" },
-      {
-        property: "og:description",
-        content: "Four people. Individual stories. Explore Abhishek, Amulya, Anjini, and Sai.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Who's Watching? — Choose Your Portfolio",
+      description:
+        "Choose Abhishek, Amulya (Ammu), Anjini (Bava), or Sai (Darling) and explore their individual portfolios.",
+      path: "/profiles",
+      image: "/images/profiles/abhishek/abhishek_main.jpeg",
+      imageAlt: "ABHISHEK: THE SERIES profile selector",
+    }),
   component: ProfileSelect,
 });
 

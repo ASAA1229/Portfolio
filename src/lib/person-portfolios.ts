@@ -565,5 +565,11 @@ export function getPersonProject(person: string, slug: string) {
 export function personHead(person: string, page: string, description: string, path: string) {
   const name =
     getPersonPortfolio(person)?.name ?? (person === "bava" ? "Anjini (Bava)" : "Guda Abhishek");
-  return seoHead({ title: `${page} — ${name}`, description, path });
+  const profile = getPersonPortfolio(person);
+  return seoHead({
+    title: `${page} — ${name}`,
+    description,
+    path,
+    ...(profile ? { image: profile.portrait, imageAlt: `${profile.displayName} profile portrait` } : {}),
+  });
 }
