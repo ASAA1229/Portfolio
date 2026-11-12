@@ -11,12 +11,37 @@
  * summary) prefer the explicit CMS edit over resume-derived text.
  */
 import { useMemo } from "react";
-import { CERTS, MISSIONS } from "@/lib/portfolio-data";
+import { CERTS, CONTACT, MISSIONS } from "@/lib/portfolio-data";
 import { siteProjects } from "@/lib/site-data";
 import { usePublishedContent } from "@/lib/published-content";
 import type { ContentOverrides } from "@/lib/cms-content";
 
 export type SiteProject = (typeof siteProjects)[number];
+
+export function mergeAbhishekContact(overrides: ContentOverrides | null) {
+  const basics = overrides?.basics;
+  const socials = basics?.socials ?? [];
+  const secureSocial = (platform: string, fallback: string | null) => {
+    const candidate = socials.find((item) => item.platform.trim().toLowerCase() === platform)?.handle.trim();
+    if (!candidate) return fallback;
+    try {
+      const url = new URL(candidate);
+      return url.protocol === "https:" &&
+        (url.hostname === `${platform}.com` || url.hostname.endsWith(`.${platform}.com`))
+        ? url.toString()
+        : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    email: basics?.email || CONTACT.email,
+    phone: basics?.phone || CONTACT.phone,
+    location: basics?.location || CONTACT.location,
+    linkedin: secureSocial("linkedin", CONTACT.linkedin),
+    github: secureSocial("github", CONTACT.github),
+  };
+}
 export type Mission = (typeof MISSIONS)[number];
 type Cert = readonly [string, string];
 
@@ -104,6 +129,7 @@ export function useAbhishekContent() {
       hasCustomExperience: Boolean(overrides?.experience?.length),
       hasCustomCerts: Boolean(overrides?.certifications?.length),
       education: overrides?.education,
+      contact: mergeAbhishekContact(overrides),
     }),
     [overrides],
   );
