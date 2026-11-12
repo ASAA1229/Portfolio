@@ -15,6 +15,7 @@ import { CONTENT_PROFILE_IDS, contentKey, isContentDocument } from "@/lib/cms-co
 import { PERSONA_PROFILE_IDS, isPersonaDocument, personaKey } from "@/lib/persona";
 import { historyKey, isPublishHistory } from "@/lib/resume-publish-history";
 import { AUDIT_LOG_KEY } from "@/lib/admin-audit";
+import { runStorageTransaction, StorageTransactionError } from "@/lib/storage-recovery";
 
 export const BACKUP_FORMAT = "portfolio-admin-backup";
 export const BACKUP_VERSION = 2;
@@ -278,8 +279,7 @@ export async function restoreBackup(
   // of using validateBackup. Never replace an index without all referenced files.
   if (backup.missingFiles.length) {
     const preview = backup.missingFiles.slice(0, 5).join(", ");
-    const remainder =
-      backup.missingFiles.length > 5 ? ` (+${backup.missingFiles.length - 5} more)` : "";
+    const remainder = backup.missingFiles.length > 5 ? ` (+${backup.missingFiles.length - 5} more)` : "";
     return {
       ok: false,
       error: `Backup is incomplete: ${backup.missingFiles.length} referenced file(s) are missing: ${preview}${remainder}.`,
@@ -290,58 +290,25 @@ export async function restoreBackup(
   const documents = [...backup.entries].sort(
     ([a], [b]) => Number(indexKeys.has(a)) - Number(indexKeys.has(b)),
   );
-  const writes: { key: string; value: Uint8Array | string; contentType?: string }[] = [
+  const writes = [
     ...backup.files.map(([key, file]) => ({
-      key,
-      value: file.bytes,
-      ...(file.contentType ? { contentType: file.contentType } : {}),
+      key, operation: "put" as const, value: file.bytes, contentType: file.contentType,
     })),
     ...documents.map(([key, value]) => ({
-      key,
-      value: JSON.stringify(value),
+      key, operation: "put" as const, value: JSON.stringify(value),
       contentType: "application/json; charset=utf-8",
     })),
   ];
-
-  const previous: { key: string; bytes: Uint8Array | null; contentType?: string }[] = [];
-  const restored: string[] = [];
   try {
-    for (const write of writes) {
-      const existing = await storage.get(write.key);
-      previous.push({
-        key: write.key,
-        bytes: existing ? new Uint8Array(await existing.arrayBuffer()) : null,
-        ...(existing?.httpMetadata?.contentType
-          ? { contentType: existing.httpMetadata.contentType }
-          : {}),
-      });
-      await storage.put(write.key, write.value, {
-        ...(write.contentType ? { httpMetadata: { contentType: write.contentType } } : {}),
-      });
-      restored.push(write.key);
-    }
-    return { ok: true, restored };
+    await runStorageTransaction(storage, writes);
+    return { ok: true, restored: writes.map((write) => write.key) };
   } catch (error) {
-    let rolledBack = true;
-    for (const snapshot of [...previous].reverse()) {
-      try {
-        if (snapshot.bytes) {
-          await storage.put(snapshot.key, snapshot.bytes, {
-            ...(snapshot.contentType
-              ? { httpMetadata: { contentType: snapshot.contentType } }
-              : {}),
-          });
-        } else {
-          await storage.delete(snapshot.key);
-        }
-      } catch {
-        rolledBack = false;
-      }
-    }
     return {
       ok: false,
       error: error instanceof Error ? error.message : "Storage write failed.",
-      rolledBack,
+      // Preparation errors happen before target mutation. Transaction errors
+      // report whether the durable journal successfully restored the old state.
+      rolledBack: error instanceof StorageTransactionError ? error.restored : true,
     };
   }
 }
