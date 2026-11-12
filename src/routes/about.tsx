@@ -148,7 +148,11 @@ function About() {
             <Sparkles aria-hidden="true" />
           </div>
           <div className="milestone-list">
-            {missions.map((item, i) => (
+            {missions.length === 0 ? (
+              <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                No experience milestones have been published yet.
+              </p>
+            ) : missions.map((item, i) => (
               <Reveal key={item.id} delay={i * 0.04}>
                 <article className="milestone">
                   <span>{item.period}</span>
