@@ -16,6 +16,11 @@ type ImageRecord = {
   projectSlug?: string;
 };
 type ImageVersion = { version: string; filename: string; contentType: string; size: number; uploadedAt: string };
+type LifecycleReport = {
+  healthy: boolean;
+  summary: { resumes: number; publishedResumes: number; images: number; publishedImages: number; findings: number; errors: number; warnings: number };
+  findings: { code: string; resource: string; id: string; severity: "error" | "warning" }[];
+};
 type ImageListPayload = {
   images?: ImageRecord[];
   error?: string;
@@ -65,6 +70,7 @@ function ImageManager() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [lifecycleReport, setLifecycleReport] = useState<LifecycleReport | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [profileId, setProfileId] = useState<ImageRecord["profileId"]>("abhishek");
   const [alt, setAlt] = useState("");
@@ -339,6 +345,26 @@ function ImageManager() {
     }
   }
 
+  async function inspectLifecycle() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/resources/consistency", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const report = await readApiResponse<LifecycleReport>(response);
+      setLifecycleReport(report);
+      setMessage(report.healthy
+        ? "Resource lifecycle inspection found no integrity issues."
+        : `Resource lifecycle inspection found ${report.summary.errors} error(s) and ${report.summary.warnings} warning(s). No storage was changed.`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not inspect resource lifecycle.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function cleanupStorage() {
     if (!window.confirm("Permanently delete superseded and orphaned image files?")) return;
     setBusy(true);
@@ -499,6 +525,30 @@ function ImageManager() {
         </p>
       )}
 
+      {lifecycleReport && (
+        <section aria-live="polite" className="mb-6 rounded-lg border border-border p-4">
+          <h2 className="font-semibold">Resource lifecycle report</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {lifecycleReport.summary.resumes} resumes ({lifecycleReport.summary.publishedResumes} published) · {lifecycleReport.summary.images} images ({lifecycleReport.summary.publishedImages} published)
+          </p>
+          <p className="mt-2 text-sm">
+            {lifecycleReport.healthy ? "No integrity findings." : `${lifecycleReport.summary.errors} errors · ${lifecycleReport.summary.warnings} warnings`}
+          </p>
+          {lifecycleReport.findings.length > 0 && (
+            <ul className="mt-3 grid gap-2 text-sm">
+              {lifecycleReport.findings.map((finding, index) => (
+                <li key={`${finding.code}-${finding.id}-${index}`} className="rounded border border-border px-3 py-2">
+                  <span className="font-mono text-xs">{finding.severity.toUpperCase()}</span>
+                  <span className="ml-2 font-medium">{finding.code}</span>
+                  <span className="ml-2 text-muted-foreground">{finding.resource}: {finding.id}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">Inspection is read-only. Findings do not trigger automatic deletion, repair or publication changes.</p>
+        </section>
+      )}
+
       <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
         <label className="text-xs text-muted-foreground">Search images
           <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Filename, alt text, profile…" className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground" />
@@ -519,6 +569,13 @@ function ImageManager() {
         <h2 className="text-2xl">Uploaded images</h2>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">Showing {visibleImages.length} of {images.length}</span>
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded border border-border px-3 text-sm disabled:opacity-50"
+            disabled={busy}
+            onClick={() => void inspectLifecycle()}
+          >
+            <ShieldCheck className="size-4" /> Inspect lifecycle
+          </button>
           <button
             className="inline-flex min-h-10 items-center gap-2 rounded border border-border px-3 text-sm disabled:opacity-50"
             disabled={busy}
