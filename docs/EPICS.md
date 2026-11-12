@@ -428,3 +428,8 @@ Remaining: execute the new tests after validation is resumed; verify every route
 - Distributed login throttling, production secret rotation/configuration and production-like acceptance remain open.
 
 No tests/build/typecheck/lint/security scan/browser/CI/R2 validation was run. These increments do not close PORT-US-045, PORT-US-046 or PORT-E04.
+
+
+### PORT-E04 / PORT-US-045 follow-up — resume binary lifecycle (2026-11-12)
+
+Resume upload now journals original-file creation and index insertion together. Resume deletion now includes private index, public feed, history redaction and original-file deletion in one recoverable transaction. Failure-injection test source covers ambiguous upload-index persistence and ambiguous original deletion. No tests or hosted R2 checks were run.
