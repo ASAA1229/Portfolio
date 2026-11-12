@@ -19,32 +19,7 @@ export const Route = createFileRoute("/skills")({
   component: Skills,
 });
 
-const groups = [
-  { title: "Languages", icon: Code2, cats: ["Programming Languages"] },
-  {
-    title: "Frontend",
-    icon: Braces,
-    cats: ["Frontend & Frameworks"],
-    picks: ["React.js", "HTML5", "CSS3", "Tailwind CSS"],
-  },
-  {
-    title: "Backend & APIs",
-    icon: Server,
-    cats: ["Frontend & Frameworks"],
-    picks: ["Node.js", "Express.js", "REST APIs", "MERN Stack"],
-  },
-  { title: "Databases", icon: Database, cats: ["Databases"] },
-  {
-    title: "AI & machine learning",
-    icon: BrainCircuit,
-    cats: ["AI & Generative AI", "Machine Learning"],
-  },
-  {
-    title: "Tools & practice",
-    icon: Workflow,
-    cats: ["Cloud & Dev Tools", "Engineering Practices"],
-  },
-];
+
 function Skills() {
   const publishedResume = usePublishedProfileResume("abhishek");
   const { skills: contentSkills } = useAbhishekContent();
@@ -105,30 +80,38 @@ function Skills() {
                 <span className="orbit orbit-two" />
               </div>
               <div className="skill-groups">
-                {groups.map(({ title, icon: Icon, cats, picks }, index) => {
-                  const items = [
-                    ...new Set(
-                      contentSkills.filter((g) => cats.includes(g.cat))
-                        .flatMap((g) => g.items)
-                        .filter((x) => !picks || picks.includes(x)),
-                    ),
-                  ];
+                {contentSkills.map((group, index) => {
+                  const category = group.cat.toLowerCase();
+                  const Icon = /data|database|sql/.test(category)
+                    ? Database
+                    : /cloud|devops|deploy/.test(category)
+                      ? Cloud
+                      : /ai|machine|intelligence/.test(category)
+                        ? BrainCircuit
+                        : /backend|api|server/.test(category)
+                          ? Server
+                          : /workflow|practice|method/.test(category)
+                            ? Workflow
+                            : /frontend|framework|web|interface/.test(category)
+                              ? Braces
+                              : Code2;
                   return (
-                    <Reveal key={title} delay={index * 0.04}>
+                    <Reveal key={group.cat} delay={index * 0.04}>
                       <details className="skill-group" open={index === 0}>
                         <summary>
                           <span className="skill-group-icon">
                             <Icon />
                           </span>
                           <span>
-                            <small>SECTOR 0{index + 1}</small>
-                            <strong>{title}</strong>
-                            <em>{items.length} technologies</em>
+                            <small>SECTOR {String(index + 1).padStart(2, "0")}</small>
+                            <strong>{group.cat}</strong>
+                            <em>{group.items.length} technologies</em>
+                            <span className="block text-xs text-muted-foreground">{group.desc}</span>
                           </span>
                           <span className="skill-group-plus">+</span>
                         </summary>
                         <ul>
-                          {items.map((item) => (
+                          {group.items.map((item) => (
                             <li key={item}>
                               <TechLogo name={item} />
                               <span>{item}</span>
