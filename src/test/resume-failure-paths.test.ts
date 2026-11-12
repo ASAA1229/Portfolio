@@ -178,3 +178,57 @@ describe("resume partial persistence failures", () => {
     expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
   });
 });
+
+
+it("blocks reconciliation when an indexed resume original is missing", async () => {
+  const { bucket } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "sai");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "sai.pdf", { type: PDF }),
+    "sai.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(uploaded.status).toBe(201);
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "sai",
+      displayName: "Sai",
+      headline: "Engineer",
+      summary: "Approved profile summary",
+      skills: ["JavaScript"],
+    }),
+  });
+  expect(published.status).toBe(200);
+  const feedBefore = await (await bucket.get("public/approved-resumes.json"))!.text();
+
+  await bucket.delete(`private-admin/resumes/files/${resume.id}`);
+  const consistency = (await (await call(env, "/api/admin/resumes/consistency")).json()) as {
+    missingFiles: string[];
+  };
+  expect(consistency.missingFiles).toContain(resume.id);
+
+  const reconciled = await call(env, "/api/admin/resumes/reconcile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  expect(reconciled.status).toBe(409);
+  expect(await reconciled.json()).toMatchObject({
+    code: "RESUME_ORIGINALS_MISSING",
+    reconciled: false,
+    missingFiles: [resume.id],
+  });
+  const feedAfter = await (await bucket.get("public/approved-resumes.json"))!.text();
+  expect(feedAfter).toBe(feedBefore);
+});
