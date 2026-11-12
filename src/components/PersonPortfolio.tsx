@@ -35,7 +35,7 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
+import { usePublishedProfileImages, usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
 
 function PersonLink({
   person,
@@ -869,6 +869,7 @@ export function PersonProjectDetail({
   profile: PersonPortfolio;
   project: PersonProject;
 }) {
+  const projectImages = usePublishedProjectImages(profile.id, project.slug);
   return (
     <article className="site-container py-12 sm:py-16">
       <Button asChild variant="bare" className="mb-8 px-0">
@@ -879,6 +880,15 @@ export function PersonProjectDetail({
       <p className="font-mono text-xs text-primary">{project.context}</p>
       <h1 className="page-title mt-5 max-w-4xl">{project.title}</h1>
       <p className="mt-7 max-w-3xl text-sm leading-8 text-muted-foreground">{project.overview}</p>
+      {projectImages.length > 0 && (
+        <section className="mt-10 grid gap-4 sm:grid-cols-2" aria-label={`Images for ${project.title}`}>
+          {projectImages.map((image) => (
+            <figure key={image.id} className="overflow-hidden rounded-lg border border-border bg-card">
+              <img src={image.src} alt={image.alt} loading="lazy" className="aspect-video w-full object-cover" />
+            </figure>
+          ))}
+        </section>
+      )}
       {project.caution && (
         <p className="mt-8 border-l-2 border-gold bg-card p-5 text-sm leading-7">
           {project.caution}
