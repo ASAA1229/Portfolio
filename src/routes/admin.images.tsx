@@ -112,7 +112,7 @@ function ImageManager() {
     } catch {
       // Keep the inventory usable; an unavailable public feed is not proof
       // that a private approved image is currently live.
-      setActiveImageIds(new Set());
+      if (!signal?.aborted) setActiveImageIds(new Set());
     }
   }
 
