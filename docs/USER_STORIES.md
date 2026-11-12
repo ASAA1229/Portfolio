@@ -938,7 +938,7 @@ As the owner, I want every public image and resume resource to be managed indepe
 
 **Image placement audit and source changes**
 - Profile selector portraits use the shared validated published-image feed for all four profiles; bundled portraits remain intentional fallbacks when no approved portrait exists.
-- Abhishek's home hero and About hero use the published portrait placement; About gallery uses published gallery images with bundled fallback. Removed the duplicate static profile image that had an inaccurate illustration description.
+- Abhishek's home hero, About hero and AI introduction portrait use the published portrait placement; About gallery uses published gallery images with bundled fallback. Removed the duplicate static profile image that had an inaccurate illustration description.
 - Amulya, Anjini and Sai home portraits and About portraits/galleries use the same profile-scoped published image feed with their existing bundled assets as fallbacks.
 - All four profiles' project cards and project-detail pages resolve media by exact profile ID and project slug. Abhishek's homepage/project index/featured showcase and detail pages are included.
 - Shared series billboards, chapter backdrops and the brand logo remain static design assets, not personal profile resources.
