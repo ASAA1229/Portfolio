@@ -545,7 +545,7 @@ Implementation and test source only. No tests, builds, typechecks, lint, browser
 - Added a durable write-ahead recovery journal for resume index/feed/history commits, image multi-object lifecycle operations and backup restore/migration writes.
 - Added owner-only recovery status and explicit recovery action in Admin → Backup & Restore.
 - Added failure-injection test source for rollback, failed compensation/recovery replay, journal preparation failure and same-isolate overlapping transactions.
-- Remaining: distributed/multi-Worker concurrency control, complete resume original-file upload/delete cleanup coverage, storage reconciliation across every content mutation, and hosted R2 acceptance.
+- Remaining: stale read-modify-write protection (including requests that prepare snapshots before entering the transaction queue), distributed/multi-Worker concurrency control, remaining non-journaled content/persona writes, storage reconciliation and hosted R2 acceptance.
 
 ### PORT-US-046 — Admin authentication and security
 - Enforced a minimum 32-byte session signing secret.
