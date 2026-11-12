@@ -51,7 +51,11 @@ export function AdminNavigation({ current }: { current: AdminDestination }) {
           </button>
         </div>
       </div>
-      {sessionMessage && <p role="status" className="mb-2 px-2 text-xs text-muted-foreground">{sessionMessage}</p>}
+      {sessionMessage && (
+        <p role="status" className="mb-2 px-2 text-xs text-muted-foreground">
+          {sessionMessage}
+        </p>
+      )}
       <ul className="flex flex-wrap gap-2">
         {ITEMS.map((item) => {
           const active = item.to === current;
