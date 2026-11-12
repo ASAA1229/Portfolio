@@ -646,12 +646,6 @@ async function readResumeIndex(bucket: PrivateBucket): Promise<ResumeRecord[]> {
   return value;
 }
 
-async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
-  await bucket.put(RESUME_INDEX_KEY, JSON.stringify(records), {
-    httpMetadata: { contentType: "application/json; charset=utf-8" },
-  });
-}
-
 function serializePublishedResumeFeed(records: ResumeRecord[]): string {
   const publicResumes = records
     .filter(
@@ -688,21 +682,6 @@ async function readPublishHistory(
     throw new Error("Stored publish history failed integrity validation.");
   }
   return value;
-}
-
-async function writePublishHistory(bucket: PrivateBucket, history: PublishHistory): Promise<void> {
-  await bucket.put(historyKey(history.profileId), JSON.stringify(history), {
-    httpMetadata: { contentType: "application/json; charset=utf-8" },
-  });
-}
-
-class StorageCommitError extends Error {
-  constructor(
-    readonly restored: boolean,
-    cause: unknown,
-  ) {
-    super(cause instanceof Error ? cause.message : "Storage write failed.");
-  }
 }
 
 /**
@@ -744,10 +723,7 @@ async function commitResumeState(
 }
 
 function storageFailure(error: unknown, operation: string): Response {
-  const restored =
-    error instanceof StorageCommitError || error instanceof StorageTransactionError
-      ? error.restored
-      : false;
+  const restored = error instanceof StorageTransactionError ? error.restored : false;
   console.error(`Resume ${operation} failed while writing storage.`, error);
   return jsonResponse(
     {
@@ -1719,7 +1695,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     } catch (error) {
       // Keep the API failure actionable during local development instead of
       // allowing the framework to replace it with an opaque HTTPError response.
-      const restored = !(error instanceof StorageCommitError) || error.restored;
+      const restored = error instanceof StorageTransactionError ? error.restored : false;
       console.error("Portfolio image upload failed while storing or indexing the image.", error);
       return jsonResponse(
         {
