@@ -88,9 +88,13 @@ function BackupManager() {
       if (!response.ok) throw new Error(payload?.error ?? "Storage recovery failed.");
       setMessage(payload?.pending
         ? "Recovery ran, but a journal is still pending. Do not repeat affected edits; inspect storage and retry recovery."
-        : payload?.recovered
-          ? "Pending storage changes were restored to their pre-operation state."
-          : "No pending storage recovery was required.");
+        : payload?.state === "preparing"
+          ? "An incomplete journal was cleared. Target objects had not entered the write phase."
+          : payload?.state === "committed"
+            ? "The operation was already committed. Stale recovery snapshots were cleaned without reverting it."
+            : payload?.recovered
+              ? "Pending storage changes were restored to their pre-operation state."
+              : "No pending storage recovery was required.");
       setRecoveryConfirm("");
       await refreshRecovery();
     } catch (reason) {
