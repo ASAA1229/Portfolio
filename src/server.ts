@@ -2681,8 +2681,17 @@ function checkRuntimeConfig(env: unknown): void {
   if (!import.meta.env["VITE_SITE_URL"]) missing.push("VITE_SITE_URL (canonical URLs, sitemap)");
   if (import.meta.env.PROD) {
     if (!has("RESUME_BUCKET")) missing.push("RESUME_BUCKET R2 binding (admin storage)");
-    if (!has("PORTFOLIO_ADMIN_PASSWORD") || !has("PORTFOLIO_ADMIN_SESSION_SECRET")) {
-      missing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login)");
+    const sessionSecret =
+      typeof bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] === "string"
+        ? (bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] as string)
+        : typeof process !== "undefined"
+          ? process.env["PORTFOLIO_ADMIN_SESSION_SECRET"] ?? ""
+          : "";
+    if (
+      !has("PORTFOLIO_ADMIN_PASSWORD") ||
+      new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
+    ) {
+      missing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)");
     }
   }
   if (has("OPENAI_API_KEY") && !has("PORTFOLIO_AI_ALLOW_PAID_FALLBACK")) {
