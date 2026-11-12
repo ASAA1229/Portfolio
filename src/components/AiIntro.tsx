@@ -12,13 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import { DeveloperMark } from "@/components/DeveloperMark";
 import { AI_INTRO_SEGMENTS } from "@/lib/ai-intro";
-import my1 from "@/assets/my_1.jpeg";
+import { usePublishedProfileImages } from "@/lib/published-resume";
 import videoSet from "@/assets/video_set.mp4";
 
 /** Verified offline introduction used when the live AI service is unreachable. */
 const OFFLINE_INTRO = AI_INTRO_SEGMENTS.map((segment) => segment.text).join(" ");
 
 function DynamicIntroPlayer() {
+  const publishedPortrait = [...usePublishedProfileImages("abhishek")].reverse().find((image) => image.slot === "portrait");
   const [intro, setIntro] = useState("");
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
@@ -145,8 +146,8 @@ function DynamicIntroPlayer() {
           </p>
           <figure>
             <img
-              src={my1}
-              alt="Portrait of Guda Abhishek"
+              src={publishedPortrait?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
+              alt={publishedPortrait?.alt ?? "Portrait of Guda Abhishek"}
               className="aspect-square w-16 rounded object-cover"
             />
             <figcaption className="mt-1 text-xs text-muted-foreground">
