@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { CONTACT, MISSIONS, MILESTONES, PROJECTS } from "@/lib/portfolio-data";
 import { getPersonPortfolio, PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
-import { normalizePublishedResumeHighlights, normalizePublishedProfileImages } from "@/lib/published-resume";
+import { normalizePublishedResumeHighlights, normalizePublishedProfileImages, normalizePublishedImageFeed } from "@/lib/published-resume";
 
 describe("Portfolio factual and contact rules", () => {
   it("keeps the four profile identifiers unique", () => {
@@ -383,6 +383,7 @@ describe("Portfolio factual and contact rules", () => {
       },
     ]);
     expect(normalizePublishedProfileImages(payload, "sai")).toHaveLength(1);
+    expect(normalizePublishedImageFeed(payload).map((image) => image.profileId)).toEqual(["ammu", "sai"]);
     expect(normalizePublishedProfileImages(null, "ammu")).toEqual([]);
   });
 });
