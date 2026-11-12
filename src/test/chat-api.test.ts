@@ -156,7 +156,7 @@ describe("POST /api/chat request flow", () => {
     const calls: Array<{ init: RequestInit }> = [];
     vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
       calls.push({ init });
-      return new Response("data: [DONE]\\n\\n", {
+      return new Response("data: [DONE]\n\n", {
         headers: { "Content-Type": "text/event-stream" },
       });
     });
