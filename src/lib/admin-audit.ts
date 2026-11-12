@@ -112,7 +112,11 @@ export async function readSessionEpoch(storage: JsonStorage | undefined): Promis
   if (!object) return "0";
   const value = await object.json<{ epoch?: unknown }>();
   const epoch = value?.epoch;
-  if (typeof epoch !== "string" || !/^(?:0|[1-9]\d{0,15})$/.test(epoch)) {
+  if (
+    typeof epoch !== "string" ||
+    !/^(?:0|[1-9]\d{0,15})$/.test(epoch) ||
+    !Number.isSafeInteger(Number(epoch))
+  ) {
     throw new Error("Stored admin session epoch failed validation.");
   }
   return epoch;
@@ -121,7 +125,11 @@ export async function readSessionEpoch(storage: JsonStorage | undefined): Promis
 /** Invalidate every existing admin session by moving to a new signing epoch. */
 export async function bumpSessionEpoch(storage: JsonStorage): Promise<string> {
   const current = await readSessionEpoch(storage);
-  const next = String(Number(current) + 1);
+  const currentNumber = Number(current);
+  if (!Number.isSafeInteger(currentNumber) || currentNumber >= Number.MAX_SAFE_INTEGER) {
+    throw new Error("Admin session epoch reached its safe rotation limit.");
+  }
+  const next = String(currentNumber + 1);
   await storage.put(
     SESSION_EPOCH_KEY,
     JSON.stringify({ epoch: next, changedAt: new Date().toISOString() }),
