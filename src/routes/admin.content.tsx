@@ -4,6 +4,8 @@ import { AdminNavigation } from "@/components/AdminNavigation";
 import { EyeOff, FileText, History, RotateCcw, Save, Send } from "lucide-react";
 import {
   CONTENT_PAGES,
+  PROFILE_REVIEW_ITEMS,
+  isProfileReviewCurrent,
   THEME_PRESET_IDS,
   validateContentOverrides,
   type ContentDocument,
@@ -117,6 +119,11 @@ function ContentManager() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [reviewer, setReviewer] = useState("");
+  const [reviewChecks, setReviewChecks] = useState<Record<(typeof PROFILE_REVIEW_ITEMS)[number], boolean>>(() =>
+    Object.fromEntries(PROFILE_REVIEW_ITEMS.map((item) => [item, false])) as Record<(typeof PROFILE_REVIEW_ITEMS)[number], boolean>,
+  );
+  const [reviewExceptions, setReviewExceptions] = useState("");
 
   const applyDocument = useCallback((next: ContentDocument) => {
     setDoc(next);
@@ -126,6 +133,11 @@ function ContentManager() {
     setNavigation(parts.navigation);
     setAppearance(parts.appearance);
     setListsJson(JSON.stringify(parts.lists, null, 2));
+    setReviewChecks(Object.fromEntries(
+      PROFILE_REVIEW_ITEMS.map((item) => [item, next.review?.checks?.[item] === true]),
+    ) as Record<(typeof PROFILE_REVIEW_ITEMS)[number], boolean>);
+    setReviewer(next.review?.reviewer ?? "");
+    setReviewExceptions(next.review?.exceptions.join("\\n") ?? "");
   }, []);
 
   const load = useCallback(
@@ -201,7 +213,7 @@ function ContentManager() {
   }
 
   async function act(
-    action: "draft" | "publish" | "rollback" | "unpublish",
+    action: "draft" | "publish" | "rollback" | "unpublish" | "review",
     extra: Record<string, unknown> = {},
   ) {
     setBusy(true);
@@ -229,7 +241,9 @@ function ContentManager() {
             ? `Published as version ${payload.document.publishedVersion}.`
             : action === "rollback"
               ? `Restored as new version ${payload.document.publishedVersion}; history is unchanged.`
-              : "Unpublished. Public pages now show the curated content.",
+              : action === "review"
+                ? `Profile sign-off recorded for published version ${payload.document.review?.publishedVersion}.`
+                : "Unpublished. Public pages now show the curated content.",
       );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The request failed.");
@@ -422,6 +436,64 @@ function ContentManager() {
           onClick={() => setListsJson(JSON.stringify(LIST_TEMPLATE, null, 2))}
         >
           Insert example structure
+        </button>
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border bg-card p-5 sm:p-7" aria-labelledby="profile-review-title">
+        <h2 id="profile-review-title" className="text-2xl">Profile completeness and owner sign-off</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Review the currently published profile and its approved assets. Every check is an owner attestation;
+          accepted exceptions are recorded with the exact published content version.
+        </p>
+        {doc?.review && (
+          <p className="mt-3 text-sm" role="status">
+            {isProfileReviewCurrent(doc)
+              ? `Signed off by ${doc.review.reviewer} on ${new Date(doc.review.signedAt).toLocaleString()} for version ${doc.review.publishedVersion}.`
+              : `Previous sign-off by ${doc.review.reviewer} is stale; the published version has changed.`}
+          </p>
+        )}
+        <label className="mt-4 block text-sm">
+          Reviewer / owner name
+          <input className={input} maxLength={100} value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="Name of the person approving this profile" />
+        </label>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {PROFILE_REVIEW_ITEMS.map((item) => (
+            <label key={item} className="flex min-h-11 items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 size-4"
+                checked={reviewChecks[item]}
+                onChange={(event) => setReviewChecks((current) => ({ ...current, [item]: event.target.checked }))}
+              />
+              <span>{({
+                biography: "Biography and identity are accurate and approved",
+                skills: "Skills and proficiency claims are accurate",
+                projects: "Project descriptions, links and ownership are accurate",
+                experience: "Experience and employment details are approved",
+                education: "Education details are approved",
+                certifications: "Certifications and issuers are accurate",
+                contact: "Public contact details and social links are correct",
+                imagery: "Portraits/gallery/project imagery have approval, attribution and meaningful alt text",
+                profileIsolation: "No other profile's private or incorrect content is exposed",
+              } as const)[item]}</span>
+            </label>
+          ))}
+        </div>
+        <label className="mt-4 block text-sm">
+          Accepted exceptions (one per line, optional)
+          <textarea className={input} rows={3} maxLength={3000} value={reviewExceptions} onChange={(event) => setReviewExceptions(event.target.value)} placeholder="Document any explicitly accepted content or asset gaps." />
+        </label>
+        <button
+          type="button"
+          className="mt-4 inline-flex min-h-11 items-center rounded bg-primary px-4 text-primary-foreground disabled:opacity-50"
+          disabled={busy || !doc?.publishedVersion || !reviewer.trim() || !PROFILE_REVIEW_ITEMS.every((item) => reviewChecks[item])}
+          onClick={() => void act("review", {
+            reviewer,
+            checks: reviewChecks,
+            exceptions: reviewExceptions.split("\\n").map((item) => item.trim()).filter(Boolean),
+          })}
+        >
+          Record sign-off for published version {doc?.publishedVersion ?? "—"}
         </button>
       </section>
 

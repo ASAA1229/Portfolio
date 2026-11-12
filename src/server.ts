@@ -22,6 +22,7 @@ import {
   publishedContent,
   rollbackContent,
   saveContentDraft,
+  signOffProfile,
   unpublishContent,
   validateContentOverrides,
   type ContentDocument,
@@ -2386,7 +2387,7 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     }
   }
 
-  const action = path.match(/^\/api\/admin\/content\/(draft|publish|rollback|unpublish)$/)?.[1];
+  const action = path.match(/^\/api\/admin\/content\/(draft|publish|rollback|unpublish|review)$/)?.[1];
   if (!action || request.method !== "POST") return privateNotFound();
   const bounded = await limitRequestBody(request, 128 * 1024);
   if (bounded instanceof Response) return bounded;
@@ -2394,6 +2395,9 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     profileId?: unknown;
     content?: unknown;
     version?: unknown;
+    reviewer?: unknown;
+    checks?: unknown;
+    exceptions?: unknown;
   } | null;
   const profileId = payload?.profileId;
   if (!isContentProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
@@ -2418,6 +2422,18 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
         return jsonResponse({ error: "Choose a version to restore." }, 400);
       }
       next = rollbackContent(doc, payload.version, now);
+    } else if (action === "review") {
+      if (typeof payload?.reviewer !== "string" || !payload.checks || typeof payload.checks !== "object") {
+        return jsonResponse({ error: "Reviewer and profile review checks are required." }, 400);
+      }
+      if (payload.exceptions !== undefined && !Array.isArray(payload.exceptions)) {
+        return jsonResponse({ error: "Accepted exceptions must be a list." }, 400);
+      }
+      next = signOffProfile(doc, {
+        reviewer: payload.reviewer,
+        checks: payload.checks as Record<string, unknown>,
+        exceptions: (payload.exceptions as unknown[] | undefined)?.filter((item): item is string => typeof item === "string"),
+      }, now);
     } else {
       next = unpublishContent(doc);
     }

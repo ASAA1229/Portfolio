@@ -40,11 +40,13 @@ Public multi-section profile pages; profile picker and navigation; owner Admin c
 - All four profiles remain responsive and visually coherent.
 - Published customization is profile-scoped, versioned and recoverable, and updates public pages without code edits.
 
-### PORT-US-048 — Profile content and asset sign-off (P1; owner review pending)
+### PORT-US-048 — Profile content and asset sign-off (P1; sign-off workflow implemented, owner review pending)
 - Each profile has owner-approved biography, skills, projects, experience, education, certifications and contact/link set where applicable.
 - Each profile uses approved, correctly attributed/owned imagery and meaningful alt text.
 - Generic/placeholder hero imagery is replaced or explicitly approved.
 - No profile displays another person's private or incorrect content.
+- Admin now provides a nine-point owner checklist and records reviewer, server timestamp, exact published content version and accepted exceptions in the private CMS document.
+- A new publish/rollback makes the prior sign-off stale; sign-off cannot be recorded until content is published and every review item is explicitly checked.
 - Record completeness and sign-off per profile, including reviewer/date, approved versions and exceptions.
 
 ## Definition of done

@@ -85,12 +85,26 @@ export interface ContentVersion {
   restoredVersion?: number;
 }
 
+export const PROFILE_REVIEW_ITEMS = [
+  "biography", "skills", "projects", "experience", "education",
+  "certifications", "contact", "imagery", "profileIsolation",
+] as const;
+export type ProfileReviewItem = (typeof PROFILE_REVIEW_ITEMS)[number];
+export interface ProfileReviewRecord {
+  reviewer: string;
+  signedAt: string;
+  publishedVersion: number;
+  checks: Record<ProfileReviewItem, true>;
+  exceptions: string[];
+}
 export interface ContentDocument {
   schemaVersion: 1;
   profileId: ContentProfileId;
   draft: { content: ContentOverrides; updatedAt: string } | null;
   publishedVersion: number | null;
   history: ContentVersion[];
+  /** Private owner sign-off; publishedContent() deliberately excludes this field. */
+  review?: ProfileReviewRecord | null;
 }
 
 export const CONTENT_LIMITS = {
@@ -115,7 +129,7 @@ export function contentKey(profileId: ContentProfileId): string {
 }
 
 export function emptyContentDocument(profileId: ContentProfileId): ContentDocument {
-  return { schemaVersion: 1, profileId, draft: null, publishedVersion: null, history: [] };
+  return { schemaVersion: 1, profileId, draft: null, publishedVersion: null, history: [], review: null };
 }
 
 type Errors = string[];
@@ -479,7 +493,20 @@ export function isContentDocument(
         (entry.kind === "publish" || entry.kind === "rollback") &&
         typeof entry.publishedAt === "string" &&
         validateContentOverrides(entry.content).ok,
-    )
+    ) &&
+    (doc.review === undefined ||
+      doc.review === null ||
+      (typeof doc.review.reviewer === "string" &&
+        doc.review.reviewer.length > 0 &&
+        doc.review.reviewer.length <= 100 &&
+        typeof doc.review.signedAt === "string" &&
+        Number.isFinite(Date.parse(doc.review.signedAt)) &&
+        typeof doc.review.publishedVersion === "number" &&
+        doc.history.some((entry) => entry.version === doc.review?.publishedVersion) &&
+        PROFILE_REVIEW_ITEMS.every((item) => doc.review?.checks?.[item] === true) &&
+        Array.isArray(doc.review.exceptions) &&
+        doc.review.exceptions.length <= 10 &&
+        doc.review.exceptions.every((item) => typeof item === "string" && item.length <= 300)))
   );
 }
 
@@ -529,6 +556,32 @@ export function rollbackContent(
     content: target.content,
     restoredVersion: version,
   });
+}
+
+export function signOffProfile(
+  doc: ContentDocument,
+  input: { reviewer: string; checks: Partial<Record<ProfileReviewItem, unknown>>; exceptions?: string[] },
+  now: string,
+): ContentDocument {
+  if (doc.publishedVersion === null) throw new Error("Publish profile content before signing it off.");
+  const reviewer = input.reviewer.trim();
+  if (!reviewer || reviewer.length > 100) throw new Error("Enter the owner's/reviewer's name.");
+  if (!PROFILE_REVIEW_ITEMS.every((item) => input.checks[item] === true)) {
+    throw new Error("Complete every profile review check before signing off.");
+  }
+  const exceptions = (input.exceptions ?? []).map((item) => item.trim()).filter(Boolean);
+  if (exceptions.length > 10 || exceptions.some((item) => item.length > 300)) {
+    throw new Error("Record up to 10 accepted exceptions, each no longer than 300 characters.");
+  }
+  const checks = Object.fromEntries(PROFILE_REVIEW_ITEMS.map((item) => [item, true])) as Record<ProfileReviewItem, true>;
+  return {
+    ...doc,
+    review: { reviewer, signedAt: now, publishedVersion: doc.publishedVersion, checks, exceptions },
+  };
+}
+
+export function isProfileReviewCurrent(doc: ContentDocument): boolean {
+  return doc.publishedVersion !== null && doc.review?.publishedVersion === doc.publishedVersion;
 }
 
 export function unpublishContent(doc: ContentDocument): ContentDocument {

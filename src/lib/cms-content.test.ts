@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   emptyContentDocument,
   isContentDocument,
+  isProfileReviewCurrent,
+  PROFILE_REVIEW_ITEMS,
+  signOffProfile,
   mergePersonPortfolio,
   publishContentDraft,
   publishedContent,
@@ -30,6 +33,28 @@ describe("CMS content model (PORT-US-035)", () => {
         ],
       }).ok,
     ).toBe(false);
+  });
+
+  it("records owner sign-off against the exact published version and invalidates it after a new publish", () => {
+    let doc = publishContentDraft(
+      saveContentDraft(emptyContentDocument("ammu"), { basics: { headline: "Approved profile" } }, "t1"),
+      "t1",
+    );
+    const checks = Object.fromEntries(PROFILE_REVIEW_ITEMS.map((item) => [item, true]));
+    doc = signOffProfile(doc, { reviewer: "Portfolio Owner", checks, exceptions: ["Certificate scan pending"] }, "2026-11-12T10:00:00.000Z");
+    expect(isProfileReviewCurrent(doc)).toBe(true);
+    expect(doc.review).toMatchObject({
+      reviewer: "Portfolio Owner",
+      publishedVersion: 1,
+      exceptions: ["Certificate scan pending"],
+    });
+    const next = publishContentDraft(
+      saveContentDraft(doc, { basics: { headline: "Updated profile" } }, "t2"),
+      "t2",
+    );
+    expect(isProfileReviewCurrent(next)).toBe(false);
+    expect(() => signOffProfile(next, { reviewer: "Owner", checks: {} }, "t3")).toThrow(/Complete every/);
+    expect(isContentDocument(doc, "ammu")).toBe(true);
   });
 
   it("publishes, restores as a new version and never rewrites history", () => {
