@@ -218,7 +218,9 @@ function adminAuthBypassed(env: unknown): boolean {
     | undefined;
 
   const runtimeBypass =
-    bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" && bindings?.ENVIRONMENT === "development";
+    import.meta.env.PROD !== true &&
+    bindings?.PORTFOLIO_ADMIN_AUTH_BYPASS === "true" &&
+    bindings?.ENVIRONMENT === "development";
 
   // Vite replaces these at bundle time, which is more reliable than process.env
   // in the Cloudflare/TanStack server runtime. import.meta.env.DEV alone is not
@@ -235,9 +237,16 @@ function adminAuthBypassed(env: unknown): boolean {
 
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
   if (adminAuthBypassed(env)) return true;
-  // Cookies are bound to the current session epoch ("log out everywhere").
-  const epoch = await readSessionEpoch(resolvePrivateBucket(env));
-  return isAdminRequest(request, env, epoch);
+  // Missing/unavailable storage must not silently fall back to epoch 0, which
+  // could revive a cookie invalidated by "log out everywhere".
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return false;
+  try {
+    const epoch = await readSessionEpoch(bucket);
+    return await isAdminRequest(request, env, epoch);
+  } catch {
+    return false;
+  }
 }
 
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
@@ -289,7 +298,15 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     }
 
     loginAttempts.delete(clientKey);
-    const cookie = await createAdminCookie(env, await readSessionEpoch(resolvePrivateBucket(env)));
+    const authBucket = resolvePrivateBucket(env);
+    if (!authBucket) return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
+    let epoch: string;
+    try {
+      epoch = await readSessionEpoch(authBucket);
+    } catch {
+      return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
+    }
+    const cookie = await createAdminCookie(env, epoch);
     if (!cookie) return jsonResponse({ error: "Admin authentication is not configured." }, 503);
     return jsonResponse({ ok: true }, 200, {
       "set-cookie": adminCookieHeader(cookie, new URL(request.url).protocol === "https:"),
@@ -324,6 +341,24 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
   if (path === "/api/admin/session" && request.method === "GET") {
     if (!(await isAdminAuthorized(request, env))) return privateNotFound();
     return jsonResponse({ authenticated: true }, 200);
+  }
+
+  if (path === "/api/admin/session/renew" && request.method === "POST") {
+    const origin = request.headers.get("origin");
+    if (!origin || origin !== new URL(request.url).origin) return privateNotFound();
+    if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+    const bucket = resolvePrivateBucket(env);
+    if (!bucket) return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
+    try {
+      const epoch = await readSessionEpoch(bucket);
+      const cookie = await createAdminCookie(env, epoch);
+      if (!cookie) return jsonResponse({ error: "Admin authentication is not configured." }, 503);
+      return jsonResponse({ ok: true }, 200, {
+        "set-cookie": adminCookieHeader(cookie, new URL(request.url).protocol === "https:"),
+      });
+    } catch {
+      return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
+    }
   }
 
   if (path === "/api/admin/audit" && request.method === "GET") {
