@@ -120,6 +120,66 @@ describe("POST /api/chat request flow", () => {
     expect(sent.messages.at(-1)).toEqual({ role: "user", content: "What does Ammu build?" });
   });
 
+
+  it("grounds Abhishek chat in the currently published CMS document", async () => {
+    const key = "jrv_0123456789ab_" + "C".repeat(43);
+    vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
+    vi.stubEnv("JARVIS_AI_KEY", key);
+    const calls: Array<{ init: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      calls.push({ init });
+      return new Response("data: [DONE]\\n\\n", {
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    });
+
+    const response = await post({
+      person: "abhishek",
+      _publishedContent: {
+        basics: { headline: "Owner-published engineering headline" },
+        skills: [{ cat: "Owner Skills", desc: "Approved CMS skills", items: ["Rust", "PostgreSQL"] }],
+      },
+      messages: [{ role: "user", content: "What skills are listed?" }],
+    });
+    expect(response.status).toBe(200);
+    const sent = JSON.parse(String(calls[0]!.init.body)) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(sent.messages[0]!.content).toContain("Owner-published engineering headline");
+    expect(sent.messages[0]!.content).toContain("PostgreSQL");
+  });
+
+  it("merges published CMS content into only the selected profile's JARVIS knowledge", async () => {
+    const key = "jrv_0123456789ab_" + "D".repeat(43);
+    vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
+    vi.stubEnv("JARVIS_AI_KEY", key);
+    const calls: Array<{ init: RequestInit }> = [];
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      calls.push({ init });
+      return new Response("data: [DONE]\\n\\n", {
+        headers: { "Content-Type": "text/event-stream" },
+      });
+    });
+
+    const response = await post({
+      person: "ammu",
+      _publishedContent: {
+        basics: { headline: "Ammu owner-approved headline" },
+        skills: [{ cat: "Analytics", desc: "Approved", items: ["Power BI Custom"] }],
+      },
+      messages: [{ role: "user", content: "What skills do you use?" }],
+    });
+    expect(response.status).toBe(200);
+    const sent = JSON.parse(String(calls[0]!.init.body)) as {
+      messages: Array<{ role: string; content: string }>;
+      jarvis_profile: string;
+    };
+    expect(sent.jarvis_profile).toBe("ammu");
+    expect(sent.messages[0]!.content).toContain("Ammu owner-approved headline");
+    expect(sent.messages[0]!.content).toContain("Power BI Custom");
+    expect(sent.messages[0]!.content).not.toContain("Owner-published engineering headline");
+  });
+
   it("maps a rejected JARVIS key to a safe 401 message", async () => {
     vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
     vi.stubEnv("JARVIS_AI_KEY", "jrv_0123456789ab_" + "B".repeat(43));
