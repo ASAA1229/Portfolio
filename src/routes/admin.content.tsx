@@ -56,6 +56,9 @@ const LIST_TEMPLATE = {
       archived: false,
     },
   ],
+  skills: [
+    { cat: "Frontend", desc: "Interface engineering", items: ["React", "TypeScript"] },
+  ],
   experience: [
     {
       role: "Role",
@@ -78,7 +81,7 @@ const LIST_TEMPLATE = {
 
 type ListPart = Pick<
   ContentOverrides,
-  "projects" | "experience" | "education" | "certifications" | "seo"
+  "projects" | "skills" | "experience" | "education" | "certifications" | "seo"
 > & {
   socials?: Basics["socials"];
 };
@@ -87,6 +90,7 @@ function splitContent(content: ContentOverrides | undefined) {
   const { socials, ...basics } = content?.basics ?? {};
   const lists: ListPart = {
     ...(content?.projects ? { projects: content.projects } : {}),
+    ...(content?.skills ? { skills: content.skills } : {}),
     ...(content?.experience ? { experience: content.experience } : {}),
     ...(content?.education ? { education: content.education } : {}),
     ...(content?.certifications ? { certifications: content.certifications } : {}),
