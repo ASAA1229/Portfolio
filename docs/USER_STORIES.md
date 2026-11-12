@@ -929,3 +929,30 @@ As the owner, I want to assign approved images to an exact profile project so ea
 - Verify all four profile route families, including Abhishek's project detail routes.
 - Verify project slug changes/deleted projects do not leave misleading public media.
 - Run automated, browser, responsive and accessibility checks only when validation is explicitly resumed.
+
+### PORT-US-051 — four-profile public resource lifecycle and image placement audit (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / AUTOMATED COVERAGE AUTHORED / VALIDATION PENDING
+
+As the owner, I want every public image and resume resource to be managed independently for Abhishek, Amulya, Anjini and Sai, so uploads, publication changes, replacements, restores and deletions affect only the intended profile.
+
+**Image placement audit and source changes**
+- Profile selector portraits use the shared validated published-image feed for all four profiles; bundled portraits remain intentional fallbacks when no approved portrait exists.
+- Abhishek's home hero and About hero use the published portrait placement; About gallery uses published gallery images with bundled fallback. Removed the duplicate static profile image that had an inaccurate illustration description.
+- Amulya, Anjini and Sai home portraits and About portraits/galleries use the same profile-scoped published image feed with their existing bundled assets as fallbacks.
+- All four profiles' project cards and project-detail pages resolve media by exact profile ID and project slug. Abhishek's homepage/project index/featured showcase and detail pages are included.
+- Shared series billboards, chapter backdrops and the brand logo remain static design assets, not personal profile resources.
+- Public feed normalization validates UUID identity, exact same-origin image URL, non-empty alt text, supported placement, and project slug; a project slug is forbidden on non-project placements.
+
+**Resource lifecycle coverage authored (not executed)**
+- Images: private upload, pending visibility, publish, public byte delivery, replace, version listing, restore, unpublish, republish, delete and storage cleanup boundaries for each profile.
+- Resumes: private upload, profile assignment, publish, supersede, append-only history, rollback, unpublish, private download and delete/redaction for each profile.
+- Cross-profile isolation: public feeds and project galleries must never expose another profile's assets.
+- Existing static assets remain fallback content only; approved CMS resources take precedence.
+
+**Acceptance still requires validation**
+- Run the new four-profile image and resume lifecycle integration tests.
+- Browser-check every public profile route and every project card/detail route, including direct navigation and refresh.
+- Verify R2 and local-disk behavior, cache/revalidation, storage failure compensation, image signature/metadata consistency and deleted-resource cleanup.
+- Verify no cross-profile leakage, stale published asset, or public access to pending/private resources.
+- Do not mark this story accepted until validation is explicitly resumed and passes.
