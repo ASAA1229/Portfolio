@@ -690,6 +690,10 @@ export function PersonContent({
                 <h2 className="mt-3 text-3xl">Skills & capabilities</h2>
                 <TechnologyList items={publishedResume.skills} />
               </section>
+            ) : profile.skills.length === 0 ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                No skills have been published for this profile yet.
+              </p>
             ) : (
               profile.skills.map((group, index) => (
                 <section key={group.category} className="border-t border-border pt-6">
@@ -709,7 +713,7 @@ export function PersonContent({
               ))}
             </div>
           ) : (
-            featured && (
+            featured ? (
               <>
                 <section className="featured-project">
                   <div className="featured-project-art">
@@ -767,6 +771,10 @@ export function PersonContent({
                   demo, and implementation media appear when verified links or assets are available.
                 </p>
               </>
+            ) : (
+              <p role="status" className="text-sm text-muted-foreground">
+                No projects have been published for this profile yet.
+              </p>
             )
           ))}
         {section === "experience" && (
@@ -779,7 +787,11 @@ export function PersonContent({
               </div>
             ) : (
               <div className="person-timeline">
-                {profile.experience.map((job, index) => (
+                {profile.experience.length === 0 ? (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    No experience entries have been published for this profile yet.
+                  </p>
+                ) : profile.experience.map((job, index) => (
                   <section
                     key={job.role}
                     className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
@@ -828,7 +840,11 @@ export function PersonContent({
                       compact
                     />
                   ))
-                : profile.certifications.map((cert) => (
+                : profile.certifications.length === 0 ? (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      No certifications have been published for this profile yet.
+                    </p>
+                  ) : profile.certifications.map((cert) => (
                     <article key={cert.title} className="cert-card">
                       <Award className="size-7 text-gold" />
                       <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
