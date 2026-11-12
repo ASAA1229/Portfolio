@@ -358,3 +358,14 @@ Still open: inspect every profile route and every media placement; verify runtim
 - Public feed errors remain an unknown state; they are not presented as successful publication.
 
 Remaining work: verify all placement rules and profile surfaces; provide explicit version restore for images where supported; surface active published resume/version in the resume inventory; validate publish/unpublish/replacement and storage recovery when validation resumes.
+
+
+### PORT-US-050 — Admin active resume visibility (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+- Resume inventory compares private records with `GET /api/published-resumes` and identifies the exact active resume ID.
+- Approved records not present in the public feed are not presented as live; feed errors produce an explicit unknown state.
+- Publish and unpublish refresh the inventory/public-feed comparison after confirmed API success.
+
+Remaining work: add safe image-version restoration with version metadata, extend image placement support for project-specific media, audit every public media slot/profile route, and validate complete publish/replace/unpublish/rollback behavior. No tests, builds, typecheck, lint, browser, accessibility or CI checks were run; validation remains paused.
