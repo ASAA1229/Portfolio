@@ -50,7 +50,10 @@ describe("admin authentication route lifecycle", () => {
     const runtime = env(bucket);
     const login = await request(runtime, "/api/admin/login", {
       method: "POST",
-      headers: { "content-type": "application/json", "cf-connecting-ip": "auth-lifecycle-test" },
+      headers: {
+        "content-type": "application/json",
+        "cf-connecting-ip": "auth-lifecycle-test",
+      },
       body: JSON.stringify({ password: "test-admin-password" }),
     });
 
@@ -119,12 +122,20 @@ describe("admin authentication route lifecycle", () => {
     const runtime = env(bucket);
     const login = await request(runtime, "/api/admin/login", {
       method: "POST",
-      headers: { "content-type": "application/json", "cf-connecting-ip": "bad-epoch-test" },
+      headers: {
+        "content-type": "application/json",
+        "cf-connecting-ip": "bad-epoch-test",
+      },
       body: JSON.stringify({ password: "test-admin-password" }),
     });
     const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
-    await bucket.put("private-admin/session-epoch.json", JSON.stringify({ epoch: "not-an-epoch" }));
-    const session = await request(runtime, "/api/admin/session", { headers: { cookie } });
+    await bucket.put(
+      "private-admin/session-epoch.json",
+      JSON.stringify({ epoch: "not-an-epoch" }),
+    );
+    const session = await request(runtime, "/api/admin/session", {
+      headers: { cookie },
+    });
     expect(session.status).toBe(404);
   });
 
