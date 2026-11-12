@@ -903,3 +903,6 @@ As the portfolio owner, I want images and resumes uploaded, assigned, reviewed a
 
 
 **PORT-US-050 admin follow-up — active image visibility (2026-11-12):** The Admin image inventory now reads the public published-image feed alongside the private inventory and marks the image resources currently selected by the public profile rendering rules as “Live on profile”. Other approved images are identified separately as published but not selected, preventing approval status from being mistaken for proof of active display. The image inventory also now has a dedicated no-results state when filters exclude all records. Public-feed unavailability is treated as unknown/not confirmed, not as proof that an approved image is live. Validation remains paused; this source change is untested.
+
+
+**PORT-US-050 admin follow-up — active resume visibility (2026-11-12):** The resume inventory now checks the public approved-resume feed separately from the private admin index. It marks the exact resume ID present in the public feed as “Live on profile”, distinguishes approved records that are not currently active, and reports “Public status unknown” when the public feed cannot be read. Publish and unpublish refresh both inventories after the server confirms the operation. This is source implementation only; validation remains paused.
