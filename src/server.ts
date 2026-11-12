@@ -69,6 +69,7 @@ import {
   isAdminRequest,
   verifyAdminPassword,
 } from "./lib/admin-auth";
+import { recoverPendingStorageTransaction, runStorageTransaction, storageRecoveryStatus, StorageTransactionError } from "./lib/storage-recovery";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -610,56 +611,29 @@ async function writeResumeIndex(bucket: PrivateBucket, records: ResumeRecord[]):
   });
 }
 
-async function writePublishedResumeFeed(
-  bucket: PrivateBucket,
-  records: ResumeRecord[],
-): Promise<void> {
+function serializePublishedResumeFeed(records: ResumeRecord[]): string {
   const publicResumes = records
     .filter(
       (item) => item.status === "approved" && !!item.profileId && item.profileId !== "unassigned",
     )
     .map(
       ({
-        id,
-        profileId,
-        displayName,
-        headline,
-        summary,
-        skills,
-        contact,
-        structuredSections,
-        uploadedAt,
+        id, profileId, displayName, headline, summary, skills, contact, structuredSections, uploadedAt,
       }) => ({
-        id,
-        uploadedAt,
-        profileId,
-        displayName,
-        headline,
-        summary,
-        skills,
+        id, uploadedAt, profileId, displayName, headline, summary, skills,
         contact: contact ?? {},
         structuredSections: structuredSections ?? {
-          experience: [],
-          education: [],
-          projects: [],
-          certifications: [],
+          experience: [], education: [], projects: [], certifications: [],
         },
       }),
     );
+  return JSON.stringify({ updatedAt: new Date().toISOString(), resumes: publicResumes });
+}
 
-  await bucket.put(
-    "public/approved-resumes.json",
-    JSON.stringify({
-      updatedAt: new Date().toISOString(),
-      resumes: publicResumes,
-    }),
-    {
-      httpMetadata: {
-        contentType: "application/json; charset=utf-8",
-        cacheControl: "no-store",
-      },
-    } as { httpMetadata?: { contentType?: string; cacheControl?: string } },
-  );
+async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
+  await bucket.put("public/approved-resumes.json", serializePublishedResumeFeed(records), {
+    httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" },
+  } as { httpMetadata?: { contentType?: string; cacheControl?: string } });
 }
 
 async function readPublishHistory(
@@ -697,49 +671,40 @@ class StorageCommitError extends Error {
  */
 async function commitResumeState(
   bucket: PrivateBucket,
-  before: ResumeRecord[],
+  _before: ResumeRecord[],
   after: ResumeRecord[],
   history?: { before: PublishHistory; after: PublishHistory },
 ): Promise<void> {
-  const steps: Array<{ apply: () => Promise<void>; undo: () => Promise<void> }> = [
-    { apply: () => writeResumeIndex(bucket, after), undo: () => writeResumeIndex(bucket, before) },
+  const mutations = [
     {
-      apply: () => writePublishedResumeFeed(bucket, after),
-      undo: () => writePublishedResumeFeed(bucket, before),
+      key: RESUME_INDEX_KEY,
+      operation: "put" as const,
+      value: JSON.stringify(after),
+      contentType: "application/json; charset=utf-8",
     },
+    {
+      key: "public/approved-resumes.json",
+      operation: "put" as const,
+      value: serializePublishedResumeFeed(after),
+      contentType: "application/json; charset=utf-8",
+    },
+    ...(history
+      ? [{
+          key: historyKey(history.after.profileId),
+          operation: "put" as const,
+          value: JSON.stringify(history.after),
+          contentType: "application/json; charset=utf-8",
+        }]
+      : []),
   ];
-  if (history) {
-    steps.push({
-      apply: () => writePublishHistory(bucket, history.after),
-      undo: () => writePublishHistory(bucket, history.before),
-    });
-  }
-  const attempted: typeof steps = [];
-  for (const step of steps) {
-    // Include the current step before awaiting it: an object-store operation can
-    // commit its write and still reject (for example, a transport error after the
-    // provider accepted the object). Compensate that ambiguous write as well as
-    // every earlier successful step, in reverse order.
-    attempted.push(step);
-    try {
-      await step.apply();
-    } catch (error) {
-      let restored = true;
-      for (const done of attempted.reverse()) {
-        try {
-          await done.undo();
-        } catch (undoError) {
-          restored = false;
-          console.error("Could not revert a partial resume storage update.", undoError);
-        }
-      }
-      throw new StorageCommitError(restored, error);
-    }
-  }
+  await runStorageTransaction(bucket, mutations);
 }
 
 function storageFailure(error: unknown, operation: string): Response {
-  const restored = error instanceof StorageCommitError ? error.restored : false;
+  const restored =
+    error instanceof StorageCommitError || error instanceof StorageTransactionError
+      ? error.restored
+      : false;
   console.error(`Resume ${operation} failed while writing storage.`, error);
   return jsonResponse(
     {
@@ -757,7 +722,10 @@ function storageFailure(error: unknown, operation: string): Response {
 }
 
 function imageStorageFailure(error: unknown, operation: string): Response {
-  const restored = !(error instanceof StorageCommitError) || error.restored;
+  const restored =
+    error instanceof StorageCommitError || error instanceof StorageTransactionError
+      ? error.restored
+      : false;
   console.error(`Portfolio image ${operation} failed while writing storage.`, error);
   return jsonResponse(
     {
@@ -1556,59 +1524,7 @@ async function commitImageState(
   bucket: PrivateBucket,
   mutations: BucketMutation[],
 ): Promise<void> {
-  const snapshots: Array<{
-    key: string;
-    bytes: Uint8Array | null;
-    contentType?: string;
-  }> = [];
-
-  // Read all prior values before mutating anything. A failed snapshot therefore
-  // leaves the bucket untouched.
-  for (const mutation of mutations) {
-    const existing = await bucket.get(mutation.key);
-    snapshots.push({
-      key: mutation.key,
-      bytes: existing ? new Uint8Array(await existing.arrayBuffer()) : null,
-      ...(existing?.httpMetadata?.contentType
-        ? { contentType: existing.httpMetadata.contentType }
-        : {}),
-    });
-  }
-
-  let attempted = 0;
-  try {
-    for (const mutation of mutations) {
-      attempted += 1;
-      if (mutation.operation === "delete") {
-        await bucket.delete(mutation.key);
-      } else {
-        await bucket.put(mutation.key, mutation.value, {
-          ...(mutation.contentType
-            ? { httpMetadata: { contentType: mutation.contentType } }
-            : {}),
-        });
-      }
-    }
-  } catch (error) {
-    let restored = true;
-    for (const snapshot of snapshots.slice(0, attempted).reverse()) {
-      try {
-        if (snapshot.bytes) {
-          await bucket.put(snapshot.key, snapshot.bytes, {
-            ...(snapshot.contentType
-              ? { httpMetadata: { contentType: snapshot.contentType } }
-              : {}),
-          });
-        } else {
-          await bucket.delete(snapshot.key);
-        }
-      } catch (rollbackError) {
-        restored = false;
-        console.error("Could not compensate a partial image storage update.", rollbackError);
-      }
-    }
-    throw new StorageCommitError(restored, error);
-  }
+  await runStorageTransaction(bucket, mutations);
 }
 
 function isUploadedResumeFile(value: FormDataEntryValue | null): value is File {
@@ -2479,7 +2395,8 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
     path !== "/api/admin/backup" &&
     path !== "/api/admin/backup/restore" &&
     path !== "/api/admin/storage" &&
-    path !== "/api/admin/storage/migrate"
+    path !== "/api/admin/storage/migrate" &&
+    path !== "/api/admin/storage/recovery"
   )
     return null;
   if (!(await isAdminAuthorized(request, env))) return privateNotFound();
@@ -2490,6 +2407,27 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
   const bucket = resolvePrivateBucket(env);
   if (!bucket) return bucketNotConfigured();
 
+  if (path === "/api/admin/storage/recovery" && request.method === "GET") {
+    try {
+      return jsonResponse(await storageRecoveryStatus(bucket), 200);
+    } catch (error) {
+      return storageFailure(error, "inspect storage recovery");
+    }
+  }
+  if (path === "/api/admin/storage/recovery" && request.method === "POST") {
+    const bounded = await limitRequestBody(request, 1024);
+    if (bounded instanceof Response) return bounded;
+    const payload = (await bounded.json().catch(() => null)) as { confirm?: unknown } | null;
+    if (payload?.confirm !== "RECOVER") {
+      return jsonResponse({ error: "Type RECOVER to confirm storage repair." }, 400);
+    }
+    try {
+      const result = await recoverPendingStorageTransaction(bucket);
+      return jsonResponse({ ...result, pending: (await storageRecoveryStatus(bucket)).pending }, 200);
+    } catch (error) {
+      return storageFailure(error, "recover storage transaction");
+    }
+  }
   if (path === "/api/admin/backup" && request.method === "GET") {
     try {
       const backup = await createBackup(bucket);
