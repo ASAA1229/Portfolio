@@ -63,3 +63,6 @@ through `preparing`, `applying`, and either `committed` or `recovered`.
 ### Resume original-file lifecycle coverage — 2026-11-12
 
 Resume upload now journals the original binary and private index together. Resume deletion journals the private index, public feed, publish-history redaction and original-file deletion in one transaction. An ambiguous failure after the binary/index write is replayable from the same recovery journal. Remaining unjournaled content/persona single-object writes are individually object-atomic but still need a complete mutation inventory; multi-instance races remain open.
+
+
+Admin security configuration: the owner password must be at least 12 characters and `PORTFOLIO_ADMIN_SESSION_SECRET` must contain at least 32 UTF-8 bytes. Missing private session storage, storage read failures and malformed session epochs fail closed. Login throttling remains isolate-local and is not accepted as a distributed production rate limiter.
