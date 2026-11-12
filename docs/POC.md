@@ -535,3 +535,24 @@ Public image placements were audited across the profile selector, Abhishek's hom
 Both image and resume admin APIs accept the four public profile IDs. Added integration-test source for each profile covering the image lifecycle (private upload, publish, replace, restore, unpublish, republish and delete) and resume lifecycle (private upload, publish, supersede, history, rollback, unpublish, private download and delete/history redaction). Added normalizer coverage for cross-profile image feed isolation.
 
 Implementation and test source only. No tests, builds, typechecks, lint, browser, accessibility, CI or storage-provider checks were run because validation remains paused. Verify all public routes, lifecycle operations, cross-profile isolation, cache behavior, R2/local-disk consistency and failure compensation before acceptance.
+
+## Current P0 development increment — PORT-US-045 and PORT-US-046 (2026-11-12)
+
+**Branch:** `new`  
+**Status:** SOURCE IMPLEMENTATION / AUTOMATED TESTS AUTHORED / VALIDATION PAUSED
+
+### PORT-US-045 — Storage recovery and data integrity
+- Added a durable write-ahead recovery journal for resume index/feed/history commits, image multi-object lifecycle operations and backup restore/migration writes.
+- Added owner-only recovery status and explicit recovery action in Admin → Backup & Restore.
+- Added failure-injection test source for rollback, failed compensation/recovery replay, journal preparation failure and same-isolate overlapping transactions.
+- Remaining: distributed/multi-Worker concurrency control, complete resume original-file upload/delete cleanup coverage, storage reconciliation across every content mutation, and hosted R2 acceptance.
+
+### PORT-US-046 — Admin authentication and security
+- Enforced a minimum 32-byte session signing secret.
+- Session epoch storage now fails closed; admin authorization also fails closed if private session storage is unavailable.
+- Runtime bypass is rejected in production builds.
+- Added an authenticated same-origin session renewal endpoint and admin navigation control.
+- Added test source for secret strength, route protection, CSRF rejection, renewal and invalid epoch behavior.
+- Remaining: distributed login throttling, production secret rotation/configuration verification, full route/mutation inventory and production-like session acceptance.
+
+**Validation boundary:** no tests, build, typecheck, lint, audit, browser, accessibility, CI or R2 checks were run. Source implementation and authored tests are not verified behavior. No merge or deployment.
