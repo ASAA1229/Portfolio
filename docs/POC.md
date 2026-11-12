@@ -317,7 +317,7 @@ This section records the owner's consolidated answers to the 50-question develop
 - **Development: ACTIVE on `new`. Testing/validation: PAUSED by owner.** No tests, typecheck, lint, build, image audit, browser/accessibility checks, CI/Jenkins or release validation may be started until explicitly resumed.
 - Current source includes profile-aware routes/content, JARVIS-first server-side AI provider selection, protected admin managers, resume/image review and publishing workflows, storage adapters/migration, backup/restore, audit history and release-integrity tooling.
 - Resume publishing/reconciliation, persistent production storage/configuration, real admin-session acceptance, full profile/content isolation and production JARVIS connectivity remain **PARTIAL or IMPLEMENTED — NEEDS TESTING** as appropriate; do not claim production-ready.
-- The current `README.md` AI configuration text is stale: it still describes OpenAI Responses API as the only provider, while `src/lib/ai-provider.ts` selects JARVIS first and permits OpenAI only with explicit paid-fallback opt-in. This documentation mismatch remains to be corrected.
+- `README.md` now documents JARVIS as primary and OpenAI as explicit opt-in only; keep deployment instructions aligned with the provider resolver and the selected profile's published-context boundary.
 
 ### Active development order
 1. Complete resume publish/unpublish/rollback consistency and partial-failure reconciliation across private index, public feed and object storage.
