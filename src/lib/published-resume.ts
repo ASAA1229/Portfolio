@@ -215,7 +215,8 @@ export type PublishedProfileImage = {
   profileId: string;
   src: string;
   alt: string;
-  slot: "portrait" | "gallery";
+  slot: "portrait" | "gallery" | "project";
+  projectSlug?: string;
 };
 
 export function normalizePublishedProfileImages(payload: unknown, profileId: string): PublishedProfileImage[] {
@@ -227,16 +228,25 @@ export function normalizePublishedProfileImages(payload: unknown, profileId: str
       typeof item["id"] === "string" &&
       typeof item["src"] === "string" &&
       /^\/api\/published-images\/[0-9a-f-]{36}$/i.test(item["src"]) &&
-      (item["slot"] === "portrait" || item["slot"] === "gallery") &&
-      typeof item["alt"] === "string"
+      (item["slot"] === "portrait" || item["slot"] === "gallery" || item["slot"] === "project") &&
+      typeof item["alt"] === "string" &&
+      (item["slot"] !== "project" || (typeof item["projectSlug"] === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(item["projectSlug"])))
     )
     .map((item) => ({
       id: item["id"] as string,
       profileId,
       src: item["src"] as string,
       alt: (item["alt"] as string).trim().slice(0, 300),
-      slot: item["slot"] as "portrait" | "gallery",
+      slot: item["slot"] as "portrait" | "gallery" | "project",
+      ...(item["slot"] === "project" && typeof item["projectSlug"] === "string" ? { projectSlug: item["projectSlug"] } : {}),
     }));
+}
+
+/** Published image assets assigned to one profile project slug. */
+export function usePublishedProjectImages(profileId: string, projectSlug: string): PublishedProfileImage[] {
+  return usePublishedProfileImages(profileId).filter(
+    (image) => image.slot === "project" && image.projectSlug === projectSlug,
+  );
 }
 
 /** Shared client hook for all currently published images belonging to a profile. */
