@@ -300,7 +300,7 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
-  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait")?.src ?? null;
+  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   const headline = publishedResume?.headline || profile.headline;
   const story = publishedResume?.summary || profile.story;
   return (
@@ -308,8 +308,8 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
       <section className="person-hero">
         <img src={backdrop} alt="" className="person-hero-backdrop" aria-hidden="true" />
         <img
-          src={publishedPortrait ?? profile.portrait}
-          alt={`${profile.name} portrait`}
+          src={publishedPortrait?.src ?? profile.portrait}
+          alt={publishedPortrait?.alt ?? `${profile.name} portrait`}
           className="person-hero-portrait"
           fetchPriority="high"
           decoding="async"
@@ -454,7 +454,7 @@ export function PersonContent({
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
-  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait")?.src ?? null;
+  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   const contact = usePersonContact(profile);
   const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
   const galleryPhotos = publishedGallery.length
@@ -585,8 +585,8 @@ export function PersonContent({
                 <h2 className="text-4xl">{publishedResume?.headline || profile.headline}</h2>
                 <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
                   <img
-                    src={publishedPortrait ?? profile.portrait}
-                    alt={`${profile.name} — portfolio portrait`}
+                    src={publishedPortrait?.src ?? profile.portrait}
+                    alt={publishedPortrait?.alt ?? `${profile.name} — portfolio portrait`}
                     loading="lazy"
                     className="max-h-[34rem] w-full object-cover object-center"
                     onError={(event) => {
