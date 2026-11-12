@@ -27,10 +27,6 @@ function Home() {
   const educationTitle = resumeEducation?.title || content.education?.qualification || "B.Tech IT";
   const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || content.education?.period || "2022–2026";
   const educationLocation = resumeEducation?.location || content.education?.location || content.contact.location || "Hyderabad, India";
-  return () => {
-      active = false;
-    };
-  }, []);
   return (
     <>
       <section className="home-hero">
