@@ -242,12 +242,12 @@ function ImageManager() {
   }
 
   if (checking) {
-    return <main className="site-container py-16">
-      <AdminNavigation current="/admin/images" />Checking private image manager…</main>;
+    return <main className="site-container py-16">Checking private image manager…</main>;
   }
 
   return (
     <main className="site-container max-w-5xl py-10 sm:py-14">
+      <AdminNavigation current="/admin/images" />
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
