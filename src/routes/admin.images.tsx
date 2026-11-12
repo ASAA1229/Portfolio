@@ -12,7 +12,8 @@ type ImageRecord = {
   status: "pending" | "approved";
   profileId: "abhishek" | "ammu" | "bava" | "sai";
   alt: string;
-  slot?: "gallery" | "portrait";
+  slot?: "gallery" | "portrait" | "project";
+  projectSlug?: string;
 };
 type ImageVersion = { version: string; filename: string; contentType: string; size: number; uploadedAt: string };
 type ImageListPayload = {
@@ -67,7 +68,8 @@ function ImageManager() {
   const [file, setFile] = useState<File | null>(null);
   const [profileId, setProfileId] = useState<ImageRecord["profileId"]>("abhishek");
   const [alt, setAlt] = useState("");
-  const [slot, setSlot] = useState<"gallery" | "portrait">("gallery");
+  const [slot, setSlot] = useState<"gallery" | "portrait" | "project">("gallery");
+  const [projectSlug, setProjectSlug] = useState("");
   const [publishOnUpload, setPublishOnUpload] = useState(false);
   // Bumped after a replacement so preview thumbnails refetch the new file.
   const [previewVersion, setPreviewVersion] = useState(0);
@@ -77,7 +79,7 @@ function ImageManager() {
   const [statusFilter, setStatusFilter] = useState<"all" | ImageRecord["status"]>("all");
   const visibleImages = images.filter((image) => {
     const query = searchQuery.trim().toLowerCase();
-    const matchesQuery = !query || [image.filename, image.alt, image.profileId, image.slot ?? "gallery"].some((value) => value.toLowerCase().includes(query));
+    const matchesQuery = !query || [image.filename, image.alt, image.profileId, image.slot ?? "gallery", image.projectSlug ?? ""].some((value) => value.toLowerCase().includes(query));
     return matchesQuery && (profileFilter === "all" || image.profileId === profileFilter) && (statusFilter === "all" || image.status === statusFilter);
   });
 
@@ -162,6 +164,10 @@ function ImageManager() {
       setError("Add descriptive alt text before uploading.");
       return;
     }
+    if (slot === "project" && !/^[a-z0-9][a-z0-9-]{0,79}$/.test(projectSlug.trim())) {
+      setError("Enter the project's URL slug (lowercase letters, numbers and hyphens).");
+      return;
+    }
     if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
       setError("Image must be between 1 byte and 10 MB.");
       return;
@@ -174,6 +180,7 @@ function ImageManager() {
       form.set("profileId", profileId);
       form.set("alt", alt.trim());
       form.set("slot", slot);
+      if (slot === "project") form.set("projectSlug", projectSlug.trim());
       form.set("publishOnUpload", String(publishOnUpload));
 
       const response = await fetch("/api/admin/images", {
@@ -186,6 +193,7 @@ function ImageManager() {
       setFile(null);
       setAlt("");
       setSlot("gallery");
+      setProjectSlug("");
       setPublishOnUpload(false);
       setMessage(
         publishOnUpload
@@ -408,12 +416,28 @@ function ImageManager() {
             <select
               className="min-h-11 rounded border border-border bg-background px-3"
               value={slot}
-              onChange={(event) => setSlot(event.target.value as "gallery" | "portrait")}
+              onChange={(event) => setSlot(event.target.value as "gallery" | "portrait" | "project")}
             >
-              <option value="gallery">Gallery photo</option>
+              <option value="gallery">Profile gallery</option>
               <option value="portrait">Main profile portrait</option>
+              <option value="project">Project image</option>
             </select>
           </label>
+          {slot === "project" && (
+            <label className="grid gap-2 text-sm">
+              Project URL slug
+              <input
+                className="min-h-11 rounded border border-border bg-background px-3"
+                value={projectSlug}
+                onChange={(event) => setProjectSlug(event.target.value.toLowerCase().replace(/\\s+/g, "-"))}
+                maxLength={80}
+                pattern="[a-z0-9][a-z0-9-]{0,79}"
+                placeholder="e.g. data-analysis-ai"
+                required
+              />
+              <span className="text-xs text-muted-foreground">Use the exact slug from this profile&apos;s project URL.</span>
+            </label>
+          )}
           <label className="grid gap-2 text-sm">
             Image file (JPEG, PNG, WebP or AVIF; max 10 MB)
             <input
@@ -532,7 +556,7 @@ function ImageManager() {
                   <h3 className="break-words font-semibold">{image.filename}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {profiles.find((item) => item.id === image.profileId)?.label} ·{" "}
-                    {image.slot === "portrait" ? "Main portrait" : "Gallery"} ·{" "}
+                    {image.slot === "portrait" ? "Main portrait" : image.slot === "project" ? `Project · ${image.projectSlug ?? "unassigned"}` : "Profile gallery"} ·{" "}
                     {(image.size / 1024).toFixed(1)} KB
                   </p>
                   <p className="mt-2 text-sm">{image.alt}</p>
