@@ -292,10 +292,15 @@ export async function restoreBackup(
   );
   const writes = [
     ...backup.files.map(([key, file]) => ({
-      key, operation: "put" as const, value: file.bytes, contentType: file.contentType,
+      key,
+      operation: "put" as const,
+      value: file.bytes,
+      contentType: file.contentType,
     })),
     ...documents.map(([key, value]) => ({
-      key, operation: "put" as const, value: JSON.stringify(value),
+      key,
+      operation: "put" as const,
+      value: JSON.stringify(value),
       contentType: "application/json; charset=utf-8",
     })),
   ];
