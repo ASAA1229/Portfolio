@@ -5,7 +5,7 @@ import { PageBody, ResumeAction } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
 import { useAbhishekContent } from "@/lib/abhishek-content";
-import { usePublishedProfileImages } from "@/lib/published-resume";
+import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/about")({
   head: () =>
@@ -20,6 +20,11 @@ export const Route = createFileRoute("/about")({
 function About() {
   // Owner-published CMS basics replace the curated copy; curated text is the fallback.
   const { headline, summary, story, education, contact, missions } = useAbhishekContent();
+  const publishedResume = usePublishedProfileResume("abhishek");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const educationTitle = resumeEducation?.title || education?.qualification || "B.Tech Information Technology";
+  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || education?.period || "2022–2026";
+  const educationLocation = resumeEducation?.location || education?.location || contact.location || "Hyderabad, India";
   const publishedImages = usePublishedProfileImages("abhishek");
   const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
   const publishedHero = [...publishedImages].reverse().find((image) => image.slot === "portrait");
@@ -98,10 +103,10 @@ function About() {
             )}
             <div className="about-facts">
               <span>
-                <GraduationCap /> {education?.qualification || "B.Tech Information Technology"} · {education?.period || "2022–2026"}
+                <GraduationCap /> {educationTitle} · {educationPeriod}
               </span>
               <span>
-                <MapPin /> {education?.location || contact.location || "Hyderabad, India"}
+                <MapPin /> {educationLocation}
               </span>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
