@@ -511,3 +511,13 @@ The image manager now compares private inventory records with the public publish
 ## Admin resume inventory — active public resource visibility (2026-11-12)
 
 The resume manager now reads the private admin inventory and public approved-resume feed independently. It distinguishes the exact resume currently served for a profile (“Live on profile”) from approved-but-not-active records. If the public feed is unavailable, it displays an unknown state rather than claiming that approval proves public visibility. Publish and unpublish actions refresh the feed-backed status after the server confirms success. This is source implementation only; runtime behavior has not been validated.
+
+
+## Admin image version history and safe restore (2026-11-12)
+
+- Replacements now preserve the previous private image and a metadata sidecar (filename, content type, byte size and timestamp).
+- The Admin image manager can list available restorable versions and restore a selected version.
+- Restore validates the version ID, metadata, exact byte size and JPEG/PNG/WebP/AVIF signature. It first snapshots the current image as a new version, then updates private storage, the public object when approved, and the image index using compensating writes.
+- Older byte-only snapshots without metadata are excluded from restore choices; no filename or MIME type is guessed.
+- Cleanup permanently deletes superseded versions and therefore removes their restore capability.
+- **Validation:** no tests/build/typecheck/lint/browser/accessibility/CI were run. Source implementation is unverified.
