@@ -786,7 +786,7 @@ function bucketNotConfigured(): Response {
 
 async function handleResumeApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
-  if (!path.startsWith("/api/admin/resumes") && path !== "/api/published-resumes") return null;
+  if (!path.startsWith("/api/admin/resumes") && path !== "/api/published-resumes" && !path.startsWith("/api/published-resumes/")) return null;
   if (path === "/api/published-resumes" && request.method === "GET") {
     const publicBucket = resolvePrivateBucket(env);
     if (!publicBucket) return jsonResponse({ updatedAt: null, resumes: [] }, 200);
@@ -800,6 +800,30 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
           },
         })
       : jsonResponse({ updatedAt: null, resumes: [] }, 200);
+  }
+  const publishedResumeFile = path.match(/^\/api\/published-resumes\/([a-f0-9-]{36})$/);
+  if (publishedResumeFile && request.method === "GET") {
+    const publicBucket = resolvePrivateBucket(env);
+    if (!publicBucket) return privateNotFound();
+    const records = await readResumeIndex(publicBucket);
+    const record = records.find(
+      (item) =>
+        item.id === publishedResumeFile[1] &&
+        item.status === "approved" &&
+        isPublicProfileId(item.profileId),
+    );
+    if (!record) return privateNotFound();
+    const object = await publicBucket.get(`private-admin/resumes/files/${record.id}`);
+    if (!object) return privateNotFound();
+    const safeFilename = record.filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "resume";
+    return new Response(await object.arrayBuffer(), {
+      headers: {
+        "content-type": record.contentType,
+        "content-disposition": `attachment; filename="${safeFilename}"`,
+        "cache-control": PUBLIC_FEED_CACHE,
+        "x-content-type-options": "nosniff",
+      },
+    });
   }
   if (!(await isAdminAuthorized(request, env))) return privateNotFound();
   if (["POST", "DELETE", "PUT", "PATCH"].includes(request.method)) {
