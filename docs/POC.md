@@ -471,3 +471,12 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Dashboard aggregation is read-only. When an API source is unavailable, the dashboard identifies it and warns that counts may be incomplete rather than implying a complete inventory.
 - Added PORT-US-049 to `docs/USER_STORIES.md`; the admin experience is implemented in source but is not accepted or complete until validation and owner review.
 - **Validation:** no tests, build, typecheck, lint, browser/device/accessibility checks or CI were run. Testing remains paused.
+
+## Current development increment — dynamic admin workflows (2026-11-12)
+
+- Added profile filtering to the resume inventory while preserving its existing search and status filters.
+- Added image search, profile filtering and publication-status filtering to the image inventory.
+- Added audit-history search and outcome filtering.
+- Added a live in-page preview of the current unpublished content editor state, with project/skill/experience/education and SEO summaries. The preview does not publish or alter public data.
+- The admin workspace continues to use authenticated server APIs for content/persona versioning, image/resume lifecycle, backup/restore, storage migration and audit history.
+- **Validation:** no tests/build/typecheck/lint/browser/accessibility/CI were run. Validation remains paused.
