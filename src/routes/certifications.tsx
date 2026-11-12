@@ -53,7 +53,11 @@ function Certifications() {
               </p>
             </div>
             <div className="certificate-archive">
-              {certs.map(([title, issuer], i) => (
+              {certs.length === 0 ? (
+                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                  No certifications have been published yet.
+                </p>
+              ) : certs.map(([title, issuer], i) => (
                 <Reveal key={title} delay={i * 0.035}>
                   <article className="certificate-item">
                     <div className="certificate-art" aria-hidden="true">
