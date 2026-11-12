@@ -11,7 +11,7 @@
  * summary) prefer the explicit CMS edit over resume-derived text.
  */
 import { useMemo } from "react";
-import { CERTS, CONTACT, MISSIONS } from "@/lib/portfolio-data";
+import { CERTS, CONTACT, MISSIONS, SKILLS } from "@/lib/portfolio-data";
 import { siteProjects } from "@/lib/site-data";
 import { usePublishedContent } from "@/lib/published-content";
 import type { ContentOverrides } from "@/lib/cms-content";
@@ -86,6 +86,16 @@ export function mergeSiteProjects(overrides: ContentOverrides | null): SiteProje
   return merged;
 }
 
+export function mergeSkills(overrides: ContentOverrides | null) {
+  const groups = overrides?.skills;
+  if (!groups?.length) return SKILLS;
+  return groups.map((group) => ({
+    cat: group.cat,
+    desc: group.desc,
+    items: [...group.items],
+  }));
+}
+
 export function mergeMissions(overrides: ContentOverrides | null): Mission[] {
   const experience = overrides?.experience;
   if (!experience?.length) return MISSIONS;
@@ -125,6 +135,7 @@ export function useAbhishekContent() {
       story: overrides?.basics?.story,
       projects: mergeSiteProjects(overrides),
       missions: mergeMissions(overrides),
+      skills: mergeSkills(overrides),
       certs: mergeCerts(overrides),
       hasCustomExperience: Boolean(overrides?.experience?.length),
       hasCustomCerts: Boolean(overrides?.certifications?.length),
