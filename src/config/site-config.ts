@@ -128,7 +128,7 @@ export interface SiteConfig {
 }
 
 export const SITE_CONFIG: SiteConfig = {
-  siteName: "Portfolio",
+  siteName: "ABHISHEK: THE SERIES",
   theme: DEFAULT_THEME,
   navigation: NAV_SECTIONS,
 };
