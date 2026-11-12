@@ -1903,6 +1903,22 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (targetBytes.byteLength !== Number(value.size)) {
       return jsonResponse({ error: "The saved image version failed its size-integrity check." }, 409);
     }
+    const signature = new Uint8Array(targetBytes, 0, Math.min(16, targetBytes.byteLength));
+    const signatureValid =
+      value.contentType === "image/jpeg"
+        ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
+        : value.contentType === "image/png"
+          ? signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47
+          : value.contentType === "image/webp"
+            ? String.fromCharCode(...signature.slice(0, 4)) === "RIFF" &&
+              String.fromCharCode(...signature.slice(8, 12)) === "WEBP"
+            : value.contentType === "image/avif"
+              ? String.fromCharCode(...signature.slice(4, 12)).includes("ftypavif") ||
+                String.fromCharCode(...signature.slice(4, 12)).includes("ftypavis")
+              : false;
+    if (!signatureValid) {
+      return jsonResponse({ error: "The saved image version failed its file-signature check." }, 409);
+    }
     const privateKey = `private-admin/images/files/${id}`;
     const currentObject = await bucket.get(privateKey);
     if (!currentObject) return privateNotFound();
