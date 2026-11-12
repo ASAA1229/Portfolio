@@ -42,8 +42,8 @@ function AdminLogin() {
   }
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-[#09090d] px-4 py-12 text-white">
-      <div className="w-full max-w-md border border-white/10 bg-white/[0.03] p-7 shadow-2xl sm:p-9">
+    <section className="admin-login-backdrop flex min-h-screen items-center justify-center bg-[#09090d] px-4 py-12 text-white">
+      <div className="admin-login-card w-full max-w-md border border-white/10 bg-white/[0.03] p-7 shadow-2xl sm:p-9">
         <div className="mb-8 flex size-12 items-center justify-center border border-violet-400/30 bg-violet-400/10 text-violet-200">
           <LockKeyhole className="size-5" />
         </div>
