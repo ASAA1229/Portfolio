@@ -23,6 +23,10 @@ function Home() {
   const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   // Owner CMS edits (headline, summary, projects) over curated content.
   const content = useAbhishekContent();
+  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const educationTitle = resumeEducation?.title || content.education?.qualification || "B.Tech IT";
+  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || content.education?.period || "2022–2026";
+  const educationLocation = resumeEducation?.location || content.education?.location || content.contact.location || "Hyderabad, India";
   return () => {
       active = false;
     };
@@ -83,8 +87,8 @@ function Home() {
                 <SocialLinks github={content.contact.github} linkedin={content.contact.linkedin} />
               </div>
               <p className="mt-7 flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="size-3 text-violet" /> {content.contact.location || "Hyderabad, India"}{" "}
-                <span className="mx-1">/</span> B.Tech IT · 2026
+                <MapPin className="size-3 text-violet" /> {educationLocation}{" "}
+                <span className="mx-1">/</span> {educationTitle} · {educationPeriod}
               </p>
             </div>
           </Reveal>
