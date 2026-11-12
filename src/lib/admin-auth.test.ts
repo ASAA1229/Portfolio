@@ -22,6 +22,12 @@ describe("private admin authentication", () => {
     );
   });
 
+  it("rejects missing or weak session-signing secrets", () => {
+    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "too-short" })).toBe(false);
+    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(31) })).toBe(false);
+    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(32) })).toBe(true);
+  });
+
   it("accepts only the configured password", async () => {
     expect(await verifyAdminPassword("test-only-password", env)).toBe(true);
     expect(await verifyAdminPassword("wrong-password", env)).toBe(false);
