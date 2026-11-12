@@ -480,3 +480,12 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Added a live in-page preview of the current unpublished content editor state, with project/skill/experience/education and SEO summaries. The preview does not publish or alter public data.
 - The admin workspace continues to use authenticated server APIs for content/persona versioning, image/resume lifecycle, backup/restore, storage migration and audit history.
 - **Validation:** no tests/build/typecheck/lint/browser/accessibility/CI were run. Validation remains paused.
+
+
+## PORTFOLIO ADMIN RESOURCE MANAGEMENT — 2026-11-12
+
+Admin-managed resumes and images are intended to be the source of truth for public profile resources. The public UI must consume profile-scoped published API feeds; it must not require edits to bundled image paths or static resume links when an owner publishes a replacement. Pending uploads and private source documents remain private until publication. Unpublish/restore must update the public view safely, and curated content is only a fallback when no published resource exists.
+
+**Implemented in this source increment:** shared published-image normalization/hook; Abhishek home portrait and About hero/gallery consume published image records; other person-profile portrait and gallery views consume the same shared profile-scoped feed, with published gallery records replacing the curated gallery when present. Existing published resume metadata already feeds selected profile headline, summary, skills, structured sections and approved contact surfaces.
+
+**Still open:** dynamic download of the active published resume binary from a public profile-safe endpoint; complete audit of all four profiles and every image placement; confirmation that publish/replace/unpublish/rollback invalidates public caches and that restored versions become active; admin active-resource visibility and failure recovery. The implementation is partial, not end-to-end complete. Tests/build/typecheck/lint/browser/accessibility/CI remain paused and were not run.
