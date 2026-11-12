@@ -685,9 +685,9 @@ async function readPublishHistory(
 }
 
 /**
- * Persist a resume state change: private index, then public feed, then publish
- * history. If any write fails, already-applied writes are reverted in reverse order
- * so the public feed never references a state the private index does not hold.
+ * Persist a resume state change through the durable journal. The private index,
+ * public feed, publish history and any extra file mutation are snapshotted before
+ * writes begin, so interrupted/ambiguous operations can be replayed safely.
  */
 async function commitResumeState(
   bucket: PrivateBucket,
