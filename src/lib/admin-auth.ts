@@ -50,15 +50,18 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return difference === 0;
 }
 
+function hasStrongSessionSecret(env?: unknown): boolean {
+  const value = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  return Boolean(value && new TextEncoder().encode(value).byteLength >= 32);
+}
+
 export function adminAuthConfigured(env?: unknown): boolean {
-  return Boolean(
-    secret("PORTFOLIO_ADMIN_PASSWORD", env) && secret("PORTFOLIO_ADMIN_SESSION_SECRET", env),
-  );
+  return Boolean(secret("PORTFOLIO_ADMIN_PASSWORD", env) && hasStrongSessionSecret(env));
 }
 
 export async function verifyAdminPassword(password: string, env?: unknown): Promise<boolean> {
   const expected = secret("PORTFOLIO_ADMIN_PASSWORD", env);
-  if (!expected || !secret("PORTFOLIO_ADMIN_SESSION_SECRET", env)) return false;
+  if (!expected || !hasStrongSessionSecret(env)) return false;
   const [actualHash, expectedHash] = await Promise.all([
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)),
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(expected)),
@@ -81,7 +84,7 @@ export function isValidSessionEpoch(value: unknown): value is string {
 
 export async function createAdminCookie(env?: unknown, epoch = "0"): Promise<string | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!secretValue || !isValidSessionEpoch(epoch)) return null;
+  if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
   const payload = String(expires);
@@ -94,7 +97,7 @@ export async function isAdminRequest(
   epoch = "0",
 ): Promise<boolean> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!secretValue || !isValidSessionEpoch(epoch)) return false;
+  if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return false;
   const key = sessionKey(secretValue, epoch);
   const cookieHeader = request.headers.get("cookie") ?? "";
   const cookie = cookieHeader
