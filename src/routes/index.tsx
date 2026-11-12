@@ -80,7 +80,7 @@ function Home() {
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4">
                 <AiIntro compact />
-                <SocialLinks github={content.contact.github} linkedin={content.contact.linkedin} />
+                <SocialLinks github={publishedResume?.contact?.github || content.contact.github} linkedin={publishedResume?.contact?.linkedin || content.contact.linkedin} />
               </div>
               <p className="mt-7 flex items-center gap-2 text-xs text-muted-foreground">
                 <MapPin className="size-3 text-violet" /> {educationLocation}{" "}
