@@ -66,7 +66,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   const themePreset = publishedContent?.appearance?.theme;
   const themeStyle =
     themePreset && themePreset !== "crimson"
-      ? `:root { ${themeCssVariables(themeForPreset(themePreset))} }`
+      ? `.site-shell { ${themeCssVariables(themeForPreset(themePreset))} }`
       : null;
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";

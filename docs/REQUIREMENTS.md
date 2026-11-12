@@ -31,9 +31,10 @@ Public multi-section profile pages; profile picker and navigation; owner Admin c
 - CMS-created project pages use published title/description/social image.
 - Publish, unpublish, rollback and cache revalidation update metadata consistently.
 
-### PORT-US-047 — Owner-approved visual profile customization (P1; partial, development/testing required)
+### PORT-US-047 — Owner-approved visual profile customization (P1; partial implementation, validation pending)
 - Owner configures approved theme tokens, typography, profile accent, section visibility/order and supported layout modules.
-- Draft visual changes can be previewed before publication.
+- Draft visual changes can be previewed before publication. Admin now previews the selected fixed theme, profile context, accent treatment and filtered navigation labels without publishing.
+- Published accent variables are scoped to the active profile shell so one profile theme does not bleed into another.
 - Invalid/inaccessible combinations fall back to the shared accessible design system.
 - No arbitrary scripts, unsafe markup or untrusted external resources.
 - All four profiles remain responsive and visually coherent.

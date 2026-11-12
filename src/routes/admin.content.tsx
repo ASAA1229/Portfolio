@@ -10,7 +10,7 @@ import {
   type ContentOverrides,
   type ContentProfileId,
 } from "@/lib/cms-content";
-import { NAV_SECTIONS, THEME_PRESETS } from "@/config/site-config";
+import { NAV_SECTIONS, THEME_PRESETS, themeCssVariables, themeForPreset } from "@/config/site-config";
 import { clearPublishedContentCache } from "@/lib/published-content";
 
 export const Route = createFileRoute("/admin/content")({
@@ -247,6 +247,10 @@ function ContentManager() {
   let previewError = "";
   try { previewLists = JSON.parse(listsJson || "{}") as ListPart; } catch { previewError = "List data contains invalid JSON."; }
   const previewTitle = basics.headline?.trim() || PROFILES.find((profile) => profile.id === profileId)?.label || profileId;
+  const previewTheme = themeForPreset(appearance.theme);
+  const previewNavigation = NAV_SECTIONS.filter(
+    (section) => section.page === "home" || !(appearance.hiddenSections ?? []).includes(section.page),
+  ).map((section) => navigation?.[section.page]?.trim() || section.label);
   const input = "mt-2 w-full rounded border border-border bg-background p-2 text-sm";
 
   return (
@@ -458,8 +462,22 @@ function ContentManager() {
 
       {previewOpen && (
         <section className="mt-6 rounded-lg border border-primary/30 bg-card p-5 sm:p-7" aria-label="Draft preview">
-          <p className="font-mono text-xs uppercase tracking-widest text-primary">Unpublished preview</p>
-          <h2 className="mt-2 text-2xl font-semibold">{previewTitle}</h2>
+          <style>{".draft-appearance-preview { " + themeCssVariables(previewTheme) + " }"}</style>
+          <div className="draft-appearance-preview rounded-lg border border-border bg-background p-5">
+            <p className="font-mono text-xs uppercase tracking-widest text-primary">Unpublished appearance preview · {THEME_PRESETS[appearance.theme ?? "crimson"].label}</p>
+            <h2 className="mt-2 text-2xl font-semibold">{previewTitle}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Profile: {PROFILES.find((profile) => profile.id === profileId)?.label}</p>
+            <nav aria-label="Draft navigation preview" className="mt-4 flex flex-wrap gap-2">
+              {previewNavigation.map((label) => (
+                <span key={label} className="rounded border border-border px-3 py-2 text-xs">{label}</span>
+              ))}
+            </nav>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <span className="rounded bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Accent preview</span>
+              <span className="text-sm text-primary">Accessible accent text</span>
+            </div>
+          </div>
+          <h3 className="mt-6 text-xl font-semibold">Content preview</h3>
           <p className="mt-3 text-lg">{basics.summary || "No summary entered yet."}</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{basics.story || "No story/about text entered yet."}</p>
           {previewError ? (
