@@ -394,3 +394,15 @@ Still open: validate lifecycle and injected storage failures when validation res
 - Published project images are included in active-resource visibility.
 
 Remaining: inspect Abhishek's project route family and every project detail route; validate all four profiles, publication/unpublication/delete/restore lifecycle, slug changes and storage/cache behavior. No checks were run because validation remains paused. Do not mark PORT-US-050 or PORT-E04 accepted.
+
+### PORT-E04 / PORT-US-051 — four-profile public resource lifecycle and image placement audit (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / AUTOMATED COVERAGE AUTHORED / VALIDATION PENDING
+
+- Audited portrait/gallery/project image usage in the profile selector, all profile home/About views, Abhishek's homepage/About and all project card/showcase/detail views.
+- Routed all personal image placements through validated profile-scoped published image data; project media is scoped by exact profile ID + project slug.
+- Kept bundled portrait/gallery files as explicit fallback assets and classified series billboards/backdrops/logo as static brand art.
+- Removed a duplicate static About-page profile image with inaccurate alt text.
+- Added four-profile image lifecycle integration coverage and four-profile resume lifecycle integration coverage, plus stricter public image feed normalization tests.
+
+Remaining: execute the new tests after validation is resumed; verify every route in browser, direct navigation and refresh; verify R2/local storage, caching, restore and compensation; verify pending/private isolation and no cross-profile leakage. Do not mark this epic accepted before successful validation.
