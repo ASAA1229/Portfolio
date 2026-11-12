@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { EyeOff, FileText, History, RotateCcw, Save, Send } from "lucide-react";
 import {
   CONTENT_PAGES,
@@ -245,6 +246,7 @@ function ContentManager() {
 
   return (
     <main className="site-container max-w-5xl py-10 sm:py-14">
+      <AdminNavigation current="/admin/content" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
         <FileText className="size-8" aria-hidden="true" /> Portfolio Content
