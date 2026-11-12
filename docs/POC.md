@@ -440,3 +440,14 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - The reconcile mutation now returns HTTP 409 with `RESUME_ORIGINALS_MISSING` when any indexed original is absent. It does not rewrite the public approved-resume feed in that state.
 - Added a route-level failure-path regression test that publishes a resume, removes its private original, attempts reconciliation, and asserts the public feed remains byte-for-byte unchanged.
 - **Validation:** test authored but not executed. Storage behavior under hosted R2 and other publish/rollback/unpublish failure combinations remains unverified.
+
+
+## Current development increment — image lifecycle compensation (2026-11-12)
+
+- **Branch:** `new`
+- Added `commitImageState` in `src/server.ts`: it snapshots affected object keys before writes, applies image state changes in order and compensates attempted writes in reverse order, including an ambiguous write that persisted before returning an error.
+- Image upload/publish-on-upload, replacement, publish, unpublish and delete now use the compensating helper for private originals, public copies, the image index and superseded copies.
+- Image failure responses expose a `restored` signal so an incomplete compensation is not reported as a successful rollback.
+- Added `src/test/image-failure-paths.test.ts` for injected ambiguous index-write failures across upload, replace, publish, unpublish and delete.
+- **Still open:** resume/image cross-request concurrency, durable recovery records when compensation itself fails, verified-original restore workflows, hosted R2 acceptance and exhaustive storage failure injection.
+- **Validation:** tests authored only; not executed. No build, typecheck, lint, browser, audit or CI run was performed. Testing remains paused.
