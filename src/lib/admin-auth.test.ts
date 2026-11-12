@@ -28,9 +28,15 @@ describe("private admin authentication", () => {
   });
 
   it("rejects missing or weak session-signing secrets", () => {
-    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "too-short" })).toBe(false);
-    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(31) })).toBe(false);
-    expect(adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(32) })).toBe(true);
+    expect(
+      adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "too-short" }),
+    ).toBe(false);
+    expect(
+      adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(31) }),
+    ).toBe(false);
+    expect(
+      adminAuthConfigured({ ...env, PORTFOLIO_ADMIN_SESSION_SECRET: "x".repeat(32) }),
+    ).toBe(true);
   });
 
   it("accepts only the configured password", async () => {
@@ -70,7 +76,17 @@ describe("private admin authentication", () => {
     for (const valid of ["0", "1", "7", "9007199254740991"]) {
       expect(isValidSessionEpoch(valid)).toBe(true);
     }
-    for (const invalid of ["", "-1", "01", "1.0", "1e3", "10000000000000000", "9999999999999999", 1, null]) {
+    for (const invalid of [
+      "",
+      "-1",
+      "01",
+      "1.0",
+      "1e3",
+      "10000000000000000",
+      "9999999999999999",
+      1,
+      null,
+    ]) {
       expect(isValidSessionEpoch(invalid)).toBe(false);
     }
   });
