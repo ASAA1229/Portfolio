@@ -653,21 +653,47 @@ function serializePublishedResumeFeed(records: ResumeRecord[]): string {
     )
     .map(
       ({
-        id, profileId, displayName, headline, summary, skills, contact, structuredSections, uploadedAt,
+        id,
+        profileId,
+        displayName,
+        headline,
+        summary,
+        skills,
+        contact,
+        structuredSections,
+        uploadedAt,
       }) => ({
-        id, uploadedAt, profileId, displayName, headline, summary, skills,
+        id,
+        uploadedAt,
+        profileId,
+        displayName,
+        headline,
+        summary,
+        skills,
         contact: contact ?? {},
         structuredSections: structuredSections ?? {
-          experience: [], education: [], projects: [], certifications: [],
+          experience: [],
+          education: [],
+          projects: [],
+          certifications: [],
         },
       }),
     );
-  return JSON.stringify({ updatedAt: new Date().toISOString(), resumes: publicResumes });
+  return JSON.stringify({
+    updatedAt: new Date().toISOString(),
+    resumes: publicResumes,
+  });
 }
 
-async function writePublishedResumeFeed(bucket: PrivateBucket, records: ResumeRecord[]): Promise<void> {
+async function writePublishedResumeFeed(
+  bucket: PrivateBucket,
+  records: ResumeRecord[],
+): Promise<void> {
   await bucket.put("public/approved-resumes.json", serializePublishedResumeFeed(records), {
-    httpMetadata: { contentType: "application/json; charset=utf-8", cacheControl: "no-store" },
+    httpMetadata: {
+      contentType: "application/json; charset=utf-8",
+      cacheControl: "no-store",
+    },
   } as { httpMetadata?: { contentType?: string; cacheControl?: string } });
 }
 
