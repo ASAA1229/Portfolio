@@ -186,7 +186,9 @@ describe("resume partial persistence failures", () => {
     const publicFeed = (await bucket.get("public/approved-resumes.json"))!;
     expect(await publicFeed.json()).toMatchObject({ resumes: [] });
     // The public-feed write failed before the history step was attempted.
-    expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
+    const history = await bucket.get("private-admin/resumes/history/bava.json");
+    expect(history).not.toBeNull();
+    expect(await history!.json<{ entries: unknown[] }>()).toMatchObject({ entries: [] });
   });
 });
 
