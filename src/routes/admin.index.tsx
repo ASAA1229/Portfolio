@@ -129,7 +129,7 @@ function AdminHome() {
     const results = await Promise.allSettled([
       readJson<{ resumes: ResumeRecord[] }>("/api/admin/resumes", signal),
       readJson<{ images: ImageRecord[] }>("/api/admin/images", signal),
-      readJson<{ storageMode?: string }>("/api/admin/storage", signal),
+      readJson<{ available?: string[] }>("/api/admin/storage", signal),
       readJson<{ entries: AuditEntry[] }>("/api/admin/audit", signal),
       ...profileRequests,
     ]);
@@ -143,7 +143,7 @@ function AdminHome() {
     };
     const resumePayload = take<{ resumes: ResumeRecord[] }>(0, "Resume inventory");
     const imagePayload = take<{ images: ImageRecord[] }>(1, "Image inventory");
-    const storagePayload = take<{ storageMode?: string }>(2, "Storage status");
+    const storagePayload = take<{ available?: string[] }>(2, "Storage status");
     const auditPayload = take<{ entries: AuditEntry[] }>(3, "Audit history");
     const content: Record<string, VersionedDocument | null> = {};
     const personas: Record<string, VersionedDocument | null> = {};
@@ -160,8 +160,8 @@ function AdminHome() {
       images: imagePayload?.images ?? [],
       content,
       personas,
-      storageAvailable: Boolean(storagePayload),
-      storageMode: storagePayload?.storageMode ?? "Configured",
+      storageAvailable: Boolean(storagePayload?.available?.length),
+      storageMode: storagePayload?.available?.join(", ") ?? "No adapter reported",
       audit: auditPayload?.entries?.slice(0, 6) ?? [],
       unavailable,
     });
@@ -309,7 +309,7 @@ function AdminHome() {
             {data?.storageAvailable
               ? `Private admin storage is reachable (${data.storageMode}).`
               : data
-                ? "Storage status could not be confirmed. Publishing and backup operations may be unavailable."
+                ? "No private storage adapter is available. Publishing and backup operations are unavailable."
                 : "Checking private storage…"}
           </p>
           <Link to="/admin/backup" className="mt-4 inline-flex min-h-10 items-center text-sm text-primary underline underline-offset-4">
