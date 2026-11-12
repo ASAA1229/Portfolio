@@ -1732,16 +1732,18 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     } catch (error) {
       // Keep the API failure actionable during local development instead of
       // allowing the framework to replace it with an opaque HTTPError response.
+      const restored = !(error instanceof StorageCommitError) || error.restored;
       console.error("Portfolio image upload failed while storing or indexing the image.", error);
       return jsonResponse(
         {
-          error:
-            "Image upload failed while saving the image. Check the development server terminal for the detailed cause and retry.",
+          error: restored
+            ? "Image upload failed; no changes were retained. Check the development server terminal and retry."
+            : "Image upload failed part-way and compensation was incomplete. Review image storage consistency before retrying.",
           code: "IMAGE_UPLOAD_STORAGE_FAILED",
+          restored,
           ...(import.meta.env.DEV === true
             ? { detail: error instanceof Error ? error.message : "Unknown image storage error." }
             : {}),
-          cleanupWarning: cleanupFailures.length ? cleanupFailures.join("; ") : undefined,
         },
         500,
       );
