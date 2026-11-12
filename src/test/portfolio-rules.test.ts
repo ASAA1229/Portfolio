@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { CONTACT, MISSIONS, MILESTONES, PROJECTS } from "@/lib/portfolio-data";
 import { getPersonPortfolio, PEOPLE, PERSON_PORTFOLIOS } from "@/lib/person-portfolios";
 import { contactSchema, PORTFOLIO_FILES } from "@/lib/contact-schema";
-import { normalizePublishedResumeHighlights } from "@/lib/published-resume";
+import { normalizePublishedResumeHighlights, normalizePublishedProfileImages } from "@/lib/published-resume";
 
 describe("Portfolio factual and contact rules", () => {
   it("keeps the four profile identifiers unique", () => {
@@ -334,5 +334,55 @@ describe("Portfolio factual and contact rules", () => {
     expect(normalizePublishedProfileResume(undatedFirst, "bava")?.id).toBe("dated");
     expect(normalizePublishedProfileResume([], "bava")).toBeNull();
     expect(normalizePublishedProfileResume({ resumes: "invalid" }, "bava")).toBeNull();
+  });
+
+  it("normalizes project images only for the matching profile and exact project slug", () => {
+    const payload = {
+      images: [
+        {
+          id: "image-1",
+          profileId: "ammu",
+          slot: "project",
+          projectSlug: "data-analysis-ai",
+          alt: "Analytics dashboard",
+          src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000",
+        },
+        {
+          id: "other-profile",
+          profileId: "sai",
+          slot: "project",
+          projectSlug: "data-analysis-ai",
+          alt: "Wrong profile",
+          src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001",
+        },
+        {
+          id: "invalid-slug",
+          profileId: "ammu",
+          slot: "project",
+          projectSlug: "../other-project",
+          alt: "Invalid slug",
+          src: "/api/published-images/123e4567-e89b-12d3-a456-426614174002",
+        },
+        {
+          id: "missing-slug",
+          profileId: "ammu",
+          slot: "project",
+          alt: "Missing slug",
+          src: "/api/published-images/123e4567-e89b-12d3-a456-426614174003",
+        },
+      ],
+    };
+    expect(normalizePublishedProfileImages(payload, "ammu")).toEqual([
+      {
+        id: "image-1",
+        profileId: "ammu",
+        slot: "project",
+        projectSlug: "data-analysis-ai",
+        alt: "Analytics dashboard",
+        src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000",
+      },
+    ]);
+    expect(normalizePublishedProfileImages(payload, "sai")).toHaveLength(1);
+    expect(normalizePublishedProfileImages(null, "ammu")).toEqual([]);
   });
 });
