@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { PublishHistoryPanel } from "@/components/PublishHistoryPanel";
 import {
   FileLock2,
@@ -619,6 +620,7 @@ function ResumeManager() {
   return (
     <section className="min-h-screen bg-[#09090d] px-4 py-8 text-white sm:px-8 sm:py-12">
       <div className="mx-auto max-w-5xl">
+        <AdminNavigation current="/admin/resumes" />
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-300">
