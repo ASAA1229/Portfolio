@@ -58,3 +58,8 @@ through `preparing`, `applying`, and either `committed` or `recovered`.
 - Committed/recovered journals are cleanup-only; stale snapshot cleanup can be retried without reverting committed data.
 
 **Limitations:** the in-process queue serializes requests only within one server isolate. It is not a distributed lock or compare-and-swap primitive, so concurrent writes across multiple Worker instances can still race. Single-object writes and upload/delete sequences outside the journal are not yet fully covered. R2 durability, failure injection and concurrency acceptance remain pending; no validation was run for this source increment.
+
+
+### Resume original-file lifecycle coverage — 2026-11-12
+
+Resume upload now journals the original binary and private index together. Resume deletion journals the private index, public feed, publish-history redaction and original-file deletion in one transaction. An ambiguous failure after the binary/index write is replayable from the same recovery journal. Remaining unjournaled content/persona single-object writes are individually object-atomic but still need a complete mutation inventory; multi-instance races remain open.
