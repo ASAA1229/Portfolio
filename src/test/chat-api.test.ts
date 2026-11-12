@@ -180,6 +180,32 @@ describe("POST /api/chat request flow", () => {
     expect(sent.messages[0]!.content).not.toContain("Owner-published engineering headline");
   });
 
+  it("cancels upstream error bodies without exposing or consuming provider details", async () => {
+    vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
+    vi.stubEnv("JARVIS_AI_KEY", "jrv_0123456789ab_" + "E".repeat(43));
+    let cancelled = false;
+    vi.stubGlobal("fetch", async () =>
+      new Response(
+        new ReadableStream({
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 500 },
+      ),
+    );
+
+    const response = await post({
+      person: "sai",
+      messages: [{ role: "user", content: "Hello" }],
+    });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "The AI service could not complete the request. Please try again.",
+    });
+    expect(cancelled).toBe(true);
+  });
+
   it("maps a rejected JARVIS key to a safe 401 message", async () => {
     vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
     vi.stubEnv("JARVIS_AI_KEY", "jrv_0123456789ab_" + "B".repeat(43));
