@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { DatabaseBackup, Download, Upload } from "lucide-react";
 import { MAX_BACKUP_BYTES, validateBackup } from "@/lib/admin-backup";
 
@@ -169,6 +170,7 @@ function BackupManager() {
 
   return (
     <main className="site-container max-w-3xl py-10 sm:py-14">
+      <AdminNavigation current="/admin/backup" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
         <DatabaseBackup className="size-8" aria-hidden="true" /> Backup &amp; restore
