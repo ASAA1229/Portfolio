@@ -79,7 +79,11 @@ function sessionKey(secretValue: string, epoch: string): string {
 }
 
 export function isValidSessionEpoch(value: unknown): value is string {
-  return typeof value === "string" && /^(?:0|[1-9]\d{0,15})$/.test(value);
+  return (
+    typeof value === "string" &&
+    /^(?:0|[1-9]\d{0,15})$/.test(value) &&
+    Number.isSafeInteger(Number(value))
+  );
 }
 
 export async function createAdminCookie(env?: unknown, epoch = "0"): Promise<string | null> {
