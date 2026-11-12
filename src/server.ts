@@ -1511,6 +1511,74 @@ async function writeImageIndex(
   });
 }
 
+type BucketMutation =
+  | { key: string; operation: "put"; value: ArrayBuffer | string | Uint8Array; contentType?: string }
+  | { key: string; operation: "delete" };
+
+/**
+ * Apply a small multi-object image lifecycle change with compensating rollback.
+ * Snapshot every key before the first write and include an ambiguous failing
+ * operation in compensation because providers can persist then reject.
+ */
+async function commitImageState(
+  bucket: PrivateBucket,
+  mutations: BucketMutation[],
+): Promise<void> {
+  const snapshots: Array<{
+    key: string;
+    bytes: Uint8Array | null;
+    contentType?: string;
+  }> = [];
+
+  // Read all prior values before mutating anything. A failed snapshot therefore
+  // leaves the bucket untouched.
+  for (const mutation of mutations) {
+    const existing = await bucket.get(mutation.key);
+    snapshots.push({
+      key: mutation.key,
+      bytes: existing ? new Uint8Array(await existing.arrayBuffer()) : null,
+      ...(existing?.httpMetadata?.contentType
+        ? { contentType: existing.httpMetadata.contentType }
+        : {}),
+    });
+  }
+
+  let attempted = 0;
+  try {
+    for (const mutation of mutations) {
+      attempted += 1;
+      if (mutation.operation === "delete") {
+        await bucket.delete(mutation.key);
+      } else {
+        await bucket.put(mutation.key, mutation.value, {
+          ...(mutation.contentType
+            ? { httpMetadata: { contentType: mutation.contentType } }
+            : {}),
+        });
+      }
+    }
+  } catch (error) {
+    let restored = true;
+    for (const snapshot of snapshots.slice(0, attempted).reverse()) {
+      try {
+        if (snapshot.bytes) {
+          await bucket.put(snapshot.key, snapshot.bytes, {
+            ...(snapshot.contentType
+              ? { httpMetadata: { contentType: snapshot.contentType } }
+              : {}),
+          });
+        } else {
+          await bucket.delete(snapshot.key);
+        }
+      } catch (rollbackError) {
+        restored = false;
+        console.error("Could not compensate a partial image storage update.", rollbackError);
+      }
+    }
+    throw new StorageCommitError(restored, error);
+  }
+}
+
 function isUploadedResumeFile(value: FormDataEntryValue | null): value is File {
   // Multipart File instances may come from a different runtime realm than the
   // global File constructor used by the SSR server. Validate the File surface
@@ -1633,10 +1701,6 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     let storedPublic = false;
     let indexed = false;
     try {
-      await bucket.put(privateKey, await file.arrayBuffer(), {
-        httpMetadata: { contentType: file.type },
-      });
-      storedPrivate = true;
       const records = await readImageIndex(bucket);
       const record: PortfolioImageRecord = {
         id,
@@ -1649,16 +1713,20 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         alt: alt.trim().slice(0, 300),
         slot,
       };
-      if (publishOnUpload) {
-        const privateObject = await bucket.get(privateKey);
-        if (!privateObject) throw new Error("Stored image upload is missing.");
-        await bucket.put(publicKey, await privateObject.arrayBuffer(), {
-          httpMetadata: { contentType: file.type },
-        });
-        storedPublic = true;
-      }
+      const bytes = await file.arrayBuffer();
       records.push(record);
-      await writeImageIndex(bucket, records);
+      await commitImageState(bucket, [
+        { key: privateKey, operation: "put", value: bytes, contentType: file.type },
+        ...(publishOnUpload
+          ? [{ key: publicKey, operation: "put" as const, value: bytes, contentType: file.type }]
+          : []),
+        {
+          key: IMAGE_INDEX_KEY,
+          operation: "put",
+          value: JSON.stringify(records),
+          contentType: "application/json; charset=utf-8",
+        },
+      ]);
       indexed = true;
       return jsonResponse({ image: record }, 201);
     } catch (error) {
@@ -1775,32 +1843,33 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const bytes = await file.arrayBuffer();
     const filename =
       file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${checked.extension}`;
+    records[index] = {
+      ...record,
+      filename,
+      contentType: file.type,
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+    };
     try {
-      await bucket.put(supersededKey, previousBytes, {
-        httpMetadata: { contentType: record.contentType },
-      });
-      await bucket.put(privateKey, bytes, { httpMetadata: { contentType: file.type } });
-      if (record.status === "approved") {
-        await bucket.put(publicKey, bytes, { httpMetadata: { contentType: file.type } });
-      }
-      records[index] = {
-        ...record,
-        filename,
-        contentType: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
-      };
-      await writeImageIndex(bucket, records);
+      await commitImageState(bucket, [
+        {
+          key: supersededKey,
+          operation: "put",
+          value: previousBytes,
+          contentType: record.contentType,
+        },
+        { key: privateKey, operation: "put", value: bytes, contentType: file.type },
+        ...(record.status === "approved"
+          ? [{ key: publicKey, operation: "put" as const, value: bytes, contentType: file.type }]
+          : []),
+        {
+          key: IMAGE_INDEX_KEY,
+          operation: "put",
+          value: JSON.stringify(records),
+          contentType: "application/json; charset=utf-8",
+        },
+      ]);
     } catch (error) {
-      // Compensate: put the previous file back so the index and files stay consistent.
-      await bucket
-        .put(privateKey, previousBytes, { httpMetadata: { contentType: record.contentType } })
-        .catch(() => undefined);
-      if (record.status === "approved") {
-        await bucket
-          .put(publicKey, previousBytes, { httpMetadata: { contentType: record.contentType } })
-          .catch(() => undefined);
-      }
       return imageStorageFailure(error, "replace");
     }
     return jsonResponse({ image: records[index], replaced: true }, 200);
@@ -1817,15 +1886,23 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       const object = await bucket.get(`private-admin/images/files/${id}`);
       if (!object) return privateNotFound();
       const bytes = await object.arrayBuffer();
-      await bucket.put(`public/profile-images/${id}`, bytes, {
-        httpMetadata: { contentType: record.contentType },
-      });
       records[index] = { ...record, status: "approved" };
       try {
-        await writeImageIndex(bucket, records);
+        await commitImageState(bucket, [
+          {
+            key: `public/profile-images/${id}`,
+            operation: "put",
+            value: bytes,
+            contentType: record.contentType,
+          },
+          {
+            key: IMAGE_INDEX_KEY,
+            operation: "put",
+            value: JSON.stringify(records),
+            contentType: "application/json; charset=utf-8",
+          },
+        ]);
       } catch (error) {
-        // Do not leave an orphaned public copy that the index does not reference.
-        await bucket.delete(`public/profile-images/${id}`).catch(() => undefined);
         return imageStorageFailure(error, "publish");
       }
       return jsonResponse({ image: records[index] }, 200);
@@ -1833,47 +1910,40 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (action === "unpublish" && request.method === "POST") {
       if (record.status !== "approved")
         return jsonResponse({ error: "This image is not currently published." }, 409);
-      const publicCopy = await bucket.get(`public/profile-images/${id}`);
-      const publicBytes = publicCopy ? await publicCopy.arrayBuffer() : null;
-      await bucket.delete(`public/profile-images/${id}`);
       records[index] = { ...record, status: "pending" };
       try {
-        await writeImageIndex(bucket, records);
+        await commitImageState(bucket, [
+          { key: `public/profile-images/${id}`, operation: "delete" },
+          {
+            key: IMAGE_INDEX_KEY,
+            operation: "put",
+            value: JSON.stringify(records),
+            contentType: "application/json; charset=utf-8",
+          },
+        ]);
       } catch (error) {
-        // The index still says "approved": restore the public copy so it is not broken.
-        if (publicBytes) {
-          await bucket
-            .put(`public/profile-images/${id}`, publicBytes, {
-              httpMetadata: { contentType: record.contentType },
-            })
-            .catch(() => undefined);
-        }
         return imageStorageFailure(error, "unpublish");
       }
       return jsonResponse({ image: records[index] }, 200);
     }
     if (!action && request.method === "DELETE") {
-      // Remove public bytes before changing the index; if the index write then fails,
-      // the public copy is restored so an approved record never points at nothing.
-      const publicCopy =
-        record.status === "approved" ? await bucket.get(`public/profile-images/${id}`) : null;
-      const publicBytes = publicCopy ? await publicCopy.arrayBuffer() : null;
-      await bucket.delete(`public/profile-images/${id}`);
+      // Remove public/private bytes and update the index as one compensating
+      // operation. If any provider call fails ambiguously, restore every prior key.
       records.splice(index, 1);
       try {
-        await writeImageIndex(bucket, records);
+        await commitImageState(bucket, [
+          { key: `public/profile-images/${id}`, operation: "delete" },
+          {
+            key: IMAGE_INDEX_KEY,
+            operation: "put",
+            value: JSON.stringify(records),
+            contentType: "application/json; charset=utf-8",
+          },
+          { key: `private-admin/images/files/${id}`, operation: "delete" },
+        ]);
       } catch (error) {
-        if (publicBytes) {
-          await bucket
-            .put(`public/profile-images/${id}`, publicBytes, {
-              httpMetadata: { contentType: record.contentType },
-            })
-            .catch(() => undefined);
-        }
         return imageStorageFailure(error, "delete");
       }
-      // Private cleanup happens only after the public index no longer references the image.
-      await bucket.delete(`private-admin/images/files/${id}`);
       return jsonResponse({ ok: true }, 200);
     }
   }
