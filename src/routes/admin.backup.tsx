@@ -29,6 +29,13 @@ function BackupManager() {
   const [adapters, setAdapters] = useState<string[]>([]);
   const [migrateConfirm, setMigrateConfirm] = useState("");
   const [direction, setDirection] = useState<"local-disk:r2" | "r2:local-disk">("local-disk:r2");
+  const [recovery, setRecovery] = useState<{
+    pending: boolean;
+    state: string | null;
+    createdAt: string | null;
+    affectedObjects: number;
+  } | null>(null);
+  const [recoveryConfirm, setRecoveryConfirm] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,8 +47,59 @@ function BackupManager() {
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: { available?: string[] } | null) => setAdapters(payload?.available ?? []))
       .catch(() => setAdapters([]));
+    fetch("/api/admin/storage/recovery", {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: typeof recovery) => setRecovery(payload))
+      .catch(() => setRecovery(null));
     return () => controller.abort();
   }, []);
+
+  async function refreshRecovery() {
+    const response = await fetch("/api/admin/storage/recovery", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as typeof recovery;
+    if (!response.ok || !payload) throw new Error("Could not read storage recovery status.");
+    setRecovery(payload);
+  }
+
+  async function recoverStorage() {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/storage/recovery", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirm: recoveryConfirm }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        recovered?: boolean;
+        state?: string | null;
+        pending?: boolean;
+        error?: string;
+      } | null;
+      if (!response.ok) throw new Error(payload?.error ?? "Storage recovery failed.");
+      setMessage(payload?.pending
+        ? "Recovery ran, but a journal is still pending. Do not repeat affected edits; inspect storage and retry recovery."
+        : payload?.recovered
+          ? "Pending storage changes were restored to their pre-operation state."
+          : "No pending storage recovery was required.");
+      setRecoveryConfirm("");
+      await refreshRecovery();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Storage recovery failed.");
+      await refreshRecovery().catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function migrate() {
     const [from, to] = direction.split(":");
@@ -200,6 +258,46 @@ function BackupManager() {
         >
           <Download className="size-4" aria-hidden="true" /> Download backup
         </button>
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border bg-card p-5">
+        <h2 className="text-2xl">Storage recovery</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Multi-object writes keep a private recovery journal before changing stored objects.
+          If a provider failure prevents automatic rollback, this action replays the saved snapshots.
+        </p>
+        {recovery ? (
+          <div className="mt-3 space-y-2 text-sm">
+            <p>
+              {recovery.pending
+                ? `Pending journal: ${recovery.state ?? "unknown"} · ${recovery.affectedObjects} affected objects`
+                : "No pending recovery journal."}
+            </p>
+            {recovery.createdAt && <p className="text-muted-foreground">Started: {recovery.createdAt}</p>}
+            {recovery.pending && (
+              <>
+                <label className="block max-w-xs">
+                  Type RECOVER to restore the pre-operation state
+                  <input
+                    className="mt-1 w-full rounded border border-border bg-background p-2"
+                    value={recoveryConfirm}
+                    onChange={(event) => setRecoveryConfirm(event.target.value)}
+                    aria-label="Type RECOVER to confirm storage recovery"
+                  />
+                </label>
+                <button
+                  className="inline-flex min-h-11 items-center rounded border border-border px-4 disabled:opacity-50"
+                  disabled={busy || recoveryConfirm !== "RECOVER"}
+                  onClick={() => void recoverStorage()}
+                >
+                  Recover pending storage operation
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">Storage recovery status is unavailable.</p>
+        )}
       </section>
 
       <section className="mt-6 rounded-lg border border-border bg-card p-5">
