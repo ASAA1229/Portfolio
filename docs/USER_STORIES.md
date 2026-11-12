@@ -877,3 +877,23 @@ No story is closed solely because the local test report is green. The local test
 - Content manager now provides an in-page preview of current editor values, including summary/story, projects, skills, experience, education/certification counts and SEO data. The preview is explicitly unpublished and does not mutate public content.
 - Existing persona prompt preview, draft/publish/rollback/unpublish, structured resume editing/extraction, image lifecycle, backup export/restore and storage migration workflows remain connected to their existing server APIs.
 - **Validation:** no tests, build, typecheck, lint, browser, accessibility or CI were run. Dynamic workflows are implemented in source only and remain unverified.
+
+
+### PORT-US-050 — Admin-managed resources drive public profiles
+
+**Priority:** Critical · **Status:** IN PROGRESS — source integration incremented; full acceptance pending.
+
+As the portfolio owner, I want images and resumes uploaded, assigned, reviewed and published in Admin to become the active resources for the matching public profile, so that profile content and media can be maintained without editing application source code.
+
+**Acceptance criteria**
+- Each published image is scoped to one of the four profile IDs and has a defined placement (portrait or gallery), accessible alt text and a stable public resource URL.
+- The public profile reads only published resources for its own profile ID. Draft/pending resources and private originals/review notes never appear publicly.
+- Publishing or replacing a portrait updates the profile's portrait placements; publishing gallery images updates the managed gallery without source edits.
+- If a profile has published gallery resources, they become the managed gallery set; if none are published, the curated fallback remains available.
+- Publishing a resume updates the matching profile's headline, summary, skills, experience, education, projects, certifications and approved contact details wherever those sections are rendered.
+- The active published resume file is downloadable from that profile using a public, read-only, profile-scoped endpoint; private source files remain inaccessible.
+- Replacing, unpublishing or restoring a resource changes the active public result after cache invalidation/revalidation, without requiring a code change or deployment.
+- Missing or unavailable published resources fail safely to curated fallback content; one profile's resources never leak into another profile.
+- Admin shows the currently active resource, placement/profile assignment, draft/published state and relevant version history.
+
+**Current implementation note (2026-11-12):** A shared validated published-image feed is now used by Abhishek's home portrait, About hero/gallery and the other person-profile portrait/gallery surfaces. The existing published-resume feed already drives several resume-derived text sections and contact/highlight surfaces. The downloadable published resume file endpoint, full all-profile placement coverage, replacement/unpublish cache behavior and end-to-end lifecycle acceptance remain open. Validation remains paused; no tests/build/typecheck/lint/browser/CI were run.
