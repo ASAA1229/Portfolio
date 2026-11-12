@@ -506,3 +506,8 @@ The endpoint has not been tested. Published feed and media responses now require
 ## Admin image inventory — active public resource visibility (2026-11-12)
 
 The image manager now compares private inventory records with the public published-image feed. It identifies the currently selected portrait per profile and published gallery items as “Live on profile”, while distinguishing other approved images as “Published · not selected”. It also displays a specific empty state when the active search/profile/status filters return no results. If the public feed cannot be read, Admin does not claim that a resource is live. This is source implementation only; runtime behavior has not been validated.
+
+
+## Admin resume inventory — active public resource visibility (2026-11-12)
+
+The resume manager now reads the private admin inventory and public approved-resume feed independently. It distinguishes the exact resume currently served for a profile (“Live on profile”) from approved-but-not-active records. If the public feed is unavailable, it displays an unknown state rather than claiming that approval proves public visibility. Publish and unpublish actions refresh the feed-backed status after the server confirms success. This is source implementation only; runtime behavior has not been validated.
