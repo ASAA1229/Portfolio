@@ -289,3 +289,14 @@ Do not equate local test pass percentage with overall epic completion or mark an
 - Regression coverage added for CMS skill validation, shared-profile merging, contact fallback and social URL validation.
 
 **Evidence:** commits `db89a602`, `69b12c29`, `e04e9a72`, `df001ad5`, `b9f52cef`, `e48d361c`, `2cea3c09`, `7014a3a3`, `316f9c03`, `7ed70aab`, `479e26e8`, `353255ad`, `836943ec` and `a333b3b5` on `new`. All test changes are unexecuted. SEO/navigation propagation and acceptance validation remain open.
+
+
+## Resume lifecycle safety note — reconciliation with missing originals (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / REGRESSION TEST AUTHORED / NOT RUN
+
+- Admin reconciliation now blocks with `409 RESUME_ORIGINALS_MISSING` when the private resume index references a missing original file.
+- The handler returns the affected IDs and leaves the existing public approved-resume feed unchanged.
+- Added route-level failure-path coverage for publish → remove original → reconcile rejection → unchanged feed.
+
+**Evidence:** commits `48cf41da` and `25e578a2` on `new`. Test execution and R2 verification remain pending.
