@@ -40,6 +40,8 @@ function failingBucket() {
     failFeed: false,
     failFeedAfterWrite: false,
     failHistoryAfterWrite: false,
+    failIndexAfterWrite: false,
+    failResumeDeleteAfterWrite: false,
   };
   const bucket = new Proxy(disk, {
     get(target, property) {
@@ -65,6 +67,23 @@ function failingBucket() {
           ) {
             state.failHistoryAfterWrite = false;
             throw new Error("simulated ambiguous history write failure after persistence");
+          }
+          if (state.failIndexAfterWrite && key === "private-admin/resumes/index.json") {
+            state.failIndexAfterWrite = false;
+            throw new Error("simulated ambiguous resume index write failure after persistence");
+          }
+          return result;
+        };
+      }
+      if (property === "delete") {
+        return async (key: string) => {
+          const result = await target.delete(key);
+          if (
+            state.failResumeDeleteAfterWrite &&
+            key.startsWith("private-admin/resumes/files/")
+          ) {
+            state.failResumeDeleteAfterWrite = false;
+            throw new Error("simulated ambiguous resume original deletion after persistence");
           }
           return result;
         };
@@ -244,7 +263,9 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
   });
   const feedAfter = await (await bucket.get("public/approved-resumes.json"))!.text();
   expect(feedAfter).toBe(feedBefore);
-  it("reverts index, public feed and history when the history write fails ambiguously", async () => {
+});
+
+it("reverts index, public feed and history when the history write fails ambiguously", async () => {
     const { bucket, state } = failingBucket();
     const env = {
       ENVIRONMENT: "development",
@@ -291,4 +312,78 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
     expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
   });
 
+
+it("rolls back a resume upload when the index write persists and then rejects", async () => {
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  state.failIndexAfterWrite = true;
+  const form = new FormData();
+  form.set("profileId", "ammu");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "ammu.pdf", { type: PDF }),
+    "ammu.pdf",
+  );
+
+  const response = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+  expect(await bucket.list("private-admin/resumes/files/")).toEqual([]);
+  expect(await bucket.get("private-admin/recovery/active.json")).toBeNull();
+});
+
+it("restores the private original and published state when resume deletion fails ambiguously", async () => {
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "sai");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "sai.pdf", { type: PDF }),
+    "sai.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "sai",
+      displayName: "Sai",
+      headline: "Engineer",
+      summary: "Approved",
+      skills: ["TypeScript"],
+    }),
+  });
+  expect(published.status).toBe(200);
+
+  state.failResumeDeleteAfterWrite = true;
+  const deleted = await call(env, `/api/admin/resumes/${resume.id}`, { method: "DELETE" });
+  expect(deleted.status).toBe(500);
+  expect(await deleted.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+
+  const records = (await (await call(env, "/api/admin/resumes")).json()) as {
+    resumes: Array<{ id: string; status: string }>;
+  };
+  expect(records.resumes).toContainEqual(expect.objectContaining({ id: resume.id, status: "approved" }));
+  expect(await bucket.get(`private-admin/resumes/files/${resume.id}`)).not.toBeNull();
+  const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
+    resumes: Array<{ id: string }>;
+  }>();
+  expect(feed.resumes.map((item) => item.id)).toContain(resume.id);
+  expect(await bucket.get("private-admin/recovery/active.json")).toBeNull();
 });
