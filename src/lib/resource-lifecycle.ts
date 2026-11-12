@@ -74,8 +74,8 @@ export function inspectResourceLifecycle(input: ResourceLifecycleInput): Resourc
     if (!approvedImageIds.has(id) && publicImageIds.has(id)) add("IMAGE_PUBLIC_COPY_STALE", "image", id);
   }
   for (const id of privateImageIds) if (!imageIds.has(id)) add("IMAGE_ORIGINAL_ORPHANED", "image", id, "warning");
-  for (const id of publicImageIds) if (!approvedImageIds.has(id)) {
-    add(imageIds.has(id) ? "IMAGE_PUBLIC_COPY_STALE" : "IMAGE_PUBLIC_COPY_ORPHANED", "image", id, "warning");
+  for (const id of publicImageIds) {
+    if (!imageIds.has(id)) add("IMAGE_PUBLIC_COPY_ORPHANED", "image", id, "warning");
   }
 
   const versionKeys = new Set(input.supersededImageKeys);
