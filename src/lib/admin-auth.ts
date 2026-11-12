@@ -50,18 +50,23 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return difference === 0;
 }
 
+function hasStrongAdminPassword(env?: unknown): boolean {
+  const value = secret("PORTFOLIO_ADMIN_PASSWORD", env);
+  return Boolean(value && value.length >= 12);
+}
+
 function hasStrongSessionSecret(env?: unknown): boolean {
   const value = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   return Boolean(value && new TextEncoder().encode(value).byteLength >= 32);
 }
 
 export function adminAuthConfigured(env?: unknown): boolean {
-  return Boolean(secret("PORTFOLIO_ADMIN_PASSWORD", env) && hasStrongSessionSecret(env));
+  return hasStrongAdminPassword(env) && hasStrongSessionSecret(env);
 }
 
 export async function verifyAdminPassword(password: string, env?: unknown): Promise<boolean> {
   const expected = secret("PORTFOLIO_ADMIN_PASSWORD", env);
-  if (!expected || !hasStrongSessionSecret(env)) return false;
+  if (!expected || !hasStrongAdminPassword(env) || !hasStrongSessionSecret(env)) return false;
   const [actualHash, expectedHash] = await Promise.all([
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(password)),
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(expected)),
