@@ -82,14 +82,36 @@ export function PersonShell({
     </div>
   );
 }
-/** Contact details for a person: a published resume, when present, is authoritative. */
+function profileSocialUrl(platform: string, handle: string | null): string | undefined {
+  if (!handle) return undefined;
+  const normalized = platform.trim().toLowerCase();
+  const host = normalized === "linkedin" ? "linkedin.com" : normalized === "github" ? "github.com" : null;
+  if (!host) return undefined;
+  try {
+    const url = new URL(handle);
+    return url.protocol === "https:" &&
+      (url.hostname === host || url.hostname.endsWith("." + host))
+      ? url.toString()
+      : undefined;
+  } catch {
+    if (!/^[A-Za-z0-9._-]{1,100}$/.test(handle)) return undefined;
+    return normalized === "linkedin"
+      ? "https://www.linkedin.com/in/" + encodeURIComponent(handle)
+      : "https://github.com/" + encodeURIComponent(handle);
+  }
+}
+
+/** Precedence: approved resume contact → published CMS profile → curated profile. */
 function usePersonContact(profile: PersonPortfolio) {
   const published = usePublishedProfileResume(profile.id);
+  const social = (platform: string) =>
+    profile.socialLabels.find((item) => item.platform.trim().toLowerCase() === platform)?.handle ?? null;
   return {
-    email: published ? published.contact?.email : profile.email,
-    phone: published ? published.contact?.phone : profile.phone,
-    linkedin: published?.contact?.linkedin,
-    github: published?.contact?.github,
+    email: published?.contact?.email || profile.email,
+    phone: published?.contact?.phone || profile.phone,
+    location: profile.location || profile.education.location,
+    linkedin: published?.contact?.linkedin || profileSocialUrl("linkedin", social("linkedin")),
+    github: published?.contact?.github || profileSocialUrl("github", social("github")),
   };
 }
 
@@ -354,6 +376,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               {profile.education.qualification} · {profile.education.period}
               <br />
               {profile.education.score}
+              {profile.location && <><br />{profile.location}</>}
             </p>
           </Reveal>
         </div>
