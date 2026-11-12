@@ -521,3 +521,9 @@ The resume manager now reads the private admin inventory and public approved-res
 - Older byte-only snapshots without metadata are excluded from restore choices; no filename or MIME type is guessed.
 - Cleanup permanently deletes superseded versions and therefore removes their restore capability.
 - **Validation:** no tests/build/typecheck/lint/browser/accessibility/CI were run. Source implementation is unverified.
+
+## Project-specific image placement — 2026-11-12
+
+The image CMS now supports a project placement in addition to portrait and gallery. A project image is assigned to a profile ID and exact project URL slug. The public feed carries that assignment, and the shared person-project detail renderer loads only approved images matching both values. Admin upload requires the project slug and the inventory displays the assignment; approved project images count as active public resources.
+
+This is source implementation only. Route coverage (especially Abhishek's project detail route), publication lifecycle, stale cache behavior, and cross-profile isolation still require validation. Existing portrait/gallery records remain compatible. No tests/build/typecheck/lint/browser/accessibility/CI checks were run; validation remains paused.
