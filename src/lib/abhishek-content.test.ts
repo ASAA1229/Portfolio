@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { mergeAbhishekContact, mergeSkills } from "@/lib/abhishek-content";
+import { mergeAbhishekContact, mergeCerts, mergeMissions, mergeSiteProjects, mergeSkills } from "@/lib/abhishek-content";
 import { SKILLS } from "@/lib/portfolio-data";
 import { CONTACT } from "@/lib/portfolio-data";
 
@@ -32,6 +32,13 @@ describe("Abhishek published contact overrides", () => {
     expect(result.linkedin).toBe(CONTACT.linkedin);
   });
 
+  it("allows the owner to clear published social links explicitly", () => {
+    expect(mergeAbhishekContact({ basics: { socials: [] } })).toMatchObject({
+      github: null,
+      linkedin: null,
+    });
+  });
+
   it("matches social platform names case-insensitively", () => {
     const result = mergeAbhishekContact({
       basics: { socials: [{ platform: "LinkedIn", handle: "https://www.linkedin.com/in/example" }] },
@@ -46,11 +53,40 @@ describe("Abhishek published skill groups", () => {
     expect(mergeSkills(null)).toEqual(SKILLS);
   });
 
+  it("allows an explicitly empty published skill list", () => {
+    expect(mergeSkills({ skills: [] })).toEqual([]);
+  });
+
   it("uses owner-published groups instead of the curated list", () => {
     expect(
       mergeSkills({
         skills: [{ cat: "Custom", desc: "Owner-managed", items: ["TypeScript", "React"] }],
       }),
     ).toEqual([{ cat: "Custom", desc: "Owner-managed", items: ["TypeScript", "React"] }]);
+  });
+});
+
+
+describe("Abhishek CMS collection lifecycle", () => {
+  it("adds new published projects and removes archived projects from the root list", () => {
+    const projects = mergeSiteProjects({
+      projects: [
+        { slug: "farmer-marketplace", title: "Archived", overview: "Hidden", archived: true },
+        { slug: "owner-created-project", title: "New project", overview: "Published by owner" },
+      ],
+    });
+    expect(projects.some((project) => project.slug === "farmer-marketplace")).toBe(false);
+    expect(projects).toContainEqual(
+      expect.objectContaining({
+        slug: "owner-created-project",
+        title: "New project",
+        overview: "Published by owner",
+      }),
+    );
+  });
+
+  it("allows explicitly empty experience and certification collections", () => {
+    expect(mergeMissions({ experience: [] })).toEqual([]);
+    expect(mergeCerts({ certifications: [] })).toEqual([]);
   });
 });
