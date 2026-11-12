@@ -29,7 +29,7 @@
 - Public pages expose only approved content; original resumes, drafts, review notes and credentials remain private.
 - Keep the product deployable without mandatory paid services or a JARVIS runtime.
 
-**Repository:** `ASAA1229/pixel-perfect-pixel`
+**Repository:** `ASAA1229/Portfolio`
 **Active branch:** `new`
 **Status snapshot:** 2026-11-09
 **Overall status:** IN PROGRESS — core product works locally and passes all automated checks; production configuration, deployment and some lifecycle features remain.
@@ -51,7 +51,7 @@
 ### Remaining development
 1. Complete CMS coverage for Abhishek's root pages and ensure all profile routes consume published overrides consistently.
 2. Finish resume publish/rollback/unpublish failure reconciliation and durable-storage behavior.
-3. Extend backup/restore to binary resume/image originals with integrity checks and safe partial-failure recovery.
+3. **Implemented in source (2026-11-12):** backup/restore now requires every referenced resume/image binary, validates SHA-256 before writes, and rejects incomplete source migrations before destination writes. Regression tests are authored but not run; storage failure-injection and hosted R2 verification remain open.
 4. Complete admin authentication/session hardening and production R2 configuration readiness.
 5. Complete JARVIS gateway production integration without silently enabling paid fallback.
 6. Close browser journey, screen-reader, responsive, performance and release evidence after testing resumes.
@@ -83,7 +83,7 @@ All backlog stories in the owner-approved baseline now have an implementation on
 | PORT-US-041 Storage | One storage contract (R2, local disk, memory), `docs/STORAGE.md`, `/admin/backup` export/restore | `e6289eb` | Backup → restore round trip |
 | Dev uploads on disk | `.local-storage/` survives restarts | `604fe9c` | Upload, restart, confirm |
 
-**Known limits:** CMS edits to Abhishek's own pages only affect navigation labels so far; backups contain metadata only (no resume/image files); unknown person-project slugs now route to the not-found boundary (implementation added 2026-11-09; HTTP status still needs verification). **Owner-dependent:** production R2 + login check, `VITE_SITE_URL`, JARVIS tunnel secrets, first CI run, Sai monogram (DR vs DS).
+**Known limits:** CMS edits to Abhishek's own pages only affect navigation labels so far; backup binary completeness is now enforced in source but requires exact-head tests and storage verification; unknown person-project slugs now route to the not-found boundary (implementation added 2026-11-09; HTTP status still needs verification). **Owner-dependent:** production R2 + login check, `VITE_SITE_URL`, JARVIS tunnel secrets, first CI run, Sai monogram (DR vs DS).
 
 ## 1. Product summary
 
@@ -409,3 +409,14 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 8. Verify production configuration, SEO, release integrity, rollback and owner approval before any deployment.
 
 **No production release is accepted.** Do not merge, deploy, publish artifacts, provision production secrets/R2 or enable Nexus without explicit owner approval.
+
+
+## Current development increment — backup integrity guard (2026-11-12)
+
+- **Branch:** `new`
+- **Implementation commits:** `de45fe42` (reject incomplete backup export/validation/restore/migration) and `7fce418d` (regression tests).
+- Version-2 backups can no longer pass validation when an index references a missing private resume/image original or approved public image copy.
+- Backup export fails with the missing storage key instead of producing a misleadingly complete file.
+- Restore has a second defensive check and performs no writes for an incomplete payload.
+- Migration stops before destination writes when the source is incomplete.
+- **Validation:** NOT RUN by instruction. The tests are authored only; no build, typecheck, lint, test, browser, audit or CI result is claimed.
