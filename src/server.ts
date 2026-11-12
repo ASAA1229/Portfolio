@@ -2692,9 +2692,9 @@ function checkRuntimeConfig(env: unknown): void {
     if (
       !has("PORTFOLIO_ADMIN_PASSWORD") ||
       (typeof bindings["PORTFOLIO_ADMIN_PASSWORD"] === "string"
-        ? (bindings["PORTFOLIO_ADMIN_PASSWORD"] as string).trim().length
+        ? Array.from((bindings["PORTFOLIO_ADMIN_PASSWORD"] as string).trim()).length
         : typeof process !== "undefined"
-          ? (process.env["PORTFOLIO_ADMIN_PASSWORD"] ?? "").trim().length
+          ? Array.from((process.env["PORTFOLIO_ADMIN_PASSWORD"] ?? "").trim()).length
           : 0) < 12 ||
       new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
     ) {
