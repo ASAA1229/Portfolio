@@ -163,3 +163,38 @@ describe("theme presets", async () => {
     }
   });
 });
+
+
+describe("CMS skill groups", () => {
+  it("accepts bounded, unique skill groups", () => {
+    const result = validateContentOverrides({
+      skills: [
+        { cat: "Frontend", desc: "Interface engineering", items: ["React", "TypeScript"] },
+        { cat: "Backend", desc: "Service engineering", items: ["Node.js", "PostgreSQL"] },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.content.skills?.[0]?.items).toEqual(["React", "TypeScript"]);
+  });
+
+  it("rejects duplicate categories, duplicate skills and unknown fields", () => {
+    expect(
+      validateContentOverrides({
+        skills: [
+          { cat: "Frontend", desc: "A", items: ["React"] },
+          { cat: "frontend", desc: "B", items: ["Node.js"] },
+        ],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateContentOverrides({
+        skills: [{ cat: "Frontend", desc: "A", items: ["React", "React"] }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateContentOverrides({
+        skills: [{ cat: "Frontend", desc: "A", items: ["React"], injected: true }],
+      }).ok,
+    ).toBe(false);
+  });
+});
