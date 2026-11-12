@@ -6,6 +6,7 @@ import { Reveal } from "@/components/Reveal";
 import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
 import { useAbhishekContent } from "@/lib/abhishek-content";
+import { usePublishedProfileImages } from "@/lib/published-resume";
 import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/about")({
@@ -21,6 +22,9 @@ export const Route = createFileRoute("/about")({
 function About() {
   // Owner-published CMS basics replace the curated copy; curated text is the fallback.
   const { headline, summary, story } = useAbhishekContent();
+  const publishedImages = usePublishedProfileImages("abhishek");
+  const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
+  const publishedHero = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   const storyParagraphs = story
     ?.split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
@@ -29,8 +33,8 @@ function About() {
     <>
       <section className="chapter-hero about-hero">
         <img
-          src={hero}
-          alt="Cinematic portrait artwork from Abhishek's portfolio"
+          src={publishedHero?.src ?? hero}
+          alt={publishedHero?.alt ?? "Cinematic portrait artwork from Abhishek's portfolio"}
           width={1536}
           height={1024}
           fetchPriority="high"
@@ -116,29 +120,18 @@ function About() {
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
-            {[
-              {
-                src: "/images/profiles/abhishek/abhishek_main.jpeg",
-                alt: "Abhishek at his graduation celebration",
-              },
-              {
-                src: "/images/profiles/abhishek/abhishek_1.jpeg",
-                alt: "Abhishek presenting in a classroom",
-              },
-              {
-                src: "/images/profiles/abhishek/abhishek_2.jpeg",
-                alt: "Abhishek standing on the college campus",
-              },
-            ].map((photo) => (
+            {(publishedGallery.length ? publishedGallery : [
+              { id: "fallback-1", src: "/images/profiles/abhishek/abhishek_main.jpeg", alt: "Abhishek at his graduation celebration" },
+              { id: "fallback-2", src: "/images/profiles/abhishek/abhishek_1.jpeg", alt: "Abhishek presenting in a classroom" },
+              { id: "fallback-3", src: "/images/profiles/abhishek/abhishek_2.jpeg", alt: "Abhishek standing on the college campus" },
+            ]).map((photo) => (
               <img
-                key={photo.src}
+                key={photo.id}
                 src={photo.src}
                 alt={photo.alt}
                 loading="lazy"
                 className="aspect-[4/5] w-full rounded-lg border border-border object-cover"
-                onError={(event) => {
-                  event.currentTarget.style.display = "none";
-                }}
+                onError={(event) => { event.currentTarget.style.display = "none"; }}
               />
             ))}
           </div>
