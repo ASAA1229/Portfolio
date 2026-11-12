@@ -300,3 +300,16 @@ Do not equate local test pass percentage with overall epic completion or mark an
 - Added route-level failure-path coverage for publish → remove original → reconcile rejection → unchanged feed.
 
 **Evidence:** commits `48cf41da` and `25e578a2` on `new`. Test execution and R2 verification remain pending.
+
+
+## PORT-E04 implementation increment — image lifecycle compensation (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / FAILURE TESTS AUTHORED / NOT RUN
+
+- Image upload, publish-on-upload, replacement, publish, unpublish and delete now use a shared compensating storage-write helper.
+- The helper snapshots affected keys before mutation and restores attempted writes in reverse order, including ambiguous provider writes that persist and then reject.
+- Failure responses distinguish complete compensation from incomplete rollback.
+- Added failure-injection coverage for all five image lifecycle paths in `src/test/image-failure-paths.test.ts`.
+- Resume publish/feed/history compensation exists, but durable recovery when compensation fails and concurrency across multiple server instances remain open. PORT-US-013 / PORT-US-045 are not closed.
+
+No tests, builds, typecheck, lint, browser checks, CI or R2 verification were run; validation remains paused.
