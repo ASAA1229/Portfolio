@@ -4,10 +4,11 @@ import type { ReactNode } from "react";
 import { PortfolioNavbar } from "@/components/navigation/PortfolioNavbar";
 import { PortfolioChat } from "@/components/PortfolioChat";
 import { SocialLinks, ResumeAction } from "@/components/SitePrimitives";
-import { CONTACT } from "@/lib/portfolio-data";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 
 export function SiteShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
+  const { contact } = useAbhishekContent();
 
   if (
     path === "/profiles" ||
@@ -40,14 +41,14 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 Let&apos;s build something meaningful.
               </h2>
               <a
-                href={`mailto:${CONTACT.email}`}
+                href={`mailto:${contact.email}`}
                 className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
               >
-                {CONTACT.email} <ArrowUpRight className="inline size-4" />
+                {contact.email} <ArrowUpRight className="inline size-4" />
               </a>
             </div>
             <div className="flex flex-wrap gap-3">
-              <SocialLinks />
+              <SocialLinks github={contact.github} linkedin={contact.linkedin} />
               <ResumeAction />
             </div>
           </div>
