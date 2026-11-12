@@ -224,6 +224,8 @@ function ProjectTile({
 }) {
   const Icon =
     profile.id === "ammu" ? (index === 0 ? Database : Code2) : index === 0 ? Brain : Code2;
+  const projectImages = usePublishedProjectImages(profile.id, project.slug);
+  const cover = projectImages[0];
   return (
     <article className="project-card person-project">
       <Link
@@ -232,8 +234,12 @@ function ProjectTile({
         className="person-project-art"
         aria-label={`Explore ${project.title}`}
       >
-        <Icon strokeWidth={1} />
-        <span className="font-mono text-xs">ORIGINAL {String(index + 1).padStart(2, "0")}</span>
+        {cover ? (
+          <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+        ) : (
+          <Icon strokeWidth={1} />
+        )}
+        <span className="relative z-10 font-mono text-xs">ORIGINAL {String(index + 1).padStart(2, "0")}</span>
       </Link>
       <div className="p-6">
         <p className="font-mono text-[10px] leading-5 text-primary">{project.context}</p>
