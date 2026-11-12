@@ -8,6 +8,7 @@ import { Reveal } from "@/components/Reveal";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
 import { PROJECT_PAGES } from "@/lib/project-pages";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { pageHead } from "@/lib/site-data";
 import billboard from "@/assets/series-billboard.jpg";
 
@@ -48,9 +49,20 @@ function ShowcaseProject({ project, index }: { project: (typeof PROJECT_PAGES)[n
 
 function Projects() {
   const publishedResume = usePublishedProfileResume("abhishek");
+  const content = useAbhishekContent();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const featured = PROJECT_PAGES[0];
-  const featuredCover = usePublishedProjectImages("abhishek", featured!.slug)[0];
+  const projectPages = content.projects.map((project, index) => {
+    const base = PROJECT_PAGES.find((item) => item.slug === project.slug);
+    return {
+      ...project,
+      category: base?.category ?? "Owner published",
+      github: base?.github ?? null,
+      demo: base?.demo ?? null,
+      index,
+    };
+  }) as Array<(typeof PROJECT_PAGES)[number]>;
+  const featured = projectPages[0];
+  const featuredCover = usePublishedProjectImages("abhishek", featured?.slug ?? "__none__")[0];
   if (pathname !== "/projects" && pathname !== "/projects/") return <Outlet />;
   return (
     <>
@@ -78,11 +90,11 @@ function Projects() {
               <a href="#projects-published-resume" className="chapter-cta">
                 Published projects <ArrowUpRight />
               </a>
-            ) : (
-              <Link to="/projects/$slug" params={{ slug: featured!.slug }} className="chapter-cta">
+            ) : featured ? (
+              <Link to="/projects/$slug" params={{ slug: featured.slug }} className="chapter-cta">
                 Featured work <ArrowUpRight />
               </Link>
-            )}
+            ) : null}
           </Reveal>
         </div>
         <span className="chapter-hero-index">SELECTED WORK · 2023—PRESENT</span>
@@ -91,6 +103,7 @@ function Projects() {
         <PublishedResumePanel section="projects" resume={publishedResume} />
         {!publishedResume?.structuredSections?.projects?.length && (
           <>
+            {featured && (
             <section className="featured-project">
               <div className="featured-project-art relative overflow-hidden">
                 {featuredCover ? (
@@ -104,20 +117,21 @@ function Projects() {
                 <p className="chapter-kicker">{featured!.badge}</p>
                 <h2>{featured!.title}</h2>
                 <p>{featured!.overview}</p>
-                <Link to="/projects/$slug" params={{ slug: featured!.slug }}>
+                <Link to="/projects/$slug" params={{ slug: featured.slug }}>
                   Explore the case study <ArrowUpRight />
                 </Link>
               </div>
             </section>
+            )}
             <div className="chapter-section-heading projects-list-heading">
               <div>
                 <p className="chapter-kicker">MORE STORIES</p>
                 <h2>Other work in the series.</h2>
               </div>
-              <span>0{PROJECT_PAGES.length} PROJECTS</span>
+              <span>{String(projectPages.length).padStart(2, "0")} PROJECTS</span>
             </div>
             <div className="project-showcase">
-              {PROJECT_PAGES.slice(1).map((project, i) => (
+              {projectPages.slice(1).map((project, i) => (
                 <ShowcaseProject key={project.slug} project={project} index={i} />
               ))}
             </div>
