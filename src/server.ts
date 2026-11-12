@@ -741,10 +741,7 @@ function storageFailure(error: unknown, operation: string): Response {
 }
 
 function imageStorageFailure(error: unknown, operation: string): Response {
-  const restored =
-    error instanceof StorageCommitError || error instanceof StorageTransactionError
-      ? error.restored
-      : false;
+  const restored = error instanceof StorageTransactionError ? error.restored : false;
   console.error(`Portfolio image ${operation} failed while writing storage.`, error);
   return jsonResponse(
     {
