@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { mergeAbhishekContact } from "@/lib/abhishek-content";
+import { mergeAbhishekContact, mergeSkills } from "@/lib/abhishek-content";
+import { SKILLS } from "@/lib/portfolio-data";
 import { CONTACT } from "@/lib/portfolio-data";
 
 describe("Abhishek published contact overrides", () => {
@@ -36,5 +37,20 @@ describe("Abhishek published contact overrides", () => {
       basics: { socials: [{ platform: "LinkedIn", handle: "https://www.linkedin.com/in/example" }] },
     });
     expect(result.linkedin).toBe("https://www.linkedin.com/in/example");
+  });
+});
+
+
+describe("Abhishek published skill groups", () => {
+  it("uses curated skill groups when no CMS override is published", () => {
+    expect(mergeSkills(null)).toEqual(SKILLS);
+  });
+
+  it("uses owner-published groups instead of the curated list", () => {
+    expect(
+      mergeSkills({
+        skills: [{ cat: "Custom", desc: "Owner-managed", items: ["TypeScript", "React"] }],
+      }),
+    ).toEqual([{ cat: "Custom", desc: "Owner-managed", items: ["TypeScript", "React"] }]);
   });
 });
