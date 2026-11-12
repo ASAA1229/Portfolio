@@ -489,3 +489,15 @@ Admin-managed resumes and images are intended to be the source of truth for publ
 **Implemented in this source increment:** shared published-image normalization/hook; Abhishek home portrait and About hero/gallery consume published image records; other person-profile portrait and gallery views consume the same shared profile-scoped feed, with published gallery records replacing the curated gallery when present. Existing published resume metadata already feeds selected profile headline, summary, skills, structured sections and approved contact surfaces.
 
 **Still open:** dynamic download of the active published resume binary from a public profile-safe endpoint; complete audit of all four profiles and every image placement; confirmation that publish/replace/unpublish/rollback invalidates public caches and that restored versions become active; admin active-resource visibility and failure recovery. The implementation is partial, not end-to-end complete. Tests/build/typecheck/lint/browser/accessibility/CI remain paused and were not run.
+
+
+## PORT-US-050 follow-up — published resume binary and profile downloads (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+- Added a read-only public resume binary endpoint at `GET /api/published-resumes/:id`. It resolves the record from the private index and serves the original file only while that exact record is approved and assigned to a public profile.
+- Updated the shared resume action to resolve the active published resume ID from the public feed rather than a hardcoded static file path.
+- Added the same profile-aware download action to Amulya, Anjini and Sai profile home pages.
+- Existing resume metadata continues to populate published profile headline, summary, skills, structured experience, education, projects, certifications and contact surfaces where supported.
+
+The endpoint has not been tested. Unpublish/rollback cache timing, storage failures, profile isolation, browser download behavior and all four profile journeys remain unverified. Validation is still paused.
