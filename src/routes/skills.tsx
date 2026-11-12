@@ -5,7 +5,7 @@ import { PublishedResumePanel } from "@/components/PublishedResumePanel";
 import { usePublishedProfileResume } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { TechLogo } from "@/components/TechLogo";
-import { SKILLS } from "@/lib/portfolio-data";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { pageHead } from "@/lib/site-data";
 import constellation from "@/assets/developer-constellation.jpg";
 
@@ -47,6 +47,7 @@ const groups = [
 ];
 function Skills() {
   const publishedResume = usePublishedProfileResume("abhishek");
+  const { skills: contentSkills } = useAbhishekContent();
   return (
     <>
       <section className="chapter-hero skills-hero">
@@ -107,7 +108,7 @@ function Skills() {
                 {groups.map(({ title, icon: Icon, cats, picks }, index) => {
                   const items = [
                     ...new Set(
-                      SKILLS.filter((g) => cats.includes(g.cat))
+                      contentSkills.filter((g) => cats.includes(g.cat))
                         .flatMap((g) => g.items)
                         .filter((x) => !picks || picks.includes(x)),
                     ),
