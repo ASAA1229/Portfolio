@@ -48,6 +48,8 @@ See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_
 ## PORT-E02 — Routes, Navigation and Portfolio Content
 **Goal:** Ensure all portfolio content is reachable, correct and isolated by profile.
 
+**2026-11-12 implementation update — PORT-US-043:** root About/Home/Skills/Projects now consume the corresponding published CMS fields, including custom skill groups, new/archived projects, contact/location, experience and education. Person-profile basics now include location and safe social destinations. Explicit empty CMS arrays clear managed collections. CMS-created root project slugs render detail pages; archived/unknown slugs reach the not-found boundary. Automated coverage is authored; validation remains paused.
+
 **Remaining work**
 - Audit route definitions, generated route tree, loaders/actions and direct URL behavior.
 - Verify profile slugs, section routes, project detail slugs and legacy route compatibility.
@@ -71,6 +73,8 @@ No build, lint, unit test, browser check or route-matrix run was performed; test
 
 ## PORT-E03 — AI Introduction and Portfolio Chat
 **Goal:** Provide optional introductions and useful chat responses grounded in the selected profile's approved information.
+
+**2026-11-12 implementation update — PORT-US-034/037:** the Worker now attaches only the selected profile’s published CMS document, approved resume and published persona to chat requests. The chat route revalidates CMS content and merges it into profile knowledge; Abhishek’s root prompt receives published CMS basics/sections too. JARVIS remains primary and OpenAI fallback requires explicit `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`. Provider response bodies are excluded from application logs. Regression tests cover root and person-profile CMS grounding. Tunnel, hosted integration, provider failure, privacy and cancellation acceptance remain open; no tests were run.
 
 **Remaining work**
 - Verify the server-side OpenAI Responses API integration and server-only key handling.
