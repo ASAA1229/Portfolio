@@ -2165,7 +2165,7 @@ async function attachPublishedResumeContext(
 
   // Attach only the selected profile's currently published CMS content.
   // Drafts and unpublished versions remain private and are never sent to AI.
-  let cmsContent: Record<string, unknown> | null = null;
+  let cmsContent: unknown = null;
   if (bucket && isContentProfileId(profileId)) {
     try {
       const published = publishedContent(await readContentDocument(bucket, profileId));
