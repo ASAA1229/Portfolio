@@ -909,3 +909,23 @@ As the portfolio owner, I want images and resumes uploaded, assigned, reviewed a
 
 
 **PORT-US-050 follow-up — safe image version restore (2026-11-12):** Image replacement now stores the superseded private image together with validated filename, content type, size and upload timestamp metadata. Admin can inspect available restorable versions and request a restore. The server validates the selected version identifier, metadata, byte size and file signature; snapshots the currently active image as another version; then updates private bytes, public bytes when approved, and the private index through the compensating-write helper. Version entries without matching metadata (including legacy byte-only snapshots) are intentionally not offered. The UI refreshes the preview and version history after replacement/restoration. Cleanup permanently removes superseded versions, so the owner must retain versions until no longer needed. Source implementation only; validation remains paused.
+
+### PORT-US-050 follow-up — project-specific image placements (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / VALIDATION PENDING
+
+As the owner, I want to assign approved images to an exact profile project so each project detail page can display its own media without source-code edits.
+
+**Implemented source behavior**
+- Image records support a project placement with a validated lowercase project URL slug, in addition to profile portrait and profile gallery placements.
+- Upload requires a project slug when the project placement is selected; the slug is stored with the profile ID and image record.
+- The public approved-image feed exposes the project slug only for project placements.
+- Public normalization requires both the requested profile ID and a valid project slug; the project detail renderer requests images for its own profile and slug only.
+- Admin inventory identifies project placement and includes published project images in active-resource visibility.
+
+**Acceptance criteria still open**
+- Verify images appear only on the matching profile/project route, including direct loads and refresh.
+- Verify pending images never appear publicly; publish, unpublish, delete and restore retain correct placement.
+- Verify all four profile route families, including Abhishek's project detail routes.
+- Verify project slug changes/deleted projects do not leave misleading public media.
+- Run automated, browser, responsive and accessibility checks only when validation is explicitly resumed.
