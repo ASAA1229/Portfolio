@@ -14,6 +14,7 @@ type ImageRecord = {
   alt: string;
   slot?: "gallery" | "portrait";
 };
+type ImageVersion = { version: string; filename: string; contentType: string; size: number; uploadedAt: string };
 type ImageListPayload = {
   images?: ImageRecord[];
   error?: string;
@@ -56,6 +57,9 @@ async function readApiResponse<T extends { error?: string; detail?: string }>(
 function ImageManager() {
   const [images, setImages] = useState<ImageRecord[]>([]);
   const [activeImageIds, setActiveImageIds] = useState<Set<string>>(() => new Set());
+  const [versionsByImage, setVersionsByImage] = useState<Record<string, ImageVersion[]>>({});
+  const [expandedVersions, setExpandedVersions] = useState<Set<string>>(() => new Set());
+  const [loadingVersionIds, setLoadingVersionIds] = useState<Set<string>>(() => new Set());
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -254,6 +258,67 @@ function ImageManager() {
       setMessage("Image file replaced. The previous file is kept privately until cleanup.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not replace image.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleVersionHistory(id: string) {
+    if (expandedVersions.has(id)) {
+      setExpandedVersions((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+    setExpandedVersions((current) => new Set(current).add(id));
+    if (versionsByImage[id]) return;
+    setLoadingVersionIds((current) => new Set(current).add(id));
+    try {
+      const response = await fetch(`/api/admin/images/${id}/versions`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const payload = await readApiResponse<{ versions?: ImageVersion[] }>(response);
+      setVersionsByImage((current) => ({ ...current, [id]: payload.versions ?? [] }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not load image versions.");
+      setExpandedVersions((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    } finally {
+      setLoadingVersionIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  async function restoreImageVersion(id: string, version: ImageVersion) {
+    if (!window.confirm(
+      `Restore "${version.filename}" from ${new Date(version.uploadedAt).toLocaleString()}? The current image will be preserved as a new version.`,
+    )) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/admin/images/${id}/restore`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ version: version.version }),
+      });
+      await readApiResponse<{ error?: string; restored?: boolean }>(response);
+      await loadImages();
+      setVersionsByImage({});
+      setPreviewVersion((value) => value + 1);
+      setMessage("Previous image version restored. The image that was active before restoration is retained in version history.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not restore image version.");
     } finally {
       setBusy(false);
     }
@@ -475,6 +540,48 @@ function ImageManager() {
                     </span>
                   )}
                 </div>
+              </div>
+              <div className="mt-4 border-t border-border pt-3">
+                <button
+                  type="button"
+                  className="min-h-9 rounded border border-border px-3 text-xs disabled:opacity-50"
+                  disabled={busy || loadingVersionIds.has(image.id)}
+                  onClick={() => void toggleVersionHistory(image.id)}
+                >
+                  {loadingVersionIds.has(image.id)
+                    ? "Loading versions…"
+                    : expandedVersions.has(image.id)
+                      ? "Hide version history"
+                      : "Version history"}
+                </button>
+                {expandedVersions.has(image.id) && (
+                  <div className="mt-3 grid gap-2">
+                    {(versionsByImage[image.id] ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        No restorable versions found. Versions created before version metadata was added cannot be safely restored.
+                      </p>
+                    ) : (
+                      versionsByImage[image.id].map((version) => (
+                        <div key={version.version} className="flex flex-wrap items-center justify-between gap-3 rounded border border-border p-3">
+                          <div className="min-w-0">
+                            <p className="break-all text-sm font-medium">{version.filename}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {new Date(version.uploadedAt).toLocaleString()} · {(version.size / 1024).toFixed(1)} KB · {version.contentType}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="min-h-9 rounded border border-border px-3 text-xs disabled:opacity-50"
+                            disabled={busy}
+                            onClick={() => void restoreImageVersion(image.id, version)}
+                          >
+                            Restore this version
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {image.status !== "approved" && (
