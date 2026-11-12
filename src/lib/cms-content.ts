@@ -557,6 +557,7 @@ export function mergePersonPortfolio(
     if (basics.story) merged.story = basics.story;
     if (basics.email) merged.email = basics.email;
     if (basics.phone) merged.phone = basics.phone;
+    if (basics.location) merged.location = basics.location;
     if (basics.socials) merged.socialLabels = basics.socials.map((social) => ({ ...social }));
   }
   if (overrides.skills) {
