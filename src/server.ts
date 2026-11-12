@@ -69,7 +69,13 @@ import {
   isAdminRequest,
   verifyAdminPassword,
 } from "./lib/admin-auth";
-import { recoverPendingStorageTransaction, runStorageTransaction, storageRecoveryStatus, StorageTransactionError } from "./lib/storage-recovery";
+import {
+  recoverPendingStorageTransaction,
+  runStorageTransaction,
+  storageRecoveryStatus,
+  StorageTransactionError,
+  type StorageMutation,
+} from "./lib/storage-recovery";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -709,6 +715,7 @@ async function commitResumeState(
   _before: ResumeRecord[],
   after: ResumeRecord[],
   history?: { before: PublishHistory; after: PublishHistory },
+  additionalMutations: StorageMutation[] = [],
 ): Promise<void> {
   const mutations = [
     {
@@ -731,6 +738,7 @@ async function commitResumeState(
           contentType: "application/json; charset=utf-8",
         }]
       : []),
+    ...additionalMutations,
   ];
   await runStorageTransaction(bucket, mutations);
 }
@@ -910,10 +918,7 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || "resume";
     const id = crypto.randomUUID();
     const key = `private-admin/resumes/files/${id}`;
-    let storedFile = false;
     try {
-      await bucket.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: type } });
-      storedFile = true;
       const records = await readResumeIndex(bucket);
       const record: ResumeRecord = {
         id,
@@ -930,28 +935,24 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         structuredSections: { experience: [], education: [], projects: [], certifications: [] },
       };
       records.push(record);
-      await writeResumeIndex(bucket, records);
+      await runStorageTransaction(bucket, [
+        {
+          key,
+          operation: "put",
+          value: await file.arrayBuffer(),
+          contentType: type,
+        },
+        {
+          key: RESUME_INDEX_KEY,
+          operation: "put",
+          value: JSON.stringify(records),
+          contentType: "application/json; charset=utf-8",
+        },
+      ]);
       return jsonResponse({ resume: record }, 201);
     } catch (error) {
-      if (storedFile) {
-        try {
-          await bucket.delete(key);
-        } catch (cleanupError) {
-          console.error("Failed to clean up an incomplete resume upload.", cleanupError);
-        }
-      }
       console.error("Portfolio resume upload failed while storing or indexing the resume.", error);
-      return jsonResponse(
-        {
-          error:
-            "Resume upload failed while saving the file. Check the development server terminal for the detailed cause and retry.",
-          code: "RESUME_UPLOAD_STORAGE_FAILED",
-          ...(import.meta.env.DEV === true
-            ? { detail: error instanceof Error ? error.message : "Unknown resume storage error." }
-            : {}),
-        },
-        500,
-      );
+      return storageFailure(error, "upload");
     }
   }
 
@@ -1398,12 +1399,12 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         }
       }
       try {
-        await commitResumeState(bucket, original, records, historyChange);
+        await commitResumeState(bucket, original, records, historyChange, [
+          { key: fileKey, operation: "delete" },
+        ]);
       } catch (error) {
         return storageFailure(error, "delete");
       }
-      // The private file is removed only after nothing references it.
-      await bucket.delete(fileKey);
       return jsonResponse({ ok: true }, 200);
     }
   }
