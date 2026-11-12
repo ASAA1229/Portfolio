@@ -73,6 +73,29 @@ Public multi-section profile pages; profile picker and navigation; owner Admin c
 - Cover desktop, tablet and mobile; include keyboard-only journeys and reduced-motion preferences.
 - Confirm each journey has meaningful loading, empty, unavailable and error states.
 
+### Visitor journey coverage map — source review started 2026-11-12
+
+| Journey | Expected path | Source-level coverage / remaining work |
+|---|---|---|
+| First visit → profile selection | Landing page → `/profiles` → one of four profiles | Profile selector exists; brand and explicit “Back to portfolio” links now return to `/`. Validate all four cards and responsive behavior later. |
+| Abhishek discovery | Home → about / skills / experience / projects / education / certifications / contact | Shared navigation and home CTAs exist. Confirm every destination, content state and browser history behavior. |
+| Other profile discovery | Profile home → sections → projects → project detail | Person-scoped route shell and section navigation exist. Verify all section slugs and dynamic CMS-created project details per profile. |
+| Switch profile | Any profile → choose profile → another profile | Shared profile control and footer link exist. Confirm no previous profile content, theme, media or AI context leaks into the next profile. |
+| Project exploration | Featured project → catalogue/filter → project detail → return to catalogue | Catalogue and detail routes exist. Confirm filter empty states, unknown/archived slugs, breadcrumbs/back paths and dynamic published projects. |
+| Resume access | Profile → resume action / published resume highlights | Published resume components exist. Confirm no private original, unpublished resume or cross-profile file can be reached. |
+| Contact | Profile → email / phone / social contact action | Conditional contact links exist. Confirm invalid/missing values degrade cleanly and external links use safe targets. |
+| Failure recovery | Broken route/data/resource → retry or choose profile | Profile error and unavailable states exist. Ensure errors do not strand visitors and preserve a safe route back to profiles. |
+| Privacy | Any profile → privacy information | Privacy route exists and is linked in the profile footer. Ensure it is discoverable from the Abhishek shell and selector as well. |
+
+**First source-level journey improvement:** the profile selector previously displayed a non-interactive wordmark with no direct return route. It now exposes a keyboard-focusable home link and an explicit “Back to portfolio” link. This is source implementation only; no browser or accessibility validation was run.
+
+**Next source-level journey priorities:**
+1. Add a consistent return/breadcrumb path from project detail pages to their correct profile's project catalogue.
+2. Ensure privacy and contact destinations are discoverable consistently across all profile shells.
+3. Confirm project catalogue empty/filter states and not-found recovery.
+4. Review profile switching for state isolation (theme, open AI panel, mobile menu, published media and profile-scoped data).
+5. Keep journey acceptance open until real desktop/mobile and keyboard journeys are performed after validation resumes.
+
 ### Accessibility
 - Meet WCAG 2.2 AA for applicable public and Admin experiences.
 - Verify semantic landmarks/headings, accessible names and descriptions, image alternatives, keyboard operation, visible focus, focus order, dialogs, form errors, contrast, zoom/reflow and reduced motion.
