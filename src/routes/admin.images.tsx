@@ -67,6 +67,14 @@ function ImageManager() {
   // Bumped after a replacement so preview thumbnails refetch the new file.
   const [previewVersion, setPreviewVersion] = useState(0);
   const [storageMode, setStorageMode] = useState<"local-disk" | "persistent" | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [profileFilter, setProfileFilter] = useState<"all" | ImageRecord["profileId"]>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | ImageRecord["status"]>("all");
+  const visibleImages = images.filter((image) => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesQuery = !query || [image.filename, image.alt, image.profileId, image.slot ?? "gallery"].some((value) => value.toLowerCase().includes(query));
+    return matchesQuery && (profileFilter === "all" || image.profileId === profileFilter) && (statusFilter === "all" || image.status === statusFilter);
+  });
 
   async function loadImages(signal?: AbortSignal) {
     const response = await fetch("/api/admin/images", {
