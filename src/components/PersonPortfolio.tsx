@@ -231,7 +231,7 @@ function ProjectTile({
       <Link
         to="/people/$person/projects/$slug"
         params={{ person: profile.id, slug: project.slug }}
-        className="person-project-art"
+        className="person-project-art relative overflow-hidden"
         aria-label={`Explore ${project.title}`}
       >
         {cover ? (
