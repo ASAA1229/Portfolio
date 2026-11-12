@@ -564,3 +564,18 @@ Resume upload now journals the private original and index together. Resume delet
 
 
 PORT-US-046 configuration note: owner password minimum is 12 characters and session signing secret minimum is 32 UTF-8 bytes. Session epoch values must be safe integers. The login attempt throttle is currently isolate-local, not distributed; hosting-level rate limiting and secret rotation remain production-readiness work.
+
+
+## Current development increment — PORT-US-043 CMS coverage and PORT-US-034/037 JARVIS boundaries (2026-11-12)
+
+- **Branch:** `new`
+- Root Abhishek Skills now renders all published CMS skill groups, including custom categories instead of filtering to a fixed curated category list.
+- Root Home and About consume CMS basics, experience, education and location. About milestones now derive from the published experience collection.
+- Root Projects now consumes the merged published project inventory, including owner-created projects; the detail route can render published CMS-created slugs and returns not-found for unknown/archived slugs.
+- All three person profiles merge CMS location and social handles into the shared model. Contact links accept only HTTPS destinations on LinkedIn/GitHub domains or safe platform handles. Profile Home/About basics follow CMS override → approved resume → curated fallback; structured resume sections remain primary where published.
+- Explicit empty CMS skills, projects, experience and certification collections now remain empty instead of silently restoring curated defaults. Empty CMS social lists can clear curated social destinations.
+- JARVIS request enrichment now includes only the selected profile's published CMS document, approved resume and published persona. Drafts, private originals, admin review notes and other profiles are excluded. The chat route revalidates CMS content and merges it into person-profile knowledge; Abhishek's root prompt receives published CMS facts as well.
+- JARVIS remains the primary AI provider. OpenAI fallback requires both an API key and explicit `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`. Provider error bodies are no longer copied into application logs.
+- Added regression test source for CMS empty collections, project creation/archive, profile merge, and JARVIS prompts using published CMS context.
+- **Still open:** exact-head tests/build/typecheck/lint, route-level SSR/404 checks, live CMS publish-to-public acceptance, JARVIS tunnel/hosted connectivity, multi-profile isolation, gateway rate-limit/policy/audit verification, timeout/cancellation/failure-path acceptance and privacy review.
+- **Validation:** deliberately not run. No test, build, typecheck, lint, browser, accessibility, security scan, CI or production verification is claimed.
