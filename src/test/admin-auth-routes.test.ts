@@ -91,4 +91,38 @@ describe("admin authentication route lifecycle", () => {
     );
     expect(response.status).toBe(404);
   });
+
+  it.each([
+    "/admin",
+    "/admin/content",
+    "/api/admin/resumes",
+    "/api/admin/images",
+    "/api/admin/backup",
+    "/api/admin/storage/recovery",
+  ])("rejects unauthenticated access to %s", async (path) => {
+    const response = await request(env(new MemoryBucket()), path);
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("x-robots-tag")).toContain("noindex");
+  });
+
+  it("rejects cross-origin admin mutations even with a valid session", async () => {
+    const bucket = new MemoryBucket();
+    const runtime = env(bucket);
+    const login = await request(runtime, "/api/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "cf-connecting-ip": "csrf-test" },
+      body: JSON.stringify({ password: "test-admin-password" }),
+    });
+    const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+    const response = await server.fetch(
+      new Request(origin + "/api/admin/logout-all", {
+        method: "POST",
+        headers: { cookie, origin: "https://attacker.example" },
+      }),
+      runtime,
+      {},
+    );
+    expect(response.status).toBe(404);
+  });
 });
