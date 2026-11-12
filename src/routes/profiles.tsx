@@ -53,12 +53,22 @@ function ProfileSelect() {
   return (
     <div className="relative flex min-h-svh flex-col bg-background px-5 py-8 sm:px-12">
       <header className="flex items-center justify-between">
-        <span className="series-logo text-3xl">
+        <Link
+          to="/"
+          aria-label="Return to Abhishek's portfolio home"
+          className="series-logo rounded-sm text-3xl transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
+        >
           ABHISHEK{" "}
           <span className="ml-2 align-middle font-sans text-[9px] font-normal text-muted-foreground">
             THE SERIES
           </span>
-        </span>
+        </Link>
+        <Link
+          to="/"
+          className="min-h-11 inline-flex items-center rounded border border-border px-3 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Back to portfolio
+        </Link>
       </header>
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center py-14">
         <motion.div
