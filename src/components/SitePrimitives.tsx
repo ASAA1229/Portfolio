@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CONTACT } from "@/lib/portfolio-data";
-import { PORTFOLIO_FILES } from "@/lib/contact-schema";
+import { usePublishedProfileResume } from "@/lib/published-resume";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { siteProjects } from "@/lib/site-data";
 
@@ -45,15 +45,17 @@ export function SocialLinks({
     </div>
   );
 }
-export function ResumeAction() {
-  if (PORTFOLIO_FILES.resume)
+export function ResumeAction({ profileId = "abhishek" }: { profileId?: string } = {}) {
+  const publishedResume = usePublishedProfileResume(profileId);
+  if (publishedResume) {
     return (
       <Button asChild className="min-h-11">
-        <a href={PORTFOLIO_FILES.resume} download>
+        <a href={`/api/published-resumes/${encodeURIComponent(publishedResume.id)}`} download>
           <Download /> Download resume
         </a>
       </Button>
     );
+  }
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -63,11 +65,10 @@ export function ResumeAction() {
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Resume & professional background</DialogTitle>
-        <DialogDescription>A downloadable resume PDF has not been uploaded.</DialogDescription>
+        <DialogDescription>A downloadable resume has not been published for this profile.</DialogDescription>
         <p className="text-sm leading-7">
-          B.Tech in Information Technology · TKR College of Engineering & Technology · 2022–2026 ·
-          CGPA 7.6. Frontend experience at Paves Technologies and AI interface experience at
-          Bilvantis Technologies.
+          B.Tech in Information Technology · TKR College of Engineering & Technology · 2022–2026.
+          Professional background and contact details are available in the profile.
         </p>
         <Button asChild>
           <a href={`mailto:${CONTACT.email}?subject=Request%20for%20resume`}>
