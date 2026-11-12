@@ -26,6 +26,7 @@ import { PersonPortfolioAssistant } from "@/components/PersonPortfolioAssistant"
 import { ResumeEntryCard } from "@/components/ResumeEntryCard";
 import { ChapterHero, type ChapterVariant } from "@/components/ChapterHero";
 import { ProfileContactPanel } from "@/components/ProfileContactPanel";
+import { ResumeAction } from "@/components/SitePrimitives";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import {
   PERSON_SECTIONS,
@@ -339,6 +340,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               </Button>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
+              <ResumeAction profileId={profile.id} />
               <ContactActions profile={profile} />
               <SocialButtons profile={profile} />
             </div>
