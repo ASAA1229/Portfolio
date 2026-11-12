@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { Bot, History, RotateCcw, Save, Send, EyeOff } from "lucide-react";
 import {
   buildPersonaPrompt,
@@ -117,6 +118,7 @@ function PersonaManager() {
 
   return (
     <main className="site-container max-w-5xl py-10 sm:py-14">
+      <AdminNavigation current="/admin/personas" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
         <Bot className="size-8 text-primary" aria-hidden="true" /> AI Persona Manager
