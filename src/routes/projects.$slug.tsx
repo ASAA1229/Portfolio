@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getProject, PROJECT_PAGES } from "@/lib/project-pages";
 import { LEGACY_PROJECT_SLUGS } from "@/lib/site-data";
 import { seoHead } from "@/lib/seo-head";
+import { usePublishedProjectImages } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/projects/$slug")({
   beforeLoad: ({ params }) => {
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/projects/$slug")({
 
 function ProjectDetailPage() {
   const { slug } = Route.useParams();
+  const projectImages = usePublishedProjectImages("abhishek", slug);
   const { overrides } = useAbhishekContent();
   const base = getProject(slug);
   // Owner CMS edits apply over the curated project page; archived hides it.
@@ -63,9 +65,19 @@ function ProjectDetailPage() {
         title={project.title}
         description={project.overview}
       />
-      <div className="project-detail-art">
-        <ProjectVisual index={index} />
-      </div>
+      {projectImages.length > 0 ? (
+        <section className="mt-8 grid gap-4 sm:grid-cols-2" aria-label={`Images for ${project.title}`}>
+          {projectImages.map((image) => (
+            <figure key={image.id} className="overflow-hidden rounded-lg border border-white/10 bg-card">
+              <img src={image.src} alt={image.alt} loading="lazy" className="aspect-video w-full object-cover" />
+            </figure>
+          ))}
+        </section>
+      ) : (
+        <div className="project-detail-art">
+          <ProjectVisual index={index} />
+        </div>
+      )}
       <div className="project-detail-grid">
         <section className="detail-copy">
           <p className="section-kicker">THE PROBLEM</p>
