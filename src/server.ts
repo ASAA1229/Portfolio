@@ -30,6 +30,7 @@ import {
 } from "@/lib/cms-content";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import { getPersonProject } from "@/lib/person-portfolios";
+import { inspectResourceLifecycle } from "@/lib/resource-lifecycle";
 import {
   appendHistory,
   emptyHistory,
@@ -799,7 +800,7 @@ function bucketNotConfigured(): Response {
 
 async function handleResumeApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
-  if (!path.startsWith("/api/admin/resumes") && path !== "/api/published-resumes" && !path.startsWith("/api/published-resumes/")) return null;
+  if (!path.startsWith("/api/admin/resumes") && path !== "/api/admin/resources/consistency" && path !== "/api/published-resumes" && !path.startsWith("/api/published-resumes/")) return null;
   if (path === "/api/published-resumes" && request.method === "GET") {
     const publicBucket = resolvePrivateBucket(env);
     if (!publicBucket) return jsonResponse({ updatedAt: null, resumes: [] }, 200);
@@ -856,6 +857,44 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
   }
   const bucket = resolvePrivateBucket(env);
   if (!bucket) return bucketNotConfigured();
+
+  if (path === "/api/admin/resources/consistency" && request.method === "GET") {
+    try {
+      const resumes = await readResumeIndex(bucket);
+      const feedObject = await bucket.get("public/approved-resumes.json");
+      const feedValue = feedObject ? await feedObject.json<unknown>().catch(() => null) : { resumes: [] };
+      const feedIds =
+        feedValue && typeof feedValue === "object" && !Array.isArray(feedValue) &&
+        Array.isArray((feedValue as { resumes?: unknown }).resumes) &&
+        (feedValue as { resumes: unknown[] }).resumes.every(
+          (item) => !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string",
+        )
+          ? (feedValue as { resumes: { id: string }[] }).resumes.map((item) => item.id)
+          : null;
+      const images = await readImageIndex(bucket);
+      const [resumeFiles, imageFiles, publicImages, supersededImages] = await Promise.all([
+        listBucketKeys(bucket, "private-admin/resumes/files/"),
+        listBucketKeys(bucket, "private-admin/images/files/"),
+        listBucketKeys(bucket, "public/profile-images/"),
+        listBucketKeys(bucket, "private-admin/images/superseded/"),
+      ]);
+      const ids = (keys: string[], prefix: string) => keys
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => key.slice(prefix.length));
+      return jsonResponse(inspectResourceLifecycle({
+        resumes,
+        resumeFeedIds: feedIds,
+        resumePrivateFileIds: ids(resumeFiles, "private-admin/resumes/files/"),
+        images,
+        imagePrivateFileIds: ids(imageFiles, "private-admin/images/files/"),
+        imagePublicFileIds: ids(publicImages, "public/profile-images/"),
+        supersededImageKeys: supersededImages,
+      }), 200);
+    } catch (error) {
+      console.error("Portfolio resource lifecycle inspection failed.", error);
+      return jsonResponse({ error: "Resource integrity could not be inspected. Check storage availability and index integrity." }, 503);
+    }
+  }
 
   if (path === "/api/admin/resumes" && request.method === "GET") {
     return jsonResponse({ resumes: await readResumeIndex(bucket) }, 200);
