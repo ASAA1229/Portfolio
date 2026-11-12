@@ -82,7 +82,7 @@ Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node
 | US-026 Release/snapshot input validation | DONE — VERIFIED (automated) |
 | US-029–032 DevOps provenance/integrity/SBOM | IMPLEMENTED — NEEDS TESTING (CI run) |
 | US-033 Gated promotion | PARTIAL — NEEDS DEVELOPMENT |
-| US-034 Chat uses the owner's JARVIS personal AI | DONE — VERIFIED LOCALLY |
+| US-034 Chat uses the owner's JARVIS personal AI | IMPLEMENTED IN SOURCE — VALIDATION PENDING |
 
 ## PORT-E01 — Shared Design System and Four-Profile UI
 
@@ -816,8 +816,8 @@ No story is closed solely because the local test report is green. The local test
 
 1. **P0:** PORT-US-045 storage recovery design and implementation, starting with resume publish/rollback/unpublish and then image parity.
 2. **P0:** PORT-US-046 production admin security boundaries (source work only until validation is resumed).
-3. **P0:** PORT-US-043 complete root/profile CMS coverage and content precedence.
-4. **P0:** PORT-US-037 / PORT-US-034 JARVIS integration privacy and production-readiness gaps.
+3. **P0:** PORT-US-043 root/profile CMS source coverage implemented; exact-head and route acceptance pending.
+4. **P0:** PORT-US-037 / PORT-US-034 JARVIS context boundaries implemented in source; hosted connectivity, privacy and failure-path acceptance pending.
 5. **P1:** PORT-US-044 SEO metadata propagation.
 6. **P1:** PORT-US-048 profile facts/media owner sign-off and PORT-US-047 CMS visual customization.
 7. **P1:** PORT-US-009/016/017/018/019/020/022/033 acceptance, CI, accessibility, performance and release gates when validation is explicitly resumed.
