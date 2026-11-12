@@ -77,7 +77,7 @@ No build, lint, unit test, browser check or route-matrix run was performed; test
 **2026-11-12 implementation update — PORT-US-034/037:** the Worker now attaches only the selected profile’s published CMS document, approved resume and published persona to chat requests. The chat route revalidates CMS content and merges it into profile knowledge; Abhishek’s root prompt receives published CMS basics/sections too. JARVIS remains primary and OpenAI fallback requires explicit `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`. Provider response bodies are excluded from application logs. Regression tests cover root and person-profile CMS grounding. Tunnel, hosted integration, provider failure, privacy and cancellation acceptance remain open; no tests were run.
 
 **Remaining work**
-- Verify the server-side OpenAI Responses API integration and server-only key handling.
+- Verify the server-side JARVIS gateway integration, profile scope and server-only key handling; test OpenAI only as an explicit opt-in fallback.
 - Ground responses in current, approved profile data; update context when the selected profile changes.
 - Prevent invented skills, experience, education, projects or personal details.
 - Test missing/invalid key, timeout, rate limit, malformed response, cancellation and offline fallback.
