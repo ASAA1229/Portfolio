@@ -834,3 +834,10 @@ No story is closed solely because the local test report is green. The local test
 - Resume lifecycle already has a compensating index/feed/history commit helper, but still lacks distributed concurrency protection and a durable recovery journal for compensation failures. Missing originals remain non-recoverable without a verified backup/source.
 
 **Validation:** no tests, build, typecheck, lint, browser checks or CI were run. All new image regression tests are authored only. PORT-US-045 remains open until validation resumes and resume/image recovery, concurrency and hosted R2 acceptance are complete.
+
+
+### PORT-US-045 follow-up — resume history compensation coverage (2026-11-12)
+
+- Extended `src/test/resume-failure-paths.test.ts` with an ambiguous persisted-write failure at the resume publish-history step. The scenario asserts that compensation restores the pending resume index, empty public feed and empty prior history state.
+- This supplements existing publish-feed failure tests and the missing-original reconciliation guard. Tests remain authored but unexecuted.
+- Remaining P0 work: durable recovery when compensation itself fails, concurrency control across overlapping requests/instances, and safe cleanup/recovery for post-commit original-file deletion. Hosted R2 acceptance is also open.
