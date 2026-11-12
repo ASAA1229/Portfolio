@@ -524,6 +524,6 @@ The resume manager now reads the private admin inventory and public approved-res
 
 ## Project-specific image placement — 2026-11-12
 
-The image CMS now supports a project placement in addition to portrait and gallery. A project image is assigned to a profile ID and exact project URL slug. The public feed carries that assignment, and the shared person-project detail renderer loads only approved images matching both values. Admin upload requires the project slug and the inventory displays the assignment; approved project images count as active public resources.
+The image CMS now supports a project placement in addition to portrait and gallery. A project image is assigned to a profile ID and exact project URL slug. The public feed carries that assignment, and both Abhishek's root project-detail renderer and the shared person-project detail renderer load only approved images matching both values. Automated normalization regression coverage has been authored but not executed. Admin upload requires the project slug and the inventory displays the assignment; approved project images count as active public resources.
 
 This is source implementation only. Route coverage (especially Abhishek's project detail route), publication lifecycle, stale cache behavior, and cross-profile isolation still require validation. Existing portrait/gallery records remain compatible. No tests/build/typecheck/lint/browser/accessibility/CI checks were run; validation remains paused.
