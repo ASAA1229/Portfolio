@@ -21,7 +21,6 @@ export const Route = createFileRoute("/projects/$slug")({
         statusCode: 301,
       });
     }
-    if (!getProject(params.slug)) throw notFound();
   },
   head: ({ params }) => {
     const project = getProject(params.slug);
@@ -40,19 +39,35 @@ function ProjectDetailPage() {
   const projectImages = usePublishedProjectImages("abhishek", slug);
   const { overrides } = useAbhishekContent();
   const base = getProject(slug);
-  // Owner CMS edits apply over the curated project page; archived hides it.
+  // Only published CMS edits are available here; archived and unknown slugs are not found.
   const edit = overrides?.projects?.find((item) => item.slug === slug);
-  if (!base || edit?.archived) return <ProjectArchived />;
-  const project = edit
-    ? {
-        ...base,
-        title: edit.title,
-        overview: edit.overview,
-        ...(edit.context ? { problem: edit.context } : {}),
-        ...(edit.tech?.length ? { tech: edit.tech } : {}),
-      }
-    : base;
-  const index = PROJECT_PAGES.findIndex((item) => item.slug === slug);
+  if (edit?.archived || (!base && !edit)) throw notFound();
+  const project = base
+    ? edit
+      ? {
+          ...base,
+          title: edit.title,
+          overview: edit.overview,
+          ...(edit.context ? { problem: edit.context } : {}),
+          ...(edit.points?.length ? { role: edit.points.join(" ") } : {}),
+          ...(edit.tech?.length ? { tech: edit.tech } : {}),
+        }
+      : base
+    : {
+        title: edit!.title,
+        category: "Owner published",
+        badge: "Project",
+        hue: "primary",
+        overview: edit!.overview,
+        problem: edit!.context ?? "",
+        role: edit!.points?.join(" ") ?? "",
+        flow: [],
+        tech: edit!.tech ?? [],
+        slug,
+        github: null,
+        demo: null,
+      };
+  const index = Math.max(0, PROJECT_PAGES.findIndex((item) => item.slug === slug));
   return (
     <article className="page-content project-detail">
       <Button asChild variant="ghost" className="mb-8 min-h-11 px-0">
