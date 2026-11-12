@@ -1450,8 +1450,9 @@ function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
     record.alt.trim().length > 0 &&
     record.alt.length <= 300 &&
     (record.slot === undefined || ["gallery", "portrait", "project"].includes(record.slot)) &&
-    (record.projectSlug === undefined || (typeof record.projectSlug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(record.projectSlug))) &&
-    (record.slot !== "project" || typeof record.projectSlug === "string")
+    (record.slot === "project"
+      ? typeof record.projectSlug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(record.projectSlug)
+      : record.projectSlug === undefined)
   );
 }
 
