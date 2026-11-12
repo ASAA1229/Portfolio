@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CONTACT } from "@/lib/portfolio-data";
-import { usePublishedProfileResume } from "@/lib/published-resume";
+import { usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { siteProjects } from "@/lib/site-data";
 
@@ -95,9 +95,14 @@ export function PageBody({ children }: { children: ReactNode }) {
   return <div className="site-container py-12 sm:py-16">{children}</div>;
 }
 export function ProjectCard({ project }: { project: (typeof siteProjects)[number] }) {
+  const cover = usePublishedProjectImages("abhishek", project.slug)[0];
   return (
     <article className="project-card group">
-      <ProjectVisual index={project.index === 3 ? 2 : project.index} />
+      {cover ? (
+        <img src={cover.src} alt={cover.alt} loading="lazy" className="aspect-video w-full object-cover" />
+      ) : (
+        <ProjectVisual index={project.index === 3 ? 2 : project.index} />
+      )}
       <div className="px-5 pb-6">
         <p className="mb-3 text-xs text-violet">{project.badge}</p>
         <h3 className="min-h-16 text-2xl font-semibold">
