@@ -500,4 +500,4 @@ Admin-managed resumes and images are intended to be the source of truth for publ
 - Added the same profile-aware download action to Amulya, Anjini and Sai profile home pages.
 - Existing resume metadata continues to populate published profile headline, summary, skills, structured experience, education, projects, certifications and contact surfaces where supported.
 
-The endpoint has not been tested. Unpublish/rollback cache timing, storage failures, profile isolation, browser download behavior and all four profile journeys remain unverified. Validation is still paused.
+The endpoint has not been tested. Published feed and media responses now require immediate revalidation (`max-age=0`); runtime cache behavior, storage failures, profile isolation, browser download behavior and all four profile journeys remain unverified. Validation is still paused.
