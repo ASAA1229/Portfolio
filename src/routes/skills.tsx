@@ -80,7 +80,11 @@ function Skills() {
                 <span className="orbit orbit-two" />
               </div>
               <div className="skill-groups">
-                {contentSkills.map((group, index) => {
+                {contentSkills.length === 0 ? (
+                  <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                    No skills have been published for this profile yet.
+                  </p>
+                ) : contentSkills.map((group, index) => {
                   const category = group.cat.toLowerCase();
                   const Icon = /data|database|sql/.test(category)
                     ? Database
