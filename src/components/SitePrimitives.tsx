@@ -67,17 +67,9 @@ export function ResumeAction({ profileId = "abhishek" }: { profileId?: string } 
         <DialogTitle>Resume & professional background</DialogTitle>
         <DialogDescription>A downloadable resume has not been published for this profile.</DialogDescription>
         <p className="text-sm leading-7">
-          B.Tech in Information Technology · TKR College of Engineering & Technology · 2022–2026.
-          Professional background and contact details are available in the profile.
+          No resume has been published for this profile yet. Upload the correct profile's resume
+          in Admin, review its extracted details, and publish it to enable this download.
         </p>
-        <Button asChild>
-          <a href={`mailto:${CONTACT.email}?subject=Request%20for%20resume`}>
-            Request resume by email <ArrowRight />
-          </a>
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/about">Read full bio</Link>
-        </Button>
       </DialogContent>
     </Dialog>
   );
