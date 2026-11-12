@@ -216,14 +216,14 @@ Local evidence (2026-11-07): typecheck 0 · lint 0 errors · 107 Vitest + 4 Node
 
 ### PORT-US-034 — Chat uses the owner's JARVIS personal AI
 
-**Current implementation status:** **DONE — VERIFIED LOCALLY** — `/api/chat` resolves the provider server-side (`src/lib/ai-provider.ts`); live local chain answered with profile-grounded text; provider, request-shape and 401 tests pass. Production needs a Cloudflare Tunnel to JARVIS and deployment secrets.
+**Current implementation status:** **IMPLEMENTED IN SOURCE — VALIDATION PENDING** — `/api/chat` resolves JARVIS server-side, keeps provider credentials out of the browser, and uses paid OpenAI fallback only when `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`. The Worker now injects only the selected profile’s approved resume, published CMS document and published persona. Provider response bodies are not written to application logs. Existing and new route regression tests are authored; execution remains paused.
 
 **As the owner,** I want the portfolio chat to use my JARVIS personal AI through an API key, so that my sites run on my own AI instead of a paid third-party API.
 
 **Acceptance criteria**
 - When `JARVIS_AI_URL` and a valid `JARVIS_AI_KEY` (`jrv_…`) are set, chat requests go to JARVIS `/v1/chat/completions` with the profile instructions as the system message.
 - JARVIS URLs must be https, except loopback for local development; keys stay in server-side environment only.
-- If JARVIS is not configured, OpenAI is used when `OPENAI_API_KEY` is set; otherwise the API returns 503 and the UI shows offline profile answers.
+- If JARVIS is not configured, OpenAI is used only when `OPENAI_API_KEY` is set **and** `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`; otherwise the API returns 503 and the UI shows offline profile answers.
 - Only assistant text is streamed to the browser; provider errors map to safe messages without leaking keys.
 - Slow answers are not cut off: timeouts apply to silence (45 s, reset by keep-alives) with a 5-minute ceiling.
 
@@ -558,6 +558,8 @@ The following stories capture the owner's answers to the 50-question development
 
 **Priority:** P0 — shared integration priority
 
+**Current implementation status:** **IMPLEMENTED IN SOURCE — VALIDATION PENDING.** JARVIS is the primary server-side gateway; paid fallback is explicit opt-in only. The Worker injects the selected profile’s approved resume, published CMS content and published persona, and the chat route revalidates CMS/persona shape before prompt construction. Profile scope is sent to JARVIS in both the header and request body. Drafts, private originals, review notes and other profiles are excluded. Provider error bodies are not logged; timeouts and request abort are wired. Production tunnel, distributed gateway controls, privacy acceptance and end-to-end cancellation/failure verification remain open.
+
 **As the owner,** I want portfolio AI introductions and chat to use my JARVIS personal AI, so that the portfolio benefits from my own AI platform rather than depending on an external paid API.
 
 **Acceptance criteria**
@@ -721,7 +723,7 @@ No story is closed solely because the local test report is green. The local test
 #### PORT-US-043 — Consistent root and profile CMS content
 
 **Priority:** P0  
-**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+**Status:** IMPLEMENTED IN SOURCE — REGRESSION COVERAGE AUTHORED — VALIDATION PENDING.
 
 **As the owner,** I want every public route to consume the approved CMS content for its intended profile, so that edits made in the owner dashboard are reflected consistently throughout the portfolio.
 
@@ -731,7 +733,9 @@ No story is closed solely because the local test report is green. The local test
 - Draft/unpublished content never appears publicly.
 - Profile-specific content and media never cross profile boundaries.
 - Empty, archived, invalid and missing content states are deliberate and safe.
-- Changes are covered by regression tests and route-level acceptance after validation resumes.
+- Changes are covered by regression tests and route-level acceptance after validation resumes.  
+
+**2026-11-12 implementation update:** root Skills now renders every published CMS skill group, including custom categories; root About/Home consume CMS basics, experience, education and location; root Projects consumes the published project collection and supports CMS-created project detail routes. All three person profiles now merge CMS location/socials/contact consistently, and resume → CMS → curated precedence is applied to profile-home basics/education. Explicit empty CMS collections now clear skills, projects, experience and certifications instead of silently restoring curated defaults. JARVIS now receives only the selected profile’s published CMS content and uses it to ground root Abhishek and all three person-profile prompts. Tests were added for collection clearing, new projects, CMS profile merge and CMS-grounded JARVIS prompts. No validation was run.
 
 #### PORT-US-044 — Published SEO and social metadata
 
