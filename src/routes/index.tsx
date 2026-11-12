@@ -126,7 +126,7 @@ function Home() {
         </div>
         <div className="grid gap-6 md:grid-cols-2">
           {content.projects
-            .filter((p) => p.index === 0 || p.index === 2)
+            .slice(0, 2)
             .map((p) => (
               <ProjectCard key={p.slug} project={p} />
             ))}
