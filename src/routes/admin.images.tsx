@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { ImagePlus, RefreshCw, ShieldCheck, Trash2, UploadCloud } from "lucide-react";
 
 type ImageRecord = {
@@ -241,7 +242,8 @@ function ImageManager() {
   }
 
   if (checking) {
-    return <main className="site-container py-16">Checking private image manager…</main>;
+    return <main className="site-container py-16">
+      <AdminNavigation current="/admin/images" />Checking private image manager…</main>;
   }
 
   return (
