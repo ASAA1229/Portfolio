@@ -144,7 +144,10 @@ describe("admin authentication route lifecycle", () => {
     const runtime = env(bucket);
     const login = await request(runtime, "/api/admin/login", {
       method: "POST",
-      headers: { "content-type": "application/json", "cf-connecting-ip": "csrf-test" },
+      headers: {
+        "content-type": "application/json",
+        "cf-connecting-ip": "csrf-test",
+      },
       body: JSON.stringify({ password: "test-admin-password" }),
     });
     const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
