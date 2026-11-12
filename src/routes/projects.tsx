@@ -131,7 +131,11 @@ function Projects() {
               <span>{String(projectPages.length).padStart(2, "0")} PROJECTS</span>
             </div>
             <div className="project-showcase">
-              {projectPages.slice(1).map((project, i) => (
+              {projectPages.length === 0 ? (
+                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                  No projects have been published yet.
+                </p>
+              ) : projectPages.slice(1).map((project, i) => (
                 <ShowcaseProject key={project.slug} project={project} index={i} />
               ))}
             </div>
