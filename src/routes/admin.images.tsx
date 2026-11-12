@@ -55,6 +55,7 @@ async function readApiResponse<T extends { error?: string; detail?: string }>(
 
 function ImageManager() {
   const [images, setImages] = useState<ImageRecord[]>([]);
+  const [activeImageIds, setActiveImageIds] = useState<Set<string>>(() => new Set());
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -83,8 +84,36 @@ function ImageManager() {
       signal: signal ?? null,
     });
     const payload = await readApiResponse<ImageListPayload>(response);
-    setImages(Array.isArray(payload.images) ? payload.images : []);
+    const nextImages = Array.isArray(payload.images) ? payload.images : [];
+    setImages(nextImages);
     setStorageMode(payload.storageMode ?? "persistent");
+
+    // Mirror the public feed's selection rules so Admin can distinguish approved
+    // resources from resources currently selected by public profile components.
+    try {
+      const publicResponse = await fetch("/api/published-images", {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: signal ?? null,
+      });
+      const publicPayload = publicResponse.ok
+        ? (await publicResponse.json()) as { images?: Array<{ id?: string; profileId?: string; slot?: string }> }
+        : null;
+      const publicImages = Array.isArray(publicPayload?.images) ? publicPayload.images : [];
+      const selected = new Set<string>();
+      const latestPortraitByProfile = new Map<string, string>();
+      for (const image of publicImages) {
+        if (typeof image.id !== "string" || typeof image.profileId !== "string") continue;
+        if (image.slot === "portrait") latestPortraitByProfile.set(image.profileId, image.id);
+        else if (image.slot === "gallery") selected.add(image.id);
+      }
+      for (const id of latestPortraitByProfile.values()) selected.add(id);
+      setActiveImageIds(selected);
+    } catch {
+      // Keep the inventory usable; an unavailable public feed is not proof
+      // that a private approved image is currently live.
+      setActiveImageIds(new Set());
+    }
   }
 
   useEffect(() => {
@@ -408,6 +437,10 @@ function ImageManager() {
         <p className="rounded border border-border p-8 text-sm text-muted-foreground">
           No images uploaded yet.
         </p>
+      ) : visibleImages.length === 0 ? (
+        <p className="rounded border border-border p-8 text-sm text-muted-foreground">
+          No images match these filters. Change the search, profile or publication status.
+        </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {visibleImages.map((image) => (
@@ -432,9 +465,16 @@ function ImageManager() {
                   </p>
                   <p className="mt-2 text-sm">{image.alt}</p>
                 </div>
-                <span className="shrink-0 rounded border border-border px-2 py-1 text-xs">
-                  {image.status === "approved" ? "Published" : "Pending"}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="rounded border border-border px-2 py-1 text-xs">
+                    {image.status === "approved" ? "Published" : "Pending review"}
+                  </span>
+                  {image.status === "approved" && (
+                    <span className={`rounded border px-2 py-1 text-[11px] ${activeImageIds.has(image.id) ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-200"}`}>
+                      {activeImageIds.has(image.id) ? "Live on profile" : "Published · not selected"}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {image.status !== "approved" && (
