@@ -891,9 +891,12 @@ As the portfolio owner, I want images and resumes uploaded, assigned, reviewed a
 - Publishing or replacing a portrait updates the profile's portrait placements; publishing gallery images updates the managed gallery without source edits.
 - If a profile has published gallery resources, they become the managed gallery set; if none are published, the curated fallback remains available.
 - Publishing a resume updates the matching profile's headline, summary, skills, experience, education, projects, certifications and approved contact details wherever those sections are rendered.
-- The active published resume file is downloadable from that profile using a public, read-only, profile-scoped endpoint; private source files remain inaccessible.
+- The active published resume file is downloadable from that profile using a public, read-only endpoint that serves only records still approved in the private index; private source files remain inaccessible.
 - Replacing, unpublishing or restoring a resource changes the active public result after cache invalidation/revalidation, without requiring a code change or deployment.
 - Missing or unavailable published resources fail safely to curated fallback content; one profile's resources never leak into another profile.
 - Admin shows the currently active resource, placement/profile assignment, draft/published state and relevant version history.
 
 **Current implementation note (2026-11-12):** A shared validated published-image feed is now used by Abhishek's home portrait, About hero/gallery and the other person-profile portrait/gallery surfaces. The existing published-resume feed already drives several resume-derived text sections and contact/highlight surfaces. The downloadable published resume file endpoint, full all-profile placement coverage, replacement/unpublish cache behavior and end-to-end lifecycle acceptance remain open. Validation remains paused; no tests/build/typecheck/lint/browser/CI were run.
+
+
+**PORT-US-050 follow-up (2026-11-12):** The public resume binary endpoint and profile-aware download actions are now implemented in source. `GET /api/published-resumes/:id` checks the private resume index and serves the file only while that exact record remains approved; the Abhishek and person-profile download actions resolve the currently published resume ID from the published feed. This remains untested, and public download behavior after rollback/unpublish still requires runtime acceptance.
