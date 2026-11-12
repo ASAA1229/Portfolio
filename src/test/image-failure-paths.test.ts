@@ -141,4 +141,67 @@ describe("image lifecycle compensation", () => {
     expect(await bucket.get(`private-admin/images/files/${id}`)).not.toBeNull();
     expect(await bucket.get(`public/profile-images/${id}`)).not.toBeNull();
   });
+  it("removes partially stored upload binaries when the index write fails ambiguously", async () => {
+    const { bucket, state } = failingImageBucket();
+    const env = testEnv(bucket);
+    const form = new FormData();
+    form.set("profileId", "sai");
+    form.set("alt", "Sai gallery image");
+    form.set("slot", "gallery");
+    form.set("publishOnUpload", "true");
+    form.set("file", new File([PNG_BYTES], "sai.png", { type: PNG }), "sai.png");
+    state.failIndexAfterWrite = true;
+
+    const response = await call(env, "/api/admin/images", { method: "POST", body: form });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      code: "IMAGE_UPLOAD_STORAGE_FAILED",
+      restored: true,
+    });
+    const index = await (await bucket.get("private-admin/images/index.json"))!.json<unknown[]>();
+    expect(index).toEqual([]);
+    expect(await bucket.list("private-admin/images/files/")).toEqual([]);
+    expect(await bucket.list("public/profile-images/")).toEqual([]);
+  });
+
+  it("restores previous image binaries and metadata when replacement index persistence fails", async () => {
+    const { bucket, state } = failingImageBucket();
+    const env = testEnv(bucket);
+    const { id } = await uploadImage(env, true);
+    const originalPrivate = new Uint8Array(
+      await (await bucket.get(`private-admin/images/files/${id}`))!.arrayBuffer(),
+    );
+    const originalPublic = new Uint8Array(
+      await (await bucket.get(`public/profile-images/${id}`))!.arrayBuffer(),
+    );
+    const form = new FormData();
+    const replacementBytes = new Uint8Array([...PNG_BYTES, 0x01]);
+    form.set("file", new File([replacementBytes], "replacement.png", { type: PNG }), "replacement.png");
+    state.failIndexAfterWrite = true;
+
+    const response = await call(env, `/api/admin/images/${id}/replace`, {
+      method: "POST",
+      body: form,
+    });
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      code: "IMAGE_STORAGE_COMMIT_FAILED",
+      restored: true,
+    });
+
+    const privateAfter = new Uint8Array(
+      await (await bucket.get(`private-admin/images/files/${id}`))!.arrayBuffer(),
+    );
+    const publicAfter = new Uint8Array(
+      await (await bucket.get(`public/profile-images/${id}`))!.arrayBuffer(),
+    );
+    expect([...privateAfter]).toEqual([...originalPrivate]);
+    expect([...publicAfter]).toEqual([...originalPublic]);
+    expect(await bucket.list(`private-admin/images/superseded/${id}/`)).toEqual([]);
+    const index = await (await bucket.get("private-admin/images/index.json"))!.json<
+      Array<{ id: string; filename: string }>
+    >();
+    expect(index.find((item) => item.id === id)?.filename).toBe("ammu.png");
+  });
+
 });
