@@ -340,7 +340,7 @@ describe("Portfolio factual and contact rules", () => {
     const payload = {
       images: [
         {
-          id: "image-1",
+          id: "123e4567-e89b-12d3-a456-426614174000",
           profileId: "ammu",
           slot: "project",
           projectSlug: "data-analysis-ai",
@@ -348,7 +348,8 @@ describe("Portfolio factual and contact rules", () => {
           src: "/api/published-images/123e4567-e89b-12d3-a456-426614174000",
         },
         {
-          id: "other-profile",
+          id: "123e4567-e89b-12d3-a456-426614174001",
+          profileId: "sai",
           profileId: "sai",
           slot: "project",
           projectSlug: "data-analysis-ai",
@@ -356,7 +357,7 @@ describe("Portfolio factual and contact rules", () => {
           src: "/api/published-images/123e4567-e89b-12d3-a456-426614174001",
         },
         {
-          id: "invalid-slug",
+          id: "123e4567-e89b-12d3-a456-426614174002",
           profileId: "ammu",
           slot: "project",
           projectSlug: "../other-project",
@@ -364,7 +365,7 @@ describe("Portfolio factual and contact rules", () => {
           src: "/api/published-images/123e4567-e89b-12d3-a456-426614174002",
         },
         {
-          id: "missing-slug",
+          id: "123e4567-e89b-12d3-a456-426614174003",
           profileId: "ammu",
           slot: "project",
           alt: "Missing slug",
@@ -374,7 +375,7 @@ describe("Portfolio factual and contact rules", () => {
     };
     expect(normalizePublishedProfileImages(payload, "ammu")).toEqual([
       {
-        id: "image-1",
+        id: "123e4567-e89b-12d3-a456-426614174000",
         profileId: "ammu",
         slot: "project",
         projectSlug: "data-analysis-ai",
