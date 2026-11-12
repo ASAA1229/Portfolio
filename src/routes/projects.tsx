@@ -49,9 +49,9 @@ function ShowcaseProject({ project, index }: { project: (typeof PROJECT_PAGES)[n
 function Projects() {
   const publishedResume = usePublishedProfileResume("abhishek");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (pathname !== "/projects" && pathname !== "/projects/") return <Outlet />;
   const featured = PROJECT_PAGES[0];
   const featuredCover = usePublishedProjectImages("abhishek", featured!.slug)[0];
+  if (pathname !== "/projects" && pathname !== "/projects/") return <Outlet />;
   return (
     <>
       <section className="chapter-hero projects-hero">
