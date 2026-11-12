@@ -969,7 +969,7 @@ As the owner, I want every public image and resume resource to be managed indepe
 - Added owner-only recovery status and confirmed recovery endpoint at `/api/admin/storage/recovery`, plus a recovery panel in Admin → Backup & Restore.
 - Added failure-injection test source for successful rollback, compensation failure followed by later recovery, journal preparation failure and overlapping operations sharing one bucket instance.
 
-**Still open:** this queue is isolate-local, not a distributed R2 lock/CAS. Resume upload/original-file cleanup and other single-object/multi-step operations still need a full inventory and journal integration. R2 behavior, concurrent Worker instances, failure injection and recovery acceptance remain unverified.
+**Still open:** the queue serializes journaled write phases, but handler reads can be stale before the queue is acquired; read-modify-write lost-update protection is not complete. It is isolate-local, not a distributed R2 lock/CAS. Remaining single-object/multi-step content/persona writes need an inventory. R2 behavior, concurrent Worker instances, failure injection and recovery acceptance remain unverified.
 
 ### PORT-US-046 implementation increment — authentication/session hardening (2026-11-12)
 
