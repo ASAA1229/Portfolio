@@ -52,7 +52,7 @@ function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
 
 function hasStrongAdminPassword(env?: unknown): boolean {
   const value = secret("PORTFOLIO_ADMIN_PASSWORD", env);
-  return Boolean(value && value.length >= 12);
+  return Boolean(value && Array.from(value).length >= 12);
 }
 
 function hasStrongSessionSecret(env?: unknown): boolean {
