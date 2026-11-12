@@ -234,7 +234,6 @@ export const Route = createFileRoute("/api/chat")({
           console.error("Portfolio chat provider error", {
             provider: provider.name,
             status,
-            detail: upstreamText.slice(0, 500),
           });
           return Response.json(
             { error: message },
@@ -263,7 +262,6 @@ export const Route = createFileRoute("/api/chat")({
               console.error("Portfolio chat stream error", {
                 provider: provider.name,
                 code,
-                detail: JSON.stringify(event).slice(0, 500),
               });
               // A 200 SSE response can still fail after streaming starts. Surface a
               // useful message instead of returning an empty body that looks successful.
