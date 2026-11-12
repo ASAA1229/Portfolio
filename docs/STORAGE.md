@@ -40,3 +40,21 @@ curated static data. Static source files are never modified at runtime.
   restore, then copy the binary `private-admin/*/files/` and `public/profile-images/`
   objects with the provider's own copy tool.
 - No paid hosting or storage dependency is assumed; local disk works for development.
+
+
+## Durable recovery journal — 2026-11-12
+
+Multi-object lifecycle operations now use a write-ahead recovery journal at
+`private-admin/recovery/active.json`. Before target writes begin, the server records
+the intended target keys and saves the previous object bytes (including content
+type) under `private-admin/recovery/<transaction-id>/`. The journal then moves
+through `preparing`, `applying`, and either `committed` or `recovered`.
+
+- Resume index, approved-resume feed and optional publish history are committed through the journal.
+- Image upload/publish/replace/unpublish/delete/restore multi-object writes use the same journal.
+- Backup restore and provider migration destination writes use the same recovery mechanism.
+- If compensation fails or the process stops during an applying transaction, the next transaction attempts recovery first.
+- Owner-only `GET /api/admin/storage/recovery` reports pending journal state; `POST` with confirmation `RECOVER` replays the snapshots.
+- Committed/recovered journals are cleanup-only; stale snapshot cleanup can be retried without reverting committed data.
+
+**Limitations:** the in-process queue serializes requests only within one server isolate. It is not a distributed lock or compare-and-swap primitive, so concurrent writes across multiple Worker instances can still race. Single-object writes and upload/delete sequences outside the journal are not yet fully covered. R2 durability, failure injection and concurrency acceptance remain pending; no validation was run for this source increment.
