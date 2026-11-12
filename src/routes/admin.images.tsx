@@ -374,10 +374,26 @@ function ImageManager() {
         </p>
       )}
 
+      <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
+        <label className="text-xs text-muted-foreground">Search images
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Filename, alt text, profile…" className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground" />
+        </label>
+        <label className="text-xs text-muted-foreground">Profile
+          <select value={profileFilter} onChange={(event) => setProfileFilter(event.target.value as typeof profileFilter)} className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground">
+            <option value="all">All profiles</option>
+            {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">Publication status
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground">
+            <option value="all">All statuses</option><option value="pending">Pending review</option><option value="approved">Published</option>
+          </select>
+        </label>
+      </div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl">Uploaded images</h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{images.length} total</span>
+          <span className="text-sm text-muted-foreground">Showing {visibleImages.length} of {images.length}</span>
           <button
             className="inline-flex min-h-10 items-center gap-2 rounded border border-border px-3 text-sm disabled:opacity-50"
             disabled={busy}
@@ -394,7 +410,7 @@ function ImageManager() {
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {images.map((image) => (
+          {visibleImages.map((image) => (
             <article key={image.id} className="rounded-lg border border-border bg-card p-4">
               <img
                 src={`/api/admin/images/${image.id}/file?v=${previewVersion}`}
