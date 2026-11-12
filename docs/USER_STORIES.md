@@ -993,3 +993,6 @@ As the owner, I want every public image and resume resource to be managed indepe
 - Resume deletion now includes index, approved feed, publish-history redaction and private original deletion in one journaled transaction. If original deletion persists and then rejects, recovery restores the original and prior published state.
 - Added failure-injection test source for ambiguous upload-index persistence and ambiguous original-file deletion.
 - Tests remain authored only. Distributed concurrency and hosted R2 verification remain open.
+
+
+PORT-US-046 follow-up: owner passwords shorter than 12 characters and session signing secrets shorter than 32 UTF-8 bytes are now rejected by the server configuration check. Session epoch values are restricted to safe integers; malformed or unavailable epoch storage fails closed. The login throttle remains per-isolate and must be replaced or complemented by a distributed hosting-level rate limiter before production acceptance.
