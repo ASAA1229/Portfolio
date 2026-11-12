@@ -36,6 +36,7 @@ import {
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
 import { usePublishedProfileImages, usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
+import { usePublishedContent } from "@/lib/published-content";
 
 function PersonLink({
   person,
@@ -321,6 +322,7 @@ function PublishedResumeHighlights({ profileId }: { profileId: string }) {
 
 export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedContent = usePublishedContent(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
   const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
@@ -329,8 +331,8 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || profile.education.period;
   const educationScore = resumeEducation?.grade || profile.education.score;
   const educationLocation = resumeEducation?.location || profile.location || profile.education.location;
-  const headline = publishedResume?.headline || profile.headline;
-  const story = publishedResume?.summary || profile.story;
+  const headline = publishedContent?.basics?.headline || publishedResume?.headline || profile.headline;
+  const story = publishedContent?.basics?.story || publishedContent?.basics?.summary || publishedResume?.summary || profile.story;
   return (
     <>
       <section className="person-hero">
@@ -424,7 +426,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
           <h2 className="text-4xl">Beyond the work.</h2>
           <div>
             <p className="text-sm leading-8 text-muted-foreground">
-              {publishedResume?.summary || profile.summary}
+              {publishedContent?.basics?.story || publishedContent?.basics?.summary || publishedResume?.summary || profile.summary}
             </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <PersonLink person={profile.id} section="experience">
@@ -482,6 +484,7 @@ export function PersonContent({
   section: PortfolioSection;
 }) {
   const publishedResume = usePublishedProfileResume(profile.id);
+  const publishedContent = usePublishedContent(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
   const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
   const contact = usePersonContact(profile);
@@ -611,7 +614,7 @@ export function PersonContent({
           <>
             <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
               <div>
-                <h2 className="text-4xl">{publishedResume?.headline || profile.headline}</h2>
+                <h2 className="text-4xl">{publishedContent?.basics?.headline || publishedResume?.headline || profile.headline}</h2>
                 <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
                   <img
                     src={publishedPortrait?.src ?? profile.portrait}
