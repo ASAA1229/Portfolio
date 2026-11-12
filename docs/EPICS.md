@@ -283,12 +283,12 @@ Do not equate local test pass percentage with overall epic completion or mark an
 
 **Status:** IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN
 
-- CMS contact overrides now flow into Abhishek's homepage social links and contact surfaces, with approved resume contact fields taking precedence.
+- CMS contact overrides now flow into Abhishek's homepage social links, shared site footer and contact surfaces, with approved resume contact fields taking precedence.
 - CMS now validates and stores skill groups; the admin content editor exposes them; root and person-profile skill views consume them.
 - Social destinations are restricted to HTTPS URLs on the expected LinkedIn/GitHub domains, with curated fallbacks.
 - Regression coverage added for CMS skill validation, shared-profile merging, contact fallback and social URL validation.
 
-**Evidence:** commits `db89a602`, `69b12c29`, `e04e9a72`, `df001ad5`, `b9f52cef`, `e48d361c`, `2cea3c09`, `7014a3a3`, `316f9c03`, `7ed70aab`, `479e26e8`, `353255ad`, `836943ec` and `a333b3b5` on `new`. All test changes are unexecuted. SEO/navigation propagation and acceptance validation remain open.
+**Evidence:** commits `db89a602`, `69b12c29`, `e04e9a72`, `df001ad5`, `b9f52cef`, `e48d361c`, `2cea3c09`, `7014a3a3`, `316f9c03`, `7ed70aab`, `479e26e8`, `353255ad`, `836943ec` and `a333b3b5` on `new`. All test changes are unexecuted. Published SEO metadata propagation and acceptance validation remain open.
 
 
 ## Resume lifecycle safety note — reconciliation with missing originals (2026-11-12)
