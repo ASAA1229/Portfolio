@@ -219,6 +219,13 @@ export type PublishedProfileImage = {
   projectSlug?: string;
 };
 
+/** Normalize the public image feed across all four supported profiles. */
+export function normalizePublishedImageFeed(payload: unknown): PublishedProfileImage[] {
+  if (!isRecord(payload) || !Array.isArray(payload["images"])) return [];
+  const profileIds = ["abhishek", "ammu", "bava", "sai"] as const;
+  return profileIds.flatMap((profileId) => normalizePublishedProfileImages(payload, profileId));
+}
+
 export function normalizePublishedProfileImages(payload: unknown, profileId: string): PublishedProfileImage[] {
   if (!isRecord(payload) || !Array.isArray(payload["images"])) return [];
   return payload["images"]
