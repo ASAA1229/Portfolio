@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/portfolio-chat";
 import { getPersonPortfolio } from "@/lib/person-portfolios";
+import { mergePersonPortfolio, validateContentOverrides } from "@/lib/cms-content";
 import { buildRelevantProfileKnowledge } from "@/lib/portfolio-knowledge";
 import { AI_NOT_CONFIGURED_MESSAGE, resolveAiProvider } from "@/lib/ai-provider";
 import { buildPersonaPrompt, validatePersonaConfig } from "@/lib/persona";
@@ -11,6 +12,7 @@ const body = z.object({
   mode: z.enum(["chat", "intro"]).optional(),
   page: z.string().max(160).optional(),
   _publishedResume: z.unknown().optional(),
+  _publishedContent: z.unknown().optional(),
   _persona: z.unknown().optional(),
   messages: z
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(2000) }))
@@ -70,13 +72,26 @@ export const Route = createFileRoute("/api/chat")({
         const parsed = body.safeParse(requestPayload);
         if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
-        const profile =
-          parsed.data.person && parsed.data.person !== "abhishek"
-            ? getPersonPortfolio(parsed.data.person)
-            : undefined;
-        if (parsed.data.person && parsed.data.person !== "abhishek" && !profile) {
+        const profileId = parsed.data.person ?? "abhishek";
+        const baseProfile = profileId === "abhishek" ? undefined : getPersonPortfolio(profileId);
+        if (profileId !== "abhishek" && !baseProfile) {
           return Response.json({ error: "Unknown portfolio" }, { status: 400 });
         }
+        const cmsValidation = parsed.data._publishedContent
+          ? validateContentOverrides(parsed.data._publishedContent)
+          : null;
+        const publishedCms = cmsValidation?.ok ? cmsValidation.content : null;
+        const profile = baseProfile ? mergePersonPortfolio(baseProfile, publishedCms) : undefined;
+        const rootCmsContext = publishedCms
+          ? JSON.stringify({
+              basics: publishedCms.basics,
+              projects: publishedCms.projects,
+              skills: publishedCms.skills,
+              experience: publishedCms.experience,
+              education: publishedCms.education,
+              certifications: publishedCms.certifications,
+            })
+          : "";
 
         const profilePrompt = profile
           ? [
