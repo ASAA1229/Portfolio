@@ -49,12 +49,14 @@ describe("CMS content model (PORT-US-035)", () => {
     const firstSlug = base.projects[0]!.slug;
     const merged = mergePersonPortfolio(base, {
       basics: { headline: "New headline" },
+      skills: [{ cat: "Owner skills", desc: "Custom group", items: ["Python", "SQL"] }],
       projects: [
         { slug: firstSlug, title: "Hidden", overview: "x", archived: true },
         { slug: "brand-new", title: "Brand new", overview: "Fresh project" },
       ],
     });
     expect(merged.headline).toBe("New headline");
+    expect(merged.skills).toEqual([{ category: "Owner skills", items: ["Python", "SQL"] }]);
     expect(merged.projects.some((project) => project.slug === firstSlug)).toBe(false);
     expect(merged.projects.some((project) => project.slug === "brand-new")).toBe(true);
     expect(base.headline).not.toBe("New headline");
