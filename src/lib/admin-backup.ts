@@ -165,8 +165,11 @@ export async function createBackup(storage: BackupStorage, now = new Date()): Pr
   const files: Record<string, BackupFile> = {};
   for (const key of referencedFileKeys(entries)) {
     const object = await storage.get(key);
-    // A file missing from storage is reported by omission; restore re-validates references.
-    if (!object) continue;
+    if (!object) {
+      throw new Error(
+        `Backup is incomplete: referenced storage file is missing (${key}). No backup was exported.`,
+      );
+    }
     const bytes = new Uint8Array(await object.arrayBuffer());
     files[key] = {
       ...(object.httpMetadata?.contentType ? { contentType: object.httpMetadata.contentType } : {}),
@@ -251,6 +254,14 @@ export async function validateBackup(
   const provided = new Set(files.map(([key]) => key));
   const missingFiles =
     backup.version === 2 ? referencedFileKeys(entryMap).filter((key) => !provided.has(key)) : [];
+  if (missingFiles.length) {
+    const preview = missingFiles.slice(0, 5).join(", ");
+    const remainder = missingFiles.length > 5 ? ` (+${missingFiles.length - 5} more)` : "";
+    errors.push(
+      `Backup is incomplete: ${missingFiles.length} referenced file(s) are missing: ${preview}${remainder}. Restore was not started.`,
+    );
+    return { ok: false, errors };
+  }
   return { ok: true, entries, files, missingFiles };
 }
 
@@ -263,6 +274,18 @@ export async function restoreBackup(
   storage: BackupStorage,
   backup: ValidatedBackup,
 ): Promise<{ ok: true; restored: string[] } | { ok: false; error: string; rolledBack: boolean }> {
+  // Defensive guard for callers that construct ValidatedBackup directly instead
+  // of using validateBackup. Never replace an index without all referenced files.
+  if (backup.missingFiles.length) {
+    const preview = backup.missingFiles.slice(0, 5).join(", ");
+    const remainder =
+      backup.missingFiles.length > 5 ? ` (+${backup.missingFiles.length - 5} more)` : "";
+    return {
+      ok: false,
+      error: `Backup is incomplete: ${backup.missingFiles.length} referenced file(s) are missing: ${preview}${remainder}.`,
+      rolledBack: true,
+    };
+  }
   const indexKeys = new Set([RESUME_INDEX_KEY, IMAGE_INDEX_KEY, APPROVED_RESUMES_KEY]);
   const documents = [...backup.entries].sort(
     ([a], [b]) => Number(indexKeys.has(a)) - Number(indexKeys.has(b)),
@@ -331,9 +354,18 @@ export async function migrateStorage(
   | { ok: true; documents: number; files: number; missingFiles: string[] }
   | { ok: false; error: string; rolledBack?: boolean }
 > {
-  const backup = await createBackup(source);
+  let backup: AdminBackup;
+  try {
+    backup = await createBackup(source);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Could not create a complete source backup.",
+      rolledBack: true,
+    };
+  }
   const validated = await validateBackup(backup);
-  if (!validated.ok) return { ok: false, error: validated.errors.join(" ") };
+  if (!validated.ok) return { ok: false, error: validated.errors.join(" "), rolledBack: true };
   const result = await restoreBackup(target, validated);
   if (!result.ok) return { ok: false, error: result.error, rolledBack: result.rolledBack };
   return {
