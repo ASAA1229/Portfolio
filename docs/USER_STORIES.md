@@ -751,7 +751,7 @@ No story is closed solely because the local test report is green. The local test
 #### PORT-US-045 — Recoverable media and resume storage operations
 
 **Priority:** P0  
-**Status:** PARTIAL — IMAGE COMPENSATION IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN; RESUME RECOVERY AND CONCURRENCY REMAIN OPEN.
+**Status:** PARTIAL — DURABLE JOURNAL IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN; DISTRIBUTED CONCURRENCY AND REMAINING SINGLE-OBJECT/FILE CLEANUP PATHS OPEN.
 
 **As the owner,** I want resume and image operations to recover safely from partial storage failures, so that the private source, approved index and public feed cannot silently diverge.
 
@@ -767,7 +767,7 @@ No story is closed solely because the local test report is green. The local test
 #### PORT-US-046 — Production-ready owner authentication
 
 **Priority:** P0  
-**Status:** IMPLEMENTED IN SOURCE — PRODUCTION ACCEPTANCE PENDING.
+**Status:** PARTIAL — SOURCE HARDENING IMPLEMENTED / VALIDATION AND PRODUCTION ACCEPTANCE PENDING.
 
 **As the owner,** I want the admin authentication and session boundary to remain secure in the real hosting environment, so that only authorized owner actions can change public portfolio data.
 
@@ -956,3 +956,32 @@ As the owner, I want every public image and resume resource to be managed indepe
 - Verify R2 and local-disk behavior, cache/revalidation, storage failure compensation, image signature/metadata consistency and deleted-resource cleanup.
 - Verify no cross-profile leakage, stale published asset, or public access to pending/private resources.
 - Do not mark this story accepted until validation is explicitly resumed and passes.
+
+### PORT-US-045 implementation increment — durable recovery journal (2026-11-12)
+
+**Branch:** `new`  
+**Status:** IMPLEMENTED IN SOURCE / TESTS AUTHORED / VALIDATION PENDING
+
+- Added `src/lib/storage-recovery.ts`, a write-ahead journal that persists pre-change object snapshots before multi-object writes.
+- Resume index, approved feed and optional publish history now use journaled commits.
+- Image lifecycle multi-object operations now use the same journal instead of relying only on in-memory compensation.
+- Backup restore and migration destination writes use journaled snapshots and replayable rollback.
+- Added owner-only recovery status and confirmed recovery endpoint at `/api/admin/storage/recovery`, plus a recovery panel in Admin → Backup & Restore.
+- Added failure-injection test source for successful rollback, compensation failure followed by later recovery, journal preparation failure and overlapping operations sharing one bucket instance.
+
+**Still open:** this queue is isolate-local, not a distributed R2 lock/CAS. Resume upload/original-file cleanup and other single-object/multi-step operations still need a full inventory and journal integration. R2 behavior, concurrent Worker instances, failure injection and recovery acceptance remain unverified.
+
+### PORT-US-046 implementation increment — authentication/session hardening (2026-11-12)
+
+**Branch:** `new`  
+**Status:** SOURCE HARDENING IMPLEMENTED / TESTS AUTHORED / VALIDATION PENDING
+
+- Admin session signing secrets must now contain at least 32 UTF-8 bytes; weak/missing secrets disable authentication.
+- Session epoch reads fail closed on storage errors or malformed persisted values rather than silently reverting to epoch 0.
+- Admin authorization fails closed if private session storage is unavailable.
+- Runtime auth bypass now also requires a non-production Vite build, in addition to the explicit development environment binding.
+- Added same-origin, authenticated `POST /api/admin/session/renew` and an Extend session control in the admin navigation.
+- Existing eight-hour HttpOnly/SameSite=Strict cookie, secure-on-HTTPS behavior, login origin check, bounded password body and per-client attempt throttle remain in place.
+- Added test source for weak signing secrets, protected admin routes, CSRF rejection, session renewal and malformed epoch fail-closed behavior.
+
+**Still open:** the login throttle is in-memory per isolate and is not a distributed rate limiter; production secret rotation and deployment configuration need owner-controlled verification; the complete route/mutation inventory and production-like session lifecycle still need acceptance. No tests or security scans were run.
