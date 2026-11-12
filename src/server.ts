@@ -1823,6 +1823,136 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     });
   }
 
+  // Enumerate only snapshots that have validated metadata. Older byte-only
+  // snapshots remain private and are intentionally not offered for restoration.
+  const versionsMatch = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)\/versions$/);
+  if (versionsMatch && request.method === "GET") {
+    const id = versionsMatch[1]!;
+    const records = await readImageIndex(bucket);
+    if (!records.some((item) => item.id === id)) return privateNotFound();
+    const prefix = `private-admin/images/superseded/${id}/`;
+    const keys = await listBucketKeys(bucket, prefix);
+    const candidates = keys
+      .filter((key) => key.endsWith(".json"))
+      .map((key) => key.slice(prefix.length, -5))
+      .filter((version) => /^\\d{13}-[a-f0-9]{8}$/.test(version))
+      .sort((a, b) => b.localeCompare(a));
+    const versions: Array<{ version: string; filename: string; contentType: string; size: number; uploadedAt: string }> = [];
+    for (const version of candidates) {
+      const metadataObject = await bucket.get(`${prefix}${version}.json`);
+      const imageObject = await bucket.get(`${prefix}${version}`);
+      if (!metadataObject || !imageObject) continue;
+      const metadata = await metadataObject.json<unknown>().catch(() => null);
+      if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) continue;
+      const value = metadata as Record<string, unknown>;
+      if (
+        typeof value.filename !== "string" || value.filename.length < 1 || value.filename.length > 120 ||
+        typeof value.contentType !== "string" || !IMAGE_TYPES.has(value.contentType) ||
+        !Number.isSafeInteger(value.size) || Number(value.size) <= 0 || Number(value.size) > MAX_IMAGE_BYTES ||
+        typeof value.uploadedAt !== "string" || !Number.isFinite(Date.parse(value.uploadedAt))
+      ) continue;
+      if (imageObject.size !== undefined && imageObject.size !== Number(value.size)) continue;
+      versions.push({
+        version,
+        filename: value.filename,
+        contentType: value.contentType,
+        size: Number(value.size),
+        uploadedAt: value.uploadedAt,
+      });
+    }
+    return jsonResponse({ versions }, 200);
+  }
+
+  // Restore a selected immutable snapshot. Snapshot the current version first,
+  // then atomically update private bytes, public bytes (when approved), metadata
+  // and the index through the compensating-write helper.
+  const restoreMatch = path.match(/^\/api\/admin\/images\/([a-f0-9-]+)\/restore$/);
+  if (restoreMatch && request.method === "POST") {
+    const id = restoreMatch[1]!;
+    const boundedRequest = await limitRequestBody(request, 2048);
+    if (boundedRequest instanceof Response) return boundedRequest;
+    const payload = (await boundedRequest.json().catch(() => null)) as { version?: unknown } | null;
+    const version = payload?.version;
+    if (typeof version !== "string" || !/^\\d{13}-[a-f0-9]{8}$/.test(version)) {
+      return jsonResponse({ error: "Choose a valid image version to restore." }, 400);
+    }
+    const records = await readImageIndex(bucket);
+    const index = records.findIndex((item) => item.id === id);
+    const record = index < 0 ? undefined : records[index];
+    if (!record) return privateNotFound();
+    const prefix = `private-admin/images/superseded/${id}/`;
+    const target = await bucket.get(`${prefix}${version}`);
+    const metadataObject = await bucket.get(`${prefix}${version}.json`);
+    if (!target || !metadataObject) {
+      return jsonResponse({ error: "This image version is unavailable or cannot be restored safely." }, 409);
+    }
+    const metadata = await metadataObject.json<unknown>().catch(() => null);
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+      return jsonResponse({ error: "The saved image version metadata is invalid." }, 409);
+    }
+    const value = metadata as Record<string, unknown>;
+    if (
+      typeof value.filename !== "string" || value.filename.length < 1 || value.filename.length > 120 ||
+      typeof value.contentType !== "string" || !IMAGE_TYPES.has(value.contentType) ||
+      !Number.isSafeInteger(value.size) || Number(value.size) <= 0 || Number(value.size) > MAX_IMAGE_BYTES ||
+      typeof value.uploadedAt !== "string" || !Number.isFinite(Date.parse(value.uploadedAt))
+    ) {
+      return jsonResponse({ error: "The saved image version metadata failed validation." }, 409);
+    }
+    const targetBytes = await target.arrayBuffer();
+    if (targetBytes.byteLength !== Number(value.size)) {
+      return jsonResponse({ error: "The saved image version failed its size-integrity check." }, 409);
+    }
+    const privateKey = `private-admin/images/files/${id}`;
+    const currentObject = await bucket.get(privateKey);
+    if (!currentObject) return privateNotFound();
+    const currentBytes = await currentObject.arrayBuffer();
+    const currentVersion = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const currentPrefix = `${prefix}${currentVersion}`;
+    const restoredRecord: PortfolioImageRecord = {
+      ...record,
+      filename: value.filename,
+      contentType: value.contentType,
+      size: Number(value.size),
+      uploadedAt: new Date().toISOString(),
+    };
+    records[index] = restoredRecord;
+    try {
+      await commitImageState(bucket, [
+        {
+          key: currentPrefix,
+          operation: "put",
+          value: currentBytes,
+          contentType: record.contentType,
+        },
+        {
+          key: `${currentPrefix}.json`,
+          operation: "put",
+          value: JSON.stringify({
+            filename: record.filename,
+            contentType: record.contentType,
+            size: record.size,
+            uploadedAt: record.uploadedAt,
+          }),
+          contentType: "application/json; charset=utf-8",
+        },
+        { key: privateKey, operation: "put", value: targetBytes, contentType: value.contentType },
+        ...(record.status === "approved"
+          ? [{ key: `public/profile-images/${id}`, operation: "put" as const, value: targetBytes, contentType: value.contentType }]
+          : []),
+        {
+          key: IMAGE_INDEX_KEY,
+          operation: "put",
+          value: JSON.stringify(records),
+          contentType: "application/json; charset=utf-8",
+        },
+      ]);
+    } catch (error) {
+      return imageStorageFailure(error, "restore");
+    }
+    return jsonResponse({ image: restoredRecord, restored: true }, 200);
+  }
+
   // Replace an image's file in place (same id, placement and alt text). The previous
   // file is kept privately as a superseded version until cleanup; on failure the
   // previous private and public files are restored.
@@ -1846,7 +1976,8 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const previous = await bucket.get(privateKey);
     if (!previous) return privateNotFound();
     const previousBytes = await previous.arrayBuffer();
-    const supersededKey = `private-admin/images/superseded/${id}/${Date.now()}`;
+    const supersededVersion = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const supersededKey = `private-admin/images/superseded/${id}/${supersededVersion}`;
     const bytes = await file.arrayBuffer();
     const filename =
       file.name.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120) || `image${checked.extension}`;
@@ -1864,6 +1995,17 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
           operation: "put",
           value: previousBytes,
           contentType: record.contentType,
+        },
+        {
+          key: `${supersededKey}.json`,
+          operation: "put",
+          value: JSON.stringify({
+            filename: record.filename,
+            contentType: record.contentType,
+            size: record.size,
+            uploadedAt: record.uploadedAt,
+          }),
+          contentType: "application/json; charset=utf-8",
         },
         { key: privateKey, operation: "put", value: bytes, contentType: file.type },
         ...(record.status === "approved"
