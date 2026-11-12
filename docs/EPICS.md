@@ -1,7 +1,7 @@
 # Portfolio — Epic Register and Delivery Plan
 
-**Repository:** `Guda-Abhishek/pixel-perfect-pixel`  
-**Branch:** `test`  
+**Repository:** `ASAA1229/Portfolio`  
+**Branch:** `new`  
 **Status:** OPEN until acceptance criteria have evidence. **Current per-epic status (Done / Needs testing / Pending development, 2026-11-07) is maintained in [POC.md §2](POC.md#2-status-at-a-glance); epic-level status lines below are historical.**
 
 See [POC.md](POC.md) for product scope/current state and [USER_STORIES.md](USER_STORIES.md) for detailed user stories.
@@ -265,3 +265,15 @@ Exact-head [GitHub Actions run #42591418653](https://github.com/ASAA1229/pixel-p
 - E08 provenance/integrity remains OPEN until exact-head CI completes all gates and produces retained release evidence.
 
 Do not equate local test pass percentage with overall epic completion or mark any epic ACCEPTED while its exit criteria remain unmet.
+
+
+## PORT-E04 implementation note — backup binary completeness (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN
+
+- Version-2 backup export now fails rather than silently omitting a resume or image binary referenced by a persisted index.
+- Backup validation rejects missing referenced binaries before restore can write any key; the restore function also has a defensive no-write guard for incomplete payloads.
+- Storage migration now stops before touching the destination when the source backup is incomplete.
+- Added regression coverage for missing resume files, missing private/public image copies, digest-verified complete backups, no-write restore behavior, export failure and migration failure.
+
+**Evidence:** commits `de45fe42` and `7fce418d` on `new`. Tests are authored but have not been executed. Runtime storage, rollback and hosted R2 behavior remain unverified.
