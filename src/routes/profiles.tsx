@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { usePublishedImageFeed } from "@/lib/published-resume";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -28,26 +28,11 @@ export const Route = createFileRoute("/profiles")({
 });
 
 function ProfileSelect() {
-  const [portraitOverrides, setPortraitOverrides] = useState<Record<string, string>>({});
-  useEffect(() => {
-    let active = true;
-    fetch("/api/published-images", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { images: [] }))
-      .then((payload: { images?: { profileId: string; src: string; slot?: string }[] }) => {
-        if (!active) return;
-        const overrides: Record<string, string> = {};
-        for (const image of payload.images ?? []) {
-          if (image.slot === "portrait") overrides[image.profileId] = image.src;
-        }
-        setPortraitOverrides(overrides);
-      })
-      .catch(() => {
-        if (active) setPortraitOverrides({});
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  const publishedImages = usePublishedImageFeed();
+  const portraitOverrides = new Map<string, string>();
+  for (const image of publishedImages) {
+    if (image.slot === "portrait") portraitOverrides.set(image.profileId, image.src);
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -120,9 +105,9 @@ function ProfileSelect() {
                       <span className="absolute inset-0 flex items-center justify-center">
                         {profile.initials}
                       </span>
-                      {(portraitOverrides[profile.id] ?? profile.avatar) && (
+                      {(portraitOverrides.get(profile.id) ?? profile.avatar) && (
                         <img
-                          src={portraitOverrides[profile.id] ?? profile.avatar}
+                          src={portraitOverrides.get(profile.id) ?? profile.avatar}
                           alt=""
                           loading="eager"
                           decoding="async"
