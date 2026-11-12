@@ -829,29 +829,61 @@ export function PersonContent({
         )}
         {section === "certifications" && (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {publishedResume?.structuredSections?.certifications?.length
-                ? publishedResume.structuredSections.certifications.map((entry, index) => (
+            {publishedResume?.structuredSections?.certifications?.length ? (
+              <div className="mb-10 rounded-lg border border-primary/30 bg-card p-6" aria-label="Certifications from published resume">
+                <p className="font-mono text-xs text-primary">
+                  LATEST PUBLISHED RESUME · {publishedResume.displayName}
+                </p>
+                <h2 className="mt-3 flex items-center gap-3 text-2xl">
+                  <Award className="size-6 text-primary" />
+                  Certifications from published resume
+                </h2>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  {publishedResume.structuredSections.certifications.map((entry, index) => (
                     <ResumeEntryCard
                       key={index}
                       entry={entry}
                       section="certifications"
                       index={index}
-                      compact
                     />
-                  ))
-                : profile.certifications.length === 0 ? (
-                    <p role="status" className="text-sm text-muted-foreground">
-                      No certifications have been published for this profile yet.
-                    </p>
-                  ) : profile.certifications.map((cert) => (
-                    <article key={cert.title} className="cert-card">
-                      <Award className="size-7 text-gold" />
-                      <p className="mt-5 font-mono text-xs text-gold">{cert.issuer}</p>
-                      <h2 className="mt-3 text-3xl leading-tight">{cert.title}</h2>
-                    </article>
                   ))}
-            </div>
+                </div>
+              </div>
+            ) : profile.certifications.length === 0 ? (
+              <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                No certifications have been published for this profile yet.
+              </p>
+            ) : (
+              <>
+                <div className="certs-note">
+                  <p>
+                    Credentials are listed from the portfolio record. Certificate scans, issue dates,
+                    IDs, and verification links have not been provided.
+                  </p>
+                </div>
+                <div className="certificate-archive">
+                  {profile.certifications.map((cert, index) => (
+                    <Reveal key={cert.title} delay={index * 0.035}>
+                      <article className="certificate-item">
+                        <div className="certificate-art" aria-hidden="true">
+                          <span className="certificate-stamp">
+                            <Award />
+                          </span>
+                          <span>LEARNING ARCHIVE</span>
+                          <i>{String(index + 1).padStart(2, "0")}</i>
+                        </div>
+                        <div className="certificate-copy">
+                          <p>{cert.issuer}</p>
+                          <h2>{cert.title}</h2>
+                          <span>Credential details not supplied</span>
+                        </div>
+                        <Award className="certificate-award" aria-hidden="true" />
+                      </article>
+                    </Reveal>
+                  ))}
+                </div>
+              </>
+            )}
             <Training profile={profile} />
           </>
         )}
