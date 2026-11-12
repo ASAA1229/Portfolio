@@ -999,6 +999,17 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         200,
       );
     }
+    if (missingFiles.length) {
+      return jsonResponse(
+        {
+          error: "Resume reconciliation was blocked because one or more indexed originals are missing.",
+          code: "RESUME_ORIGINALS_MISSING",
+          missingFiles,
+          reconciled: false,
+        },
+        409,
+      );
+    }
     const boundedRequest = await limitRequestBody(request, 1024);
     if (boundedRequest instanceof Response) return boundedRequest;
     try {
