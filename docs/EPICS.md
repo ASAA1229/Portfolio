@@ -399,7 +399,7 @@ Remaining: inspect Abhishek's project route family and every project detail rout
 
 **Status:** IMPLEMENTED IN SOURCE / AUTOMATED COVERAGE AUTHORED / VALIDATION PENDING
 
-- Audited portrait/gallery/project image usage in the profile selector, all profile home/About views, Abhishek's homepage/About and all project card/showcase/detail views.
+- Audited portrait/gallery/project image usage in the profile selector, all profile home/About views, Abhishek's homepage/About/AI introduction and all project card/showcase/detail views.
 - Routed all personal image placements through validated profile-scoped published image data; project media is scoped by exact profile ID + project slug.
 - Kept bundled portrait/gallery files as explicit fallback assets and classified series billboards/backdrops/logo as static brand art.
 - Removed a duplicate static About-page profile image with inaccurate alt text.
