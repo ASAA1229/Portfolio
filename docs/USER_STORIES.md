@@ -30,7 +30,7 @@
 - Keep the product deployable without mandatory paid services or a JARVIS runtime.
 
 **Repository:** `ASAA1229/pixel-perfect-pixel`
-**Active branch:** `new`
+**Active branch:** `test`
 **Updated:** 2026-11-09 (development and testing active on `new`)
 **Rule:** A story is fully closed only when its acceptance criteria are evidenced; production/CI evidence is still pending for every story.
 
@@ -1000,3 +1000,23 @@ As the owner, I want every public image and resume resource to be managed indepe
 
 
 PORT-US-046 follow-up: owner passwords shorter than 12 characters and session signing secrets shorter than 32 UTF-8 bytes are now rejected by the server configuration check. Session epoch values are restricted to safe integers; malformed or unavailable epoch storage fails closed. The login throttle remains per-isolate and must be replaced or complemented by a distributed hosting-level rate limiter before production acceptance.
+
+
+## Test evidence and story-status reconciliation — 2026-11-09 (test branch)
+
+**Current branch head:** `0f90a96c47a1a36826306ca5bd26a1f7b263acfe`.
+
+Antigravity's Windows 11 report records **137 passed, 0 failed and 1 skipped** across 22 suites. That is a **100% local pass rate among runnable cases (137/137)** and **99.3% executed (137/138)**. The skipped case is the Win32 filesystem symlink-policy check. The local report does not record the tested commit SHA, so it cannot establish exact-head CI acceptance.
+
+The exact-head [Portfolio CI run #42591418653](https://github.com/ASAA1229/pixel-perfect-pixel/actions/runs/42591418653) passed dependency installation, SBOM generation, build and typecheck, but failed ESLint/Prettier in `src/lib/admin-auth.test.ts`, `src/lib/local-disk-bucket.test.ts`, `src/lib/resume-publish-history.ts`, `src/server.ts` and `src/test/resume-publish-history.test.ts`. CI skipped the test step and SBOM upload after lint failed.
+
+### Story status reconciliation
+
+- Stories with passing local suites remain **LOCAL TEST REPORT PASS — EXACT SHA NOT RECORDED** until rerun on the exact candidate and green CI.
+- **PORT-US-013** remains **PARTIAL — NEEDS DEVELOPMENT / TESTING**: history and feed reconciliation exist, but recovery/compensation across private index, original files and public feed remains incomplete.
+- **PORT-US-036** remains **IMPLEMENTED — NEEDS TESTING** pending exact-head tests and owner acceptance.
+- Admin/auth/upload/storage stories remain OPEN pending production-like authorization, persistence, session-expiry and failure-injection tests.
+- AI/JARVIS integration remains OPEN pending deployment/tunnel and fallback/privacy acceptance.
+- Accessibility, responsive, performance, SEO and release stories remain OPEN where manual/browser/production criteria are not evidenced.
+
+No story is closed solely because the local test report is green. The local test pass metrics are **100% of runnable cases passed** and **99.3% of listed cases executed**.

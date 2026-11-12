@@ -104,3 +104,37 @@ describe("private admin authentication", () => {
     expect(cleared).toContain("Secure");
   });
 });
+
+  
+  it("invalidates previously issued cookies when the owner session epoch changes", async () => {
+    const cookie = await createAdminCookie(env, "7");
+    expect(cookie).toBeTruthy();
+    const request = new Request("https://portfolio.example/admin", {
+      headers: { cookie: `portfolio_admin_session=${cookie}` },
+    });
+    expect(await isAdminRequest(request, env, "7")).toBe(true);
+    expect(await isAdminRequest(request, env, "8")).toBe(false);
+    expect(await isAdminRequest(request, env, "0")).toBe(false);
+  });
+
+  it("accepts only bounded canonical session epochs", () => {
+    for (const valid of ["0", "1", "7", "9999999999999999"]) {
+      expect(isValidSessionEpoch(valid)).toBe(true);
+    }
+    for (const invalid of ["", "-1", "01", "1.0", "1e3", "10000000000000000", 1, null]) {
+      expect(isValidSessionEpoch(invalid)).toBe(false);
+    }
+  });
+
+  it("sets secure cookie attributes and clears sessions safely", () => {
+    const issued = adminCookieHeader("signed-value", true);
+    expect(issued).toContain("HttpOnly");
+    expect(issued).toContain("Secure");
+    expect(issued).toContain("SameSite=Strict");
+    expect(issued).toContain("Path=/");
+
+    const cleared = clearAdminCookieHeader(true);
+    expect(cleared).toContain("Max-Age=0");
+    expect(cleared).toContain("HttpOnly");
+    expect(cleared).toContain("Secure");
+  });

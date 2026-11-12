@@ -271,6 +271,22 @@ Exact-head [GitHub Actions run #42591418653](https://github.com/ASAA1229/pixel-p
 Do not equate local test pass percentage with overall epic completion or mark any epic ACCEPTED while its exit criteria remain unmet.
 
 
+## Test-branch evidence refresh — 2026-11-09
+
+At `test` head `0f90a96c47a1a36826306ca5bd26a1f7b263acfe`, Antigravity's local report records 137/137 runnable tests passing, with one additional Win32 symlink-policy case skipped (22 suites, 138 cases; 100% runnable pass rate, 99.3% executed).
+
+Exact-head [GitHub Actions run #42591418653](https://github.com/ASAA1229/pixel-perfect-pixel/actions/runs/42591418653) passed build, typecheck and SBOM generation but failed ESLint/Prettier in five files; CI consequently skipped automated tests and SBOM upload.
+
+**Epic implications**
+- E01–E03 and E05 have useful local automated coverage, but still need exact-head CI and browser acceptance where their exit criteria require it.
+- E04 admin/resume/image lifecycle remains OPEN; PORT-US-013 is PARTIAL until cross-store compensation and missing-original recovery are implemented and tested.
+- E06 accessibility/responsive work still needs screen-reader, keyboard and device acceptance.
+- E07 production readiness remains OPEN pending performance/SEO, production configuration and release/rollback evidence.
+- E08 provenance/integrity remains OPEN until exact-head CI completes all gates and produces retained release evidence.
+
+Do not equate local test pass percentage with overall epic completion or mark any epic ACCEPTED while its exit criteria remain unmet.
+
+
 ## PORT-E04 implementation note — backup binary completeness (2026-11-12)
 
 **Status:** IMPLEMENTED IN SOURCE / TESTS AUTHORED / NOT RUN

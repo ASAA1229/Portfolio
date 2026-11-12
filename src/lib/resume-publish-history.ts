@@ -82,6 +82,19 @@ const SNAPSHOT_FIELDS = new Set([
   "kind",
   "restoredPublishedAt",
 ]);
+const SNAPSHOT_FIELDS = new Set([
+  "resumeId",
+  "profileId",
+  "publishedAt",
+  "displayName",
+  "headline",
+  "summary",
+  "skills",
+  "contact",
+  "structuredSections",
+  "kind",
+  "restoredPublishedAt",
+]);
 const STRUCTURED_FIELDS = new Set([
   "title",
   "organization",
