@@ -389,3 +389,106 @@
     scroll-behavior: auto;
   }
 }
+
+
+/* Selective glass surfaces: reserved for floating navigation and focused profile/admin panels. */
+.profile-selector-page {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 12% 18%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 38%),
+    radial-gradient(ellipse at 88% 78%, color-mix(in oklab, var(--violet) 12%, transparent), transparent 42%),
+    var(--background);
+}
+.profile-selector-page::before,
+.profile-selector-page::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(42vw, 420px);
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in oklab, white 7%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.profile-selector-page::before { top: 16%; left: -18%; }
+.profile-selector-page::after { right: -18%; bottom: 8%; }
+.profile-selector-header {
+  position: relative;
+  z-index: 2;
+  border: 1px solid color-mix(in oklab, white 10%, transparent);
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+.profile-selector-card {
+  display: block;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, white 11%, transparent);
+  border-radius: 14px;
+  padding: 7px;
+  background: linear-gradient(145deg, color-mix(in oklab, white 9%, transparent), color-mix(in oklab, var(--card) 72%, transparent));
+  box-shadow: 0 16px 42px -28px #000;
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+.profile-selector-card:hover,
+.profile-selector-card:focus-visible {
+  border-color: color-mix(in oklab, var(--primary) 65%, white 12%);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--primary) 14%, transparent), color-mix(in oklab, var(--card) 82%, transparent));
+  box-shadow: 0 20px 48px -26px color-mix(in oklab, var(--primary) 35%, transparent);
+}
+.profile-selector-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.profile-selector-portrait {
+  position: relative;
+  display: flex;
+  aspect-ratio: 1;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--secondary);
+}
+.profile-selector-portrait img { transition: transform 500ms cubic-bezier(.2,.75,.25,1); }
+.profile-selector-card:hover .profile-selector-portrait img { transform: scale(1.055); }
+.profile-selector-meta {
+  margin-top: 7px;
+  border-radius: 9px;
+  padding: 10px 8px 9px;
+  background: color-mix(in oklab, var(--background) 68%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.site-shell .site-nav {
+  background: color-mix(in oklab, var(--background) 76%, transparent);
+  border-bottom: 1px solid color-mix(in oklab, white 9%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+}
+.site-shell .site-mobile-nav {
+  border: 1px solid color-mix(in oklab, white 12%, transparent);
+  border-radius: 0 0 16px 16px;
+  background: color-mix(in oklab, var(--card) 90%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+  box-shadow: 0 24px 50px -30px #000;
+}
+.admin-workspace-nav {
+  background: color-mix(in oklab, var(--card) 82%, transparent) !important;
+  border-color: color-mix(in oklab, white 12%, transparent) !important;
+  box-shadow: 0 18px 48px -34px #000;
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  backdrop-filter: blur(18px) saturate(145%);
+}
+@media (max-width: 639px) {
+  .profile-selector-header { gap: 12px; padding: 10px 12px; }
+  .profile-selector-header .series-logo { font-size: 25px; }
+  .profile-selector-card { padding: 5px; border-radius: 11px; }
+  .profile-selector-meta { padding: 8px 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-selector-card,
+  .profile-selector-portrait img { transition: none !important; }
+}
