@@ -688,3 +688,135 @@ The exact-head [Portfolio CI run #42591418653](https://github.com/ASAA1229/pixel
 - Accessibility, responsive, performance, SEO and release stories remain OPEN where manual/browser/production criteria are not evidenced.
 
 No story is closed solely because the local test report is green. The local test pass metrics are **100% of runnable cases passed** and **99.3% of listed cases executed**.
+
+
+## Authoritative objective gap audit and execution backlog — 2026-11-12
+
+**Purpose:** Close the gaps between the current implementation and the approved product objective: a polished, owner-managed, four-profile digital identity platform for Abhishek, Amulya, Anjini and Sai, with accurate profile-specific content, a cinematic visitor experience, secure CMS, approved resume/media publishing, profile-aware JARVIS assistance, privacy controls and a portable zero-cost-by-default deployment.
+
+**Authority and evidence:** This audit applies to branch `new`. It supersedes older statements in this document that testing is active. Development/documentation may continue; testing and validation remain PAUSED. No tests, build, typecheck, lint, audit, browser/device/accessibility checks, CI/Jenkins or release validation may be run until the owner explicitly resumes them. Source implementation and authored tests are not acceptance evidence. No merge to `dev`/`main`, deployment, production secret/R2 provisioning, public tunnel, artifact publication or Nexus activation is authorized. Nexus remains disabled.
+
+### Prioritized gap-closure work packages
+
+| Priority | Work package | Existing story mapping | Current gap / required outcome |
+|---|---|---|---|
+| P0 | GCP-01 — Complete root-page CMS coverage | PORT-US-035 | The CMS now supports contact/social and skill overrides, but Abhishek's root experience does not yet consume the full managed profile basics, projects and other supported section overrides consistently. Make root pages and person pages use one predictable published-content precedence model; retain curated fallbacks and profile isolation. |
+| P0 | GCP-02 — Resume publish lifecycle integrity | PORT-US-013, PORT-US-036 | Current history, rollback, consistency reporting and feed reconciliation exist. Missing-original reconciliation is now blocked safely, but writes across original object, private index and public feed are not transactional/recoverable. Add compensation/retry/idempotency and owner-directed recovery for every partial publish, unpublish, rollback, delete and restore outcome; define concurrent-update behavior. |
+| P0 | GCP-03 — Production admin security boundary | PORT-US-011 | Source has protected routes and signed sessions, but real production login/session expiry/logout, secret rotation, authorization on every mutation, CSRF/origin controls, brute-force/rate-limit behavior and production configuration have not been accepted in a production-like environment. Ensure development bypasses cannot activate in production. |
+| P0 | GCP-04 — JARVIS integration readiness | PORT-US-007, PORT-US-008, PORT-US-009, PORT-US-034, PORT-US-037, PORT-US-038 | Local/provider source integration exists, but owner-approved hosted connectivity and real deployment acceptance remain open. Verify profile-scoped approved context, persona isolation, streaming/cancellation, timeout, unavailable/offline behavior, key rotation and safe errors through the approved gateway. JARVIS stays primary; paid OpenAI fallback remains explicit opt-in only. |
+| P1 | GCP-05 — Image lifecycle and binary recovery parity | PORT-US-014, PORT-US-023, PORT-US-041 | Resume backup completeness has been hardened, but image upload/publish/unpublish/delete/reconcile failure paths and binary backup/restore/migration need equivalent end-to-end guarantees. Confirm private originals, public copies, metadata and feeds cannot become inconsistent or leak across profiles. |
+| P1 | GCP-06 — Complete SEO and share metadata | PORT-US-021, PORT-US-035 | Per-page SEO editing exists in the CMS, but published SEO metadata propagation and route-by-route output are still open. Apply approved title, description, canonical URL, Open Graph/social image and structured metadata to root and all profile/project routes; verify sitemap, robots and not-found status behavior. |
+| P1 | GCP-07 — Finish profile identity and content approval | PORT-US-002, PORT-US-003, PORT-US-005 | Owner review remains for biographies, project facts, contact data, profile-specific media and visual identity. Replace generic/placeholder hero assets where still present; verify every person's facts, links, image ownership, alt text and section completeness. No unapproved personal facts may be invented or published. |
+| P1 | GCP-08 — CMS visual customization | PORT-US-035, PORT-US-040 | Admin content editing exists, but owner-facing theme/layout customization is incomplete. Define the safe editable scope for themes, colors, typography, section visibility/order, navigation and reusable page modules; preview drafts before publish and preserve a usable shared design system. |
+| P1 | GCP-09 — Full visitor journey and route acceptance | PORT-US-004, PORT-US-005, PORT-US-016, PORT-US-042 | Historical route checks do not prove current-head behavior. Verify direct load, refresh, profile switching, all section/project routes, published/archived project slugs, invalid profile/slug 404s, empty states, external links and contact journeys across all four profiles. |
+| P1 | GCP-10 — Accessibility and device acceptance | PORT-US-010, PORT-US-018, PORT-US-019 | Keyboard/reduced-motion work exists, but current-head screen-reader and real device acceptance are incomplete. Verify focus order/visibility, labels, contrast, dialogs, live chat announcements, voice/video controls, no autoplay, cleanup, reduced motion and mobile/tablet layouts. |
+| P1 | GCP-11 — Performance and operational resilience | PORT-US-020, PORT-US-041 | Performance and production storage behavior are not accepted. Measure current-head Core Web Vitals or equivalent, image/font loading, route payloads and chat responsiveness; verify local/R2 adapter behavior, storage outages, limits, backup/restore and migration without paid defaults. |
+| P1 | GCP-12 — Exact-head engineering and CI recovery | PORT-US-015, PORT-US-017, PORT-US-029–032 | Existing tests have been authored/changed since earlier evidence; no current-head pass is established. When testing is resumed, repair the SBOM/lint/CI blockers as applicable, run install/build/typecheck/lint/tests and security/dependency checks, and retain exact-SHA results plus generated SBOM/provenance evidence. Never weaken dependency inventory or provenance to get a green pipeline. |
+| P1 | GCP-13 — Release gate and recovery readiness | PORT-US-022, PORT-US-026, PORT-US-033 | Release integrity/quarantine/recovery tooling exists in source, but no accepted release has passed exact-head CI, owner review, deployment configuration, backup/restore rehearsal, rollback rehearsal and security/privacy sign-off. Keep promotion, deployment and Nexus blocked until explicit approval. |
+| P2 | GCP-14 — Privacy and retention policy closure | PORT-US-039 | Current chat is tab-local and no analytics/transcript storage is intended. Document actual operational logs/cookies/session data and retention, ensure privacy copy matches implementation, and verify clear-chat/cancellation and no cross-visitor/profile data exposure. Add export/deletion workflows only if persistent visitor data is introduced. |
+| P2 | GCP-15 — Reusable-template boundary | PORT-US-040, PORT-US-041 | Keep the four-profile personal product as the current deliverable. Validate that shared profile/template/configuration abstractions remain reusable without adding multi-tenant SaaS, billing or client-role complexity to this release. |
+
+### New focused user stories
+
+#### PORT-US-043 — Consistent root and profile CMS content
+
+**Priority:** P0  
+**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+
+**As the owner,** I want every public route to consume the approved CMS content for its intended profile, so that edits made in the owner dashboard are reflected consistently throughout the portfolio.
+
+**Acceptance criteria**
+- Root Abhishek pages and all four profile experiences consume the supported published basics, projects, skills, experience, education, certifications, contact and navigation overrides.
+- Published resume-derived data, CMS overrides and curated defaults follow one documented precedence order.
+- Draft/unpublished content never appears publicly.
+- Profile-specific content and media never cross profile boundaries.
+- Empty, archived, invalid and missing content states are deliberate and safe.
+- Changes are covered by regression tests and route-level acceptance after validation resumes.
+
+#### PORT-US-044 — Published SEO and social metadata
+
+**Priority:** P1  
+**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+
+**As the owner,** I want SEO and social metadata configured in the CMS to appear correctly on every public route, so that each profile and project can be discovered and shared accurately.
+
+**Acceptance criteria**
+- Published metadata is emitted in server-rendered HTML for root, profile, section and project routes.
+- Canonical URL, title, description, Open Graph and social image values are validated and profile-correct.
+- Missing values use safe profile-specific defaults.
+- Sitemap and robots output match the routes that are actually public.
+- Unknown routes return HTTP 404 and do not advertise successful canonical pages.
+- No draft/private metadata or private asset URL is exposed.
+
+#### PORT-US-045 — Recoverable media and resume storage operations
+
+**Priority:** P0  
+**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+
+**As the owner,** I want resume and image operations to recover safely from partial storage failures, so that the private source, approved index and public feed cannot silently diverge.
+
+**Acceptance criteria**
+- Publish, unpublish, rollback, delete, restore and migration define their write order and recovery state across object storage, private indexes and public feeds.
+- Operations are idempotent or safely reject duplicate/replayed requests.
+- Partial failures produce an actionable consistency record and a safe retry/compensation path.
+- Concurrent updates cannot silently overwrite a newer approved version.
+- Missing private originals are never treated as recoverable merely by rebuilding a public feed; restore requires a verified source backup or explicit owner action.
+- Resume and image binaries, metadata, digests and profile ownership are checked before restore/migration writes.
+- Failure-injection tests cover every storage boundary after validation resumes.
+
+#### PORT-US-046 — Production-ready owner authentication
+
+**Priority:** P0  
+**Status:** IMPLEMENTED IN SOURCE — PRODUCTION ACCEPTANCE PENDING.
+
+**As the owner,** I want the admin authentication and session boundary to remain secure in the real hosting environment, so that only authorized owner actions can change public portfolio data.
+
+**Acceptance criteria**
+- Login, logout, expiry, renewal and secret rotation behave correctly in production-like hosting.
+- Every admin loader, action and API mutation enforces server-side authorization.
+- CSRF/origin protections and request throttling are applied to sensitive mutations and authentication.
+- Development-only bypass behavior is impossible in production configuration.
+- Cookies use appropriate Secure, HttpOnly and SameSite settings.
+- Authentication failures and audit records do not disclose passwords, tokens, private record existence or sensitive content.
+- Production secrets remain outside source control and client bundles.
+
+#### PORT-US-047 — Owner-approved visual profile customization
+
+**Priority:** P1  
+**Status:** PARTIAL — NEEDS DEVELOPMENT / TESTING.
+
+**As the owner,** I want to preview and manage approved visual settings from the CMS, so that the four profiles can be individually polished without editing shared application code.
+
+**Acceptance criteria**
+- The owner can configure approved theme tokens, typography, profile accent, section visibility/order and supported layout modules.
+- Draft visual changes can be previewed before publication.
+- Invalid or inaccessible combinations fall back to the shared accessible design system.
+- Customization cannot inject arbitrary scripts, unsafe markup or untrusted external resources.
+- All four profiles remain responsive and visually coherent.
+
+#### PORT-US-048 — Profile content and asset sign-off
+
+**Priority:** P1  
+**Status:** OWNER REVIEW PENDING.
+
+**As a profile owner,** I want each profile's facts, links and media reviewed before release, so that the portfolio represents each person accurately and respectfully.
+
+**Acceptance criteria**
+- Abhishek, Amulya, Anjini and Sai each have an owner-approved biography, skills, projects, experience, education, certifications and contact/link set where applicable.
+- Each profile uses approved, correctly attributed/owned imagery and meaningful alt text.
+- Generic/placeholder hero imagery is replaced or explicitly approved.
+- No profile displays another person's private or incorrect content.
+- Content completeness and sign-off are recorded per profile.
+
+### Execution sequence — work on these first
+
+1. **P0:** PORT-US-045 storage recovery design and implementation, starting with resume publish/rollback/unpublish and then image parity.
+2. **P0:** PORT-US-046 production admin security boundaries (source work only until validation is resumed).
+3. **P0:** PORT-US-043 complete root/profile CMS coverage and content precedence.
+4. **P0:** PORT-US-037 / PORT-US-034 JARVIS integration privacy and production-readiness gaps.
+5. **P1:** PORT-US-044 SEO metadata propagation.
+6. **P1:** PORT-US-048 profile facts/media owner sign-off and PORT-US-047 CMS visual customization.
+7. **P1:** PORT-US-009/016/017/018/019/020/022/033 acceptance, CI, accessibility, performance and release gates when validation is explicitly resumed.
+8. **P2:** PORT-US-039 privacy/retention confirmation and PORT-US-040/041 reusable-template/storage portability refinement.
+
+**Definition of objective completion:** All four profiles contain owner-approved and isolated content; every public route and CMS-managed field behaves consistently; resume/image publishing and recovery are safe; owner admin is secure; JARVIS behavior is privacy-safe and accurately reports availability; SEO, accessibility, responsiveness and performance meet documented acceptance; exact-head engineering/CI evidence is green; backup/restore and rollback are rehearsed; and the owner explicitly approves release. A source change alone does not satisfy this definition.
