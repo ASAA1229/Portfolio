@@ -69,19 +69,7 @@ function isRecord(value: unknown): value is LooseRecord {
 }
 
 const CONTACT_FIELDS = new Set(["email", "phone", "linkedin", "github"]);
-const SNAPSHOT_FIELDS = new Set([
-  "resumeId",
-  "profileId",
-  "publishedAt",
-  "displayName",
-  "headline",
-  "summary",
-  "skills",
-  "contact",
-  "structuredSections",
-  "kind",
-  "restoredPublishedAt",
-]);
+
 const SNAPSHOT_FIELDS = new Set([
   "resumeId",
   "profileId",
