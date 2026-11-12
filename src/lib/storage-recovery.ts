@@ -216,34 +216,45 @@ export async function runStorageTransaction(
     };
 
     // Persist intent and immutable snapshots before any target object is changed.
-    for (let index = 0; index < mutations.length; index += 1) {
-      const key = mutations[index]!.key;
-      const existing = await bucket.get(key);
+    try {
+      for (let index = 0; index < mutations.length; index += 1) {
+        const key = mutations[index]!.key;
+        const existing = await bucket.get(key);
 
-      if (existing) {
-        const snapshotKey = `${ROOT}${journal.id}/snapshot-${index}`;
-        journal.snapshots.push({
-          key,
-          existed: true,
-          snapshotKey,
-          ...(existing.httpMetadata?.contentType
-            ? { contentType: existing.httpMetadata.contentType }
-            : {}),
-        });
-        await writeJournal(bucket, journal);
-        await bucket.put(snapshotKey, await existing.arrayBuffer(), {
-          ...(existing.httpMetadata?.contentType
-            ? { httpMetadata: { contentType: existing.httpMetadata.contentType } }
-            : {}),
-        });
-      } else {
-        journal.snapshots.push({ key, existed: false });
-        await writeJournal(bucket, journal);
+        if (existing) {
+          const snapshotKey = `${ROOT}${journal.id}/snapshot-${index}`;
+          journal.snapshots.push({
+            key,
+            existed: true,
+            snapshotKey,
+            ...(existing.httpMetadata?.contentType
+              ? { contentType: existing.httpMetadata.contentType }
+              : {}),
+          });
+          await writeJournal(bucket, journal);
+          await bucket.put(snapshotKey, await existing.arrayBuffer(), {
+            ...(existing.httpMetadata?.contentType
+              ? { httpMetadata: { contentType: existing.httpMetadata.contentType } }
+              : {}),
+          });
+        } else {
+          journal.snapshots.push({ key, existed: false });
+          await writeJournal(bucket, journal);
+        }
       }
-    }
 
-    journal.state = "applying";
-    await writeJournal(bucket, journal);
+      journal.state = "applying";
+      await writeJournal(bucket, journal);
+    } catch (error) {
+      // Target objects are not mutated until the applying marker is persisted.
+      // A failed preparation is therefore safe to report as unchanged.
+      try {
+        await recoverUnsafe(bucket);
+      } catch (recoveryError) {
+        console.error("Storage journal preparation cleanup remains pending.", recoveryError);
+      }
+      throw new StorageTransactionError(true, error);
+    }
 
     try {
       for (const mutation of mutations) {
