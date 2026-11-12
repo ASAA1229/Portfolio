@@ -3,10 +3,12 @@ import { ArrowUpRight } from "lucide-react";
 import { Reveal } from "@/components/Reveal";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import type { PROJECT_PAGES } from "@/lib/project-pages";
+import { usePublishedProjectImages } from "@/lib/published-resume";
 
 type ProjectPage = (typeof PROJECT_PAGES)[number];
 
 export function ProjectCard({ project, index }: { project: ProjectPage; index: number }) {
+  const cover = usePublishedProjectImages("abhishek", project.slug)[0];
   return (
     <Reveal delay={index * 0.06} className="h-full">
       <Link
@@ -15,8 +17,12 @@ export function ProjectCard({ project, index }: { project: ProjectPage; index: n
         className="project-tile group block h-full overflow-hidden rounded-xl border border-white/10 bg-card/70 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-violet focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
       >
         <div className="project-art relative overflow-hidden">
-          <ProjectVisual index={index} />
-          <span className="project-category">{project.category}</span>
+          {cover ? (
+            <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <ProjectVisual index={index} />
+          )}
+          <span className="project-category relative z-10">{project.category}</span>
         </div>
         <div className="flex min-h-48 flex-col p-5 sm:p-6">
           <p className="text-[10px] uppercase tracking-[0.16em] text-primary">{project.badge}</p>
