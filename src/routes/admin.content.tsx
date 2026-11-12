@@ -137,7 +137,7 @@ function ContentManager() {
       PROFILE_REVIEW_ITEMS.map((item) => [item, next.review?.checks?.[item] === true]),
     ) as Record<(typeof PROFILE_REVIEW_ITEMS)[number], boolean>);
     setReviewer(next.review?.reviewer ?? "");
-    setReviewExceptions(next.review?.exceptions.join("\\n") ?? "");
+    setReviewExceptions(next.review?.exceptions.join("\n") ?? "");
   }, []);
 
   const load = useCallback(
@@ -490,7 +490,7 @@ function ContentManager() {
           onClick={() => void act("review", {
             reviewer,
             checks: reviewChecks,
-            exceptions: reviewExceptions.split("\\n").map((item) => item.trim()).filter(Boolean),
+            exceptions: reviewExceptions.split("\n").map((item) => item.trim()).filter(Boolean),
           })}
         >
           Record sign-off for published version {doc?.publishedVersion ?? "—"}
