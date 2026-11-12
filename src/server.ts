@@ -1835,7 +1835,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const candidates = keys
       .filter((key) => key.endsWith(".json"))
       .map((key) => key.slice(prefix.length, -5))
-      .filter((version) => /^\\d{13}-[a-f0-9]{8}$/.test(version))
+      .filter((version) => /^\d{13}-[a-f0-9]{8}$/.test(version))
       .sort((a, b) => b.localeCompare(a));
     const versions: Array<{ version: string; filename: string; contentType: string; size: number; uploadedAt: string }> = [];
     for (const version of candidates) {
@@ -1873,7 +1873,7 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     if (boundedRequest instanceof Response) return boundedRequest;
     const payload = (await boundedRequest.json().catch(() => null)) as { version?: unknown } | null;
     const version = payload?.version;
-    if (typeof version !== "string" || !/^\\d{13}-[a-f0-9]{8}$/.test(version)) {
+    if (typeof version !== "string" || !/^\d{13}-[a-f0-9]{8}$/.test(version)) {
       return jsonResponse({ error: "Choose a valid image version to restore." }, 400);
     }
     const records = await readImageIndex(bucket);
