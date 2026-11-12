@@ -167,7 +167,7 @@ describe("POST /api/chat request flow", () => {
         basics: { headline: "Ammu owner-approved headline" },
         skills: [{ cat: "Analytics", desc: "Approved", items: ["Power BI Custom"] }],
       },
-      messages: [{ role: "user", content: "What skills do you use?" }],
+      messages: [{ role: "user", content: "Tell me about your profile and skills." }],
     });
     expect(response.status).toBe(200);
     const sent = JSON.parse(String(calls[0]!.init.body)) as {
