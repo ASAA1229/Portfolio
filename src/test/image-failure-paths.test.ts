@@ -8,7 +8,6 @@ import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 
 const PNG = "image/png";
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const encoder = new TextEncoder();
 const origin = "http://localhost";
 const temps: string[] = [];
 
@@ -53,7 +52,7 @@ function call(env: unknown, pathname: string, init: RequestInit = {}) {
 async function uploadImage(
   env: unknown,
   publishOnUpload = false,
-): Promise<{ id: string; bucket: ReturnType<typeof failingImageBucket>["bucket"] }> {
+): Promise<{ id: string }> {
   const form = new FormData();
   form.set("profileId", "ammu");
   form.set("alt", "Ammu profile image");
@@ -63,7 +62,7 @@ async function uploadImage(
   const uploaded = await call(env, "/api/admin/images", { method: "POST", body: form });
   expect(uploaded.status).toBe(201);
   const { image } = (await uploaded.json()) as { image: { id: string } };
-  return { id: image.id, bucket: (env as { RESUME_BUCKET: ReturnType<typeof failingImageBucket>["bucket"] }).RESUME_BUCKET };
+  return { id: image.id };
 }
 
 function testEnv(bucket: ReturnType<typeof failingImageBucket>["bucket"]) {
@@ -176,7 +175,11 @@ describe("image lifecycle compensation", () => {
     );
     const form = new FormData();
     const replacementBytes = new Uint8Array([...PNG_BYTES, 0x01]);
-    form.set("file", new File([replacementBytes], "replacement.png", { type: PNG }), "replacement.png");
+    form.set(
+      "file",
+      new File([replacementBytes], "replacement.png", { type: PNG }),
+      "replacement.png",
+    );
     state.failIndexAfterWrite = true;
 
     const response = await call(env, `/api/admin/images/${id}/replace`, {
@@ -203,5 +206,4 @@ describe("image lifecycle compensation", () => {
     >();
     expect(index.find((item) => item.id === id)?.filename).toBe("ammu.png");
   });
-
 });
