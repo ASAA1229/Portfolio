@@ -2442,6 +2442,16 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
   const bucket = resolvePrivateBucket(env);
   if (!bucket) return bucketNotConfigured();
 
+  // Backups must never export a partially applied state. The explicit recovery
+  // endpoint is the only route that reports/controls a pending journal directly.
+  if (path !== "/api/admin/storage/recovery") {
+    try {
+      await recoverPendingStorageTransaction(bucket);
+    } catch (error) {
+      return storageFailure(error, "recover storage before backup operation");
+    }
+  }
+
   if (path === "/api/admin/storage/recovery" && request.method === "GET") {
     try {
       return jsonResponse(await storageRecoveryStatus(bucket), 200);
@@ -2569,6 +2579,12 @@ async function handleStorageMigration(request: Request, env: unknown): Promise<R
   const target = adapters[to];
   if (!source || !target) {
     return jsonResponse({ error: "Both storage adapters must be available in this runtime." }, 409);
+  }
+  try {
+    await recoverPendingStorageTransaction(source);
+    await recoverPendingStorageTransaction(target);
+  } catch (error) {
+    return storageFailure(error, "recover storage before migration");
   }
   const result = await migrateStorage(source, target);
   if (!result.ok) {
