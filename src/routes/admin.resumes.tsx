@@ -27,6 +27,8 @@ import {
   type ResumeSectionName,
 } from "@/lib/resume-types";
 
+type PublishedResumeFeed = { resumes?: Array<{ id?: string; profileId?: string }> };
+
 type ResumeRecord = {
   id: string;
   filename: string;
@@ -167,6 +169,8 @@ function ResumeManager() {
   const [checking, setChecking] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [resumes, setResumes] = useState<ResumeRecord[]>([]);
+  // null means the public feed could not be checked; never infer live status from approval alone.
+  const [publishedResumeIds, setPublishedResumeIds] = useState<string[] | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProfileId, setUploadProfileId] =
     useState<NonNullable<ResumeRecord["profileId"]>>("unassigned");
@@ -202,6 +206,23 @@ function ResumeManager() {
     const payload = (await response.json()) as { resumes?: ResumeRecord[]; error?: string };
     if (!response.ok) throw new Error(payload.error ?? "Could not load resumes.");
     setResumes(payload.resumes ?? []);
+    try {
+      const publicResponse = await fetch("/api/published-resumes", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!publicResponse.ok) throw new Error("Could not read the public resume feed.");
+      const publicFeed = (await publicResponse.json()) as PublishedResumeFeed;
+      setPublishedResumeIds(
+        Array.isArray(publicFeed.resumes)
+          ? publicFeed.resumes
+              .filter((item) => typeof item.id === "string")
+              .map((item) => item.id as string)
+          : [],
+      );
+    } catch {
+      setPublishedResumeIds(null);
+    }
   }
 
   useEffect(() => {
@@ -345,6 +366,7 @@ function ResumeManager() {
         ),
       );
       setHistoryRefresh((value) => value + 1);
+      await loadResumes();
       setMessage(
         superseded.size
           ? "Published. The previous version for this profile was replaced and kept in Publish history."
@@ -505,6 +527,7 @@ function ResumeManager() {
         ),
       );
       setHistoryRefresh((value) => value + 1);
+      await loadResumes();
       setMessage(
         "Resume removed from the public feed. The original file and reviewed details remain private.",
       );
@@ -852,15 +875,30 @@ function ResumeManager() {
                     {new Date(record.uploadedAt).toLocaleString()}
                   </p>
                 </div>
-                <span
-                  className={
-                    record.status === "approved"
-                      ? "border border-emerald-300/25 px-2 py-1 text-xs text-emerald-200"
-                      : "border border-amber-300/25 px-2 py-1 text-xs text-amber-200"
-                  }
-                >
-                  {record.status === "approved" ? "Approved / published" : "Pending review"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={
+                      record.status === "approved"
+                        ? "border border-emerald-300/25 px-2 py-1 text-xs text-emerald-200"
+                        : "border border-amber-300/25 px-2 py-1 text-xs text-amber-200"
+                    }
+                  >
+                    {record.status === "approved" ? "Approved" : "Pending review"}
+                  </span>
+                  {publishedResumeIds === null ? (
+                    <span className="border border-white/15 px-2 py-1 text-xs text-white/45">
+                      Public status unknown
+                    </span>
+                  ) : publishedResumeIds.includes(record.id) ? (
+                    <span className="border border-emerald-300/35 bg-emerald-300/10 px-2 py-1 text-xs text-emerald-100">
+                      Live on profile
+                    </span>
+                  ) : record.status === "approved" ? (
+                    <span className="border border-white/15 px-2 py-1 text-xs text-white/45">
+                      Approved · not active
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="text-xs text-white/60">
