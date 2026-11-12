@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AdminNavigation } from "@/components/AdminNavigation";
 import { History, RefreshCw } from "lucide-react";
 import type { AdminAuditEntry } from "@/lib/admin-audit";
 
@@ -52,6 +53,7 @@ function AuditHistory() {
 
   return (
     <main className="site-container max-w-5xl py-10 sm:py-14">
+      <AdminNavigation current="/admin/audit" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
         <h1 className="flex items-center gap-3 text-4xl font-semibold">
