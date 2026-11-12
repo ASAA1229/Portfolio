@@ -496,17 +496,6 @@
 }
 
 
-/* Home hero: glass is a legibility layer over photography, not a page-wide skin. */
-.home-hero .home-hero-glass {
-  width: min(100%, 650px);
-  border: 1px solid color-mix(in oklab, white 13%, transparent);
-  border-radius: 18px;
-  padding: clamp(22px, 4vw, 42px);
-  background: linear-gradient(135deg, color-mix(in oklab, #111 78%, transparent), color-mix(in oklab, #17171b 54%, transparent));
-  box-shadow: 0 28px 70px -42px #000, inset 0 1px 0 color-mix(in oklab, white 9%, transparent);
-  -webkit-backdrop-filter: blur(12px) saturate(125%);
-  backdrop-filter: blur(12px) saturate(125%);
-}
 .home-disciplines .discipline-card {
   min-height: 94px;
   align-items: center;
@@ -535,7 +524,6 @@
 .admin-login-card input { border-radius: 9px; }
 .admin-login-card button[type="submit"] { border-radius: 9px; }
 @media (max-width: 639px) {
-  .home-hero .home-hero-glass { border-radius: 14px; padding: 20px; }
   .home-disciplines .discipline-card { min-height: 82px; padding: 14px; }
 }
 @media (prefers-reduced-transparency: reduce) {
@@ -546,7 +534,6 @@
   .site-shell .site-mobile-nav,
   .person-shell .site-mobile-nav,
   .admin-workspace-nav,
-  .home-hero .home-hero-glass,
   .admin-login-card {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -555,29 +542,3 @@
 }
 
 
-/* Person profile hero panels inherit each profile's own theme tokens. */
-.person-hero-glass {
-  width: min(100%, 660px);
-  border: 1px solid color-mix(in oklab, white 12%, transparent);
-  border-radius: 18px;
-  padding: clamp(22px, 4vw, 40px);
-  background: linear-gradient(145deg, color-mix(in oklab, var(--background) 82%, transparent), color-mix(in oklab, var(--card) 58%, transparent));
-  box-shadow: 0 28px 70px -44px #000, inset 0 1px 0 color-mix(in oklab, white 8%, transparent);
-  -webkit-backdrop-filter: blur(12px) saturate(125%);
-  backdrop-filter: blur(12px) saturate(125%);
-}
-.person-strength-card {
-  min-height: 100px;
-  align-items: center;
-  border: 1px solid color-mix(in oklab, white 9%, transparent);
-  border-radius: 12px;
-  padding: 18px;
-  background: linear-gradient(145deg, color-mix(in oklab, var(--card) 94%, transparent), color-mix(in oklab, var(--secondary) 70%, transparent));
-}
-@media (max-width: 767px) {
-  .person-hero-glass { border-radius: 14px; padding: 20px; }
-  .person-strength-card { min-height: 84px; padding: 14px; }
-}
-@media (prefers-reduced-transparency: reduce) {
-  .person-hero-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--card); }
-}
