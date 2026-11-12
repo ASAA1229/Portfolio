@@ -177,6 +177,7 @@ function ResumeManager() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
+  const [profileFilter, setProfileFilter] = useState<"all" | NonNullable<ResumeRecord["profileId"]>>("all");
 
   const pendingCount = resumes.filter((resume) => resume.status === "pending").length;
   const approvedCount = resumes.filter((resume) => resume.status === "approved").length;
@@ -188,7 +189,8 @@ function ResumeManager() {
         (value) => value.toLowerCase().includes(query),
       );
     const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
-    return matchesQuery && matchesStatus;
+    const matchesProfile = profileFilter === "all" || (resume.profileId ?? "unassigned") === profileFilter;
+    return matchesQuery && matchesStatus && matchesProfile;
   });
 
   async function loadResumes() {
@@ -779,7 +781,7 @@ function ResumeManager() {
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px]">
+        <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
           <label className="text-xs text-white/55">
             Search resumes
             <input
@@ -803,18 +805,34 @@ function ResumeManager() {
               <option value="approved">Approved / published</option>
             </select>
           </label>
+          <label className="text-xs text-white/55">
+            Profile
+            <select
+              value={profileFilter}
+              onChange={(event) => setProfileFilter(event.target.value as typeof profileFilter)}
+              className="mt-2 min-h-11 w-full border border-white/15 bg-black/30 px-3 text-sm text-white"
+            >
+              <option value="all">All profiles</option>
+              <option value="abhishek">Abhishek</option>
+              <option value="ammu">Amulya (Ammu)</option>
+              <option value="bava">Anjini (Bava)</option>
+              <option value="sai">Sai (Darling)</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+          </label>
         </div>
 
         <div className="mt-3 flex items-center justify-between text-xs text-white/40">
           <span>
             Showing {visibleResumes.length} of {resumes.length} resumes
           </span>
-          {(searchQuery || statusFilter !== "all") && (
+          {(searchQuery || statusFilter !== "all" || profileFilter !== "all") && (
             <button
               type="button"
               onClick={() => {
                 setSearchQuery("");
                 setStatusFilter("all");
+                setProfileFilter("all");
               }}
               className="min-h-8 underline underline-offset-4 hover:text-white/75"
             >
