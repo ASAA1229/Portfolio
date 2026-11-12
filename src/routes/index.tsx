@@ -41,7 +41,7 @@ function Home() {
         <div className="hero-shade" aria-hidden="true" />
         <div className="site-container relative z-10 py-12 sm:py-20">
           <Reveal>
-            <div className="hero-copy home-hero-glass">
+            <div className="hero-copy">
               <p className="mb-6 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
                 <span className="h-px w-8 bg-primary" /> SOFTWARE / INTELLIGENCE / IMPACT
               </p>
