@@ -233,11 +233,13 @@ export function normalizePublishedProfileImages(payload: unknown, profileId: str
       isRecord(item) &&
       item["profileId"] === profileId &&
       typeof item["id"] === "string" &&
-      typeof item["src"] === "string" &&
-      /^\/api\/published-images\/[0-9a-f-]{36}$/i.test(item["src"]) &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item["id"]) &&
+      item["src"] === `/api/published-images/${item["id"]}` &&
       (item["slot"] === "portrait" || item["slot"] === "gallery" || item["slot"] === "project") &&
-      typeof item["alt"] === "string" &&
-      (item["slot"] !== "project" || (typeof item["projectSlug"] === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(item["projectSlug"])))
+      typeof item["alt"] === "string" && item["alt"].trim().length > 0 &&
+      (item["slot"] === "project"
+        ? typeof item["projectSlug"] === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(item["projectSlug"])
+        : item["projectSlug"] === undefined)
     )
     .map((item) => ({
       id: item["id"] as string,
