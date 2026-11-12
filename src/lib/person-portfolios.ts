@@ -71,6 +71,7 @@ export interface PersonPortfolio {
   summary: string;
   email: string | null;
   phone: string | null;
+  location?: string;
   socialLabels: { platform: string; handle: string | null }[];
   strengths: { title: string; text: string }[];
   skills: { category: string; items: string[] }[];
