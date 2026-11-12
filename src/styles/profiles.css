@@ -461,13 +461,15 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
-.site-shell .site-nav {
+.site-shell .site-nav,
+.person-shell .site-nav {
   background: color-mix(in oklab, var(--background) 76%, transparent);
   border-bottom: 1px solid color-mix(in oklab, white 9%, transparent);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   backdrop-filter: blur(20px) saturate(150%);
 }
-.site-shell .site-mobile-nav {
+.site-shell .site-mobile-nav,
+.person-shell .site-mobile-nav {
   border: 1px solid color-mix(in oklab, white 12%, transparent);
   border-radius: 0 0 16px 16px;
   background: color-mix(in oklab, var(--card) 90%, transparent);
@@ -491,4 +493,63 @@
 @media (prefers-reduced-motion: reduce) {
   .profile-selector-card,
   .profile-selector-portrait img { transition: none !important; }
+}
+
+
+/* Home hero: glass is a legibility layer over photography, not a page-wide skin. */
+.home-hero .home-hero-glass {
+  width: min(100%, 650px);
+  border: 1px solid color-mix(in oklab, white 13%, transparent);
+  border-radius: 18px;
+  padding: clamp(22px, 4vw, 42px);
+  background: linear-gradient(135deg, color-mix(in oklab, #111 78%, transparent), color-mix(in oklab, #17171b 54%, transparent));
+  box-shadow: 0 28px 70px -42px #000, inset 0 1px 0 color-mix(in oklab, white 9%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  backdrop-filter: blur(12px) saturate(125%);
+}
+.home-disciplines .discipline-card {
+  min-height: 94px;
+  align-items: center;
+  border: 1px solid color-mix(in oklab, white 9%, transparent);
+  border-radius: 12px;
+  padding: 18px;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--card) 92%, transparent), color-mix(in oklab, var(--secondary) 74%, transparent));
+}
+.admin-login-backdrop {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 18% 20%, color-mix(in oklab, var(--violet) 18%, transparent), transparent 42%),
+    radial-gradient(ellipse at 84% 82%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 38%),
+    #09090d;
+}
+.admin-login-card {
+  position: relative;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgb(255 255 255 / 9%), rgb(255 255 255 / 3%));
+  box-shadow: 0 30px 90px -48px #000, inset 0 1px 0 rgb(255 255 255 / 10%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.admin-login-card input { border-radius: 9px; }
+.admin-login-card button[type="submit"] { border-radius: 9px; }
+@media (max-width: 639px) {
+  .home-hero .home-hero-glass { border-radius: 14px; padding: 20px; }
+  .home-disciplines .discipline-card { min-height: 82px; padding: 14px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .profile-selector-header,
+  .profile-selector-meta,
+  .site-shell .site-nav,
+  .person-shell .site-nav,
+  .site-shell .site-mobile-nav,
+  .person-shell .site-mobile-nav,
+  .admin-workspace-nav,
+  .home-hero .home-hero-glass,
+  .admin-login-card {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: var(--card);
+  }
 }
