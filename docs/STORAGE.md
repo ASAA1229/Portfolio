@@ -57,7 +57,7 @@ through `preparing`, `applying`, and either `committed` or `recovered`.
 - Owner-only `GET /api/admin/storage/recovery` reports pending journal state; `POST` with confirmation `RECOVER` replays the snapshots.
 - Committed/recovered journals are cleanup-only; stale snapshot cleanup can be retried without reverting committed data.
 
-**Limitations:** the in-process queue serializes requests only within one server isolate. It is not a distributed lock or compare-and-swap primitive, so concurrent writes across multiple Worker instances can still race. Single-object writes and upload/delete sequences outside the journal are not yet fully covered. R2 durability, failure injection and concurrency acceptance remain pending; no validation was run for this source increment.
+**Limitations:** the in-process queue serializes journaled write phases only within one server isolate. Handlers may read and prepare a stale index before entering that queue, so this is not complete read-modify-write/lost-update protection even within one isolate. It is not a distributed lock or compare-and-swap primitive; concurrent Workers can race. Single-object content/persona writes and remaining non-journaled paths are not yet fully covered. R2 durability, failure injection and concurrency acceptance remain pending; no validation was run for this source increment.
 
 
 ### Resume original-file lifecycle coverage — 2026-11-12
