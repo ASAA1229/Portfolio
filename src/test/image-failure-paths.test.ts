@@ -157,8 +157,7 @@ describe("image lifecycle compensation", () => {
       code: "IMAGE_UPLOAD_STORAGE_FAILED",
       restored: true,
     });
-    const index = await (await bucket.get("private-admin/images/index.json"))!.json<unknown[]>();
-    expect(index).toEqual([]);
+    expect(await bucket.get("private-admin/images/index.json")).toBeNull();
     expect(await bucket.list("private-admin/images/files/")).toEqual([]);
     expect(await bucket.list("public/profile-images/")).toEqual([]);
   });
