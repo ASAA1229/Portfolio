@@ -900,3 +900,6 @@ As the portfolio owner, I want images and resumes uploaded, assigned, reviewed a
 
 
 **PORT-US-050 follow-up (2026-11-12):** The public resume binary endpoint and profile-aware download actions are now implemented in source. `GET /api/published-resumes/:id` checks the private resume index and serves the file only while that exact record remains approved; the Abhishek and person-profile download actions resolve the currently published resume ID from the published feed. This remains untested, and public download behavior after rollback/unpublish still requires runtime acceptance.
+
+
+**PORT-US-050 admin follow-up — active image visibility (2026-11-12):** The Admin image inventory now reads the public published-image feed alongside the private inventory and marks the image resources currently selected by the public profile rendering rules as “Live on profile”. Other approved images are identified separately as published but not selected, preventing approval status from being mistaken for proof of active display. The image inventory also now has a dedicated no-results state when filters exclude all records. Public-feed unavailability is treated as unknown/not confirmed, not as proof that an approved image is live. Validation remains paused; this source change is untested.
