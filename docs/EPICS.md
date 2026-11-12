@@ -324,3 +324,14 @@ No tests, builds, typecheck, lint, browser checks, CI or R2 verification were ru
 - Added unavailable-source disclosure, profile/public-page shortcuts, refresh and session sign-out actions.
 - Mapped the increment to PORT-US-049. This does not close authentication, storage recovery, content precedence, visual preview or production acceptance gaps.
 - No tests/build/typecheck/lint/browser/accessibility/CI were run; validation remains paused.
+
+## PORT-E07 implementation increment — dynamic admin inventory and preview (2026-11-12)
+
+**Status:** IMPLEMENTED IN SOURCE / NEEDS TESTING / OWNER ACCEPTANCE PENDING
+
+- Resume inventory: search, status and profile filters.
+- Image inventory: search, profile and publication-status filters.
+- Audit history: search and outcome filters.
+- Content manager: live unpublished draft preview covering key profile sections and SEO data.
+- Existing API-backed workflows remain in place for persona versioning, structured resume editing, image operations, backup/restore and storage migration.
+- No tests/build/typecheck/lint/browser/accessibility/CI were run; validation remains paused.
