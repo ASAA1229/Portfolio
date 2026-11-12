@@ -20,6 +20,13 @@ function AuditHistory() {
   const [entries, setEntries] = useState<AdminAuditEntry[] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [outcomeFilter, setOutcomeFilter] = useState<"all" | "success" | "rejected" | "failed">("all");
+  const visibleEntries = (entries ?? []).filter((entry) => {
+    const normalized = query.trim().toLowerCase();
+    const matchesQuery = !normalized || [entry.action, entry.actor, entry.outcome, entry.targets.join(" "), String(entry.status)].some((value) => value.toLowerCase().includes(normalized));
+    return matchesQuery && (outcomeFilter === "all" || entry.outcome === outcomeFilter);
+  });
 
   async function load(signal?: AbortSignal) {
     setBusy(true);
@@ -68,6 +75,17 @@ function AuditHistory() {
           <RefreshCw className="size-4" aria-hidden="true" /> Refresh
         </button>
       </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px]">
+        <label className="text-xs text-muted-foreground">Search activity
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Action, actor, target ID…" className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground" />
+        </label>
+        <label className="text-xs text-muted-foreground">Outcome
+          <select value={outcomeFilter} onChange={(event) => setOutcomeFilter(event.target.value as typeof outcomeFilter)} className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground">
+            <option value="all">All outcomes</option><option value="success">Success</option><option value="rejected">Rejected</option><option value="failed">Failed</option>
+          </select>
+        </label>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Showing {visibleEntries.length} of {entries?.length ?? 0} loaded entries.</p>
       <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
         Newest first, up to 500 entries. Older entries are sealed into archives in private storage.
       </p>
@@ -76,9 +94,9 @@ function AuditHistory() {
           {error}
         </p>
       )}
-      {entries && entries.length === 0 && (
+      {entries && visibleEntries.length === 0 && (
         <p className="mt-6 text-sm text-muted-foreground">
-          No admin changes have been recorded yet.
+          No audit entries match the current filters.
         </p>
       )}
       {entries && entries.length > 0 && (
@@ -105,7 +123,7 @@ function AuditHistory() {
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry) => (
+              {visibleEntries.map((entry) => (
                 <tr key={entry.id} className="border-t border-border">
                   <td className="whitespace-nowrap p-3">{new Date(entry.at).toLocaleString()}</td>
                   <td className="p-3 font-mono text-xs">{entry.action}</td>
