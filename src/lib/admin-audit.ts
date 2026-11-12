@@ -105,10 +105,17 @@ export async function appendAdminAudit(
 
 export async function readSessionEpoch(storage: JsonStorage | undefined): Promise<string> {
   if (!storage) return "0";
-  const object = await storage.get(SESSION_EPOCH_KEY).catch(() => null);
-  const value = object ? await object.json<{ epoch?: unknown }>().catch(() => null) : null;
+  // Missing epoch is the initial state. Storage errors or malformed persisted
+  // values must fail closed; silently falling back to epoch 0 could revive
+  // sessions that were explicitly invalidated by logout-everywhere.
+  const object = await storage.get(SESSION_EPOCH_KEY);
+  if (!object) return "0";
+  const value = await object.json<{ epoch?: unknown }>();
   const epoch = value?.epoch;
-  return typeof epoch === "string" && /^(?:0|[1-9]\d{0,15})$/.test(epoch) ? epoch : "0";
+  if (typeof epoch !== "string" || !/^(?:0|[1-9]\d{0,15})$/.test(epoch)) {
+    throw new Error("Stored admin session epoch failed validation.");
+  }
+  return epoch;
 }
 
 /** Invalidate every existing admin session by moving to a new signing epoch. */
