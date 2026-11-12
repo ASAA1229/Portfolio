@@ -451,3 +451,12 @@ The test step and SBOM upload were skipped after lint failed. The local report's
 - Added `src/test/image-failure-paths.test.ts` for injected ambiguous index-write failures across upload, replace, publish, unpublish and delete.
 - **Still open:** resume/image cross-request concurrency, durable recovery records when compensation itself fails, verified-original restore workflows, hosted R2 acceptance and exhaustive storage failure injection.
 - **Validation:** tests authored only; not executed. No build, typecheck, lint, browser, audit or CI run was performed. Testing remains paused.
+
+
+## Current development increment — resume history compensation coverage (2026-11-12)
+
+- Extended `src/test/resume-failure-paths.test.ts` to inject an ambiguous write failure after the resume publish-history object is persisted.
+- The regression case checks compensation returns the resume to pending, restores an empty public feed and restores the prior empty history state.
+- Existing tests also cover public-feed failures before and after persistence and rejection of reconciliation when a private original is missing.
+- **Still open:** durable recovery records when compensation itself fails, cross-request/distributed concurrency, post-commit private-original cleanup failure handling and hosted R2 acceptance.
+- **Validation:** tests authored only; no tests/build/typecheck/lint/browser/CI executed. Validation remains paused.
