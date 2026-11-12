@@ -335,3 +335,14 @@ No tests, builds, typecheck, lint, browser checks, CI or R2 verification were ru
 - Content manager: live unpublished draft preview covering key profile sections and SEO data.
 - Existing API-backed workflows remain in place for persona versioning, structured resume editing, image operations, backup/restore and storage migration.
 - No tests/build/typecheck/lint/browser/accessibility/CI were run; validation remains paused.
+
+
+## PORT-E04 / PORT-US-050 — Admin-managed public profile resources (2026-11-12)
+
+**Status:** SOURCE IMPLEMENTED IN PART / VALIDATION PENDING / OWNER ACCEPTANCE OPEN
+
+- Added shared profile-scoped published-image normalization and loading; Abhishek's homepage portrait and About hero/gallery, plus the shared person-profile portrait/gallery surfaces, now consume published image records. Published galleries replace curated gallery sets when present; curated assets remain fallback content.
+- Added a public resume binary endpoint that checks the private index and serves only a currently approved resume record. Shared resume download actions resolve the active published resume ID for Abhishek and each person profile.
+- Defined PORT-US-050 acceptance for profile isolation, draft privacy, publish/replace/unpublish/restore behavior, resource placement and no-code-change public updates.
+
+Still open: inspect every profile route and every media placement; verify cache behavior on publish/replace/unpublish/rollback; ensure active-resource state and version controls are clear in Admin; prove storage failure and missing-original behavior; test the complete four-profile lifecycle. No tests, build, typecheck, lint, browser, accessibility or CI checks were run because validation remains paused. Do not mark PORT-US-050 or PORT-E04 accepted.
