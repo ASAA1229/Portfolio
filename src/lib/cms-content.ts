@@ -44,6 +44,8 @@ export interface ContentOverrides {
     tech?: string[];
     archived?: boolean;
   }[];
+  /** Replaces curated skill groups when provided. */
+  skills?: { cat: string; desc: string; items: string[] }[];
   /** Replaces the curated list when provided. */
   experience?: {
     role: string;
@@ -199,6 +201,7 @@ export function validateContentOverrides(
     [
       "basics",
       "projects",
+      "skills",
       "experience",
       "education",
       "certifications",
@@ -287,6 +290,36 @@ export function validateContentOverrides(
     const slugs = projects.map((project) => project.slug);
     if (new Set(slugs).size !== slugs.length) errors.push("Project slugs must be unique.");
     content.projects = projects;
+  }
+
+  const skills = list(
+    input["skills"],
+    "skills",
+    errors,
+    CONTENT_LIMITS.listItems,
+    (entry, label) => {
+      const cat = text(entry["cat"], `${label}.cat`, errors, { required: true, max: 80 });
+      const desc = text(entry["desc"], `${label}.desc`, errors, { required: true, max: 240 });
+      const items = strings(entry["items"], `${label}.items`, errors, CONTENT_LIMITS.tags);
+      if (Object.keys(entry).some((key) => !["cat", "desc", "items"].includes(key))) {
+        errors.push(`${label} contains unknown fields.`);
+      }
+      if (!cat || !desc || !items?.length) {
+        if (!items?.length) errors.push(`${label}.items must contain at least one skill.`);
+        return undefined;
+      }
+      if (new Set(items.map((item) => item.toLowerCase())).size !== items.length) {
+        errors.push(`${label}.items must not contain duplicates.`);
+      }
+      return { cat, desc, items };
+    },
+  );
+  if (skills) {
+    const categories = skills.map((group) => group.cat.toLowerCase());
+    if (new Set(categories).size !== categories.length) {
+      errors.push("Skill group categories must be unique.");
+    }
+    content.skills = skills;
   }
 
   const experience = list(
