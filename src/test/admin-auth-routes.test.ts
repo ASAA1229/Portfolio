@@ -89,6 +89,54 @@ describe("admin authentication route lifecycle", () => {
     expect(oldSession.status).toBe(404);
   });
 
+  it("rate-limits repeated failed logins from the same trusted client address", async () => {
+    const runtime = env(new MemoryBucket());
+    const client = `rate-limit-${crypto.randomUUID()}`;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await request(runtime, "/api/admin/login", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "cf-connecting-ip": client,
+        },
+        body: JSON.stringify({ password: "incorrect-password" }),
+      });
+      expect(response.status).toBe(401);
+    }
+
+    const blocked = await request(runtime, "/api/admin/login", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "cf-connecting-ip": client,
+      },
+      body: JSON.stringify({ password: "incorrect-password" }),
+    });
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("refuses login when private session storage is unavailable", async () => {
+    const runtime = {
+      ENVIRONMENT: "test",
+      PORTFOLIO_ADMIN_PASSWORD: "test-admin-password",
+      PORTFOLIO_ADMIN_SESSION_SECRET: "test-session-secret-with-sufficient-length",
+    };
+    const response = await server.fetch(
+      new Request(origin + "/api/admin/login", {
+        method: "POST",
+        headers: {
+          origin,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      }),
+      runtime,
+      {},
+    );
+    expect(response.status).toBe(503);
+  });
+
   it("rejects login requests without a same-origin header", async () => {
     const runtime = env(new MemoryBucket());
     const response = await server.fetch(
