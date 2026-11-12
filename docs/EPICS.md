@@ -406,3 +406,25 @@ Remaining: inspect Abhishek's project route family and every project detail rout
 - Added four-profile image lifecycle integration coverage and four-profile resume lifecycle integration coverage, plus stricter public image feed normalization tests.
 
 Remaining: execute the new tests after validation is resumed; verify every route in browser, direct navigation and refresh; verify R2/local storage, caching, restore and compensation; verify pending/private isolation and no cross-profile leakage. Do not mark this epic accepted before successful validation.
+
+## PORT-E04 / PORT-US-045 — durable storage recovery increment (2026-11-12)
+
+**Status:** PARTIAL — SOURCE IMPLEMENTED / TESTS AUTHORED / VALIDATION PENDING
+
+- Multi-object resume, image and backup restore/migration writes now persist snapshots and a write-ahead journal before applying target mutations.
+- Pending applying journals can replay snapshots after a failed compensation or interrupted request.
+- Admin → Backup & Restore exposes recovery status and a confirmation-gated recovery action.
+- Same-isolate overlapping operations are serialized.
+- Distributed Worker concurrency, remaining resume file cleanup sequences and hosted R2 semantics remain open. The local queue is not a distributed lock/CAS primitive.
+
+## PORT-E04 / PORT-US-046 — admin authentication/session hardening increment (2026-11-12)
+
+**Status:** PARTIAL — SOURCE HARDENING / TESTS AUTHORED / VALIDATION PENDING
+
+- Strong session-signing secret minimum, fail-closed session epoch reads and missing-storage authorization behavior.
+- Production builds cannot use the runtime development auth bypass.
+- Same-origin authenticated session renewal endpoint and Admin navigation control.
+- Regression test source covers weak secrets, route protection, CSRF rejection, renewal and malformed epoch handling.
+- Distributed login throttling, production secret rotation/configuration and production-like acceptance remain open.
+
+No tests/build/typecheck/lint/security scan/browser/CI/R2 validation was run. These increments do not close PORT-US-045, PORT-US-046 or PORT-E04.
