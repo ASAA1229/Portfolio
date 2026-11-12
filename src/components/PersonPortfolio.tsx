@@ -350,6 +350,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         <div className="person-hero-shade" aria-hidden="true" />
         <div className="site-container relative z-10 py-14 sm:py-20">
           <Reveal>
+            <div className="person-hero-glass">
             <p className="font-mono text-xs text-primary">
               {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
             </p>
@@ -386,6 +387,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
               {educationOrganization}{educationScore ? " · " + educationScore : ""}
               {educationLocation && <><br />{educationLocation}</>}
             </p>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -393,7 +395,7 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
       <section className="home-disciplines">
         <div className="site-container grid gap-7 py-8 md:grid-cols-3">
           {profile.strengths.map((strength, index) => (
-            <div key={strength.title} className="flex gap-4">
+            <div key={strength.title} className="person-strength-card flex gap-4">
               <span className="font-mono text-xs text-primary">0{index + 1}</span>
               <div>
                 <h2 className="font-sans text-sm font-semibold">{strength.title}</h2>
