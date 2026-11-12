@@ -266,51 +266,51 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
 });
 
 it("reverts index, public feed and history when the history write fails ambiguously", async () => {
-    const { bucket, state } = failingBucket();
-    const env = {
-      ENVIRONMENT: "development",
-      PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
-      RESUME_BUCKET: bucket,
-    };
-    const form = new FormData();
-    form.set("profileId", "bava");
-    form.set(
-      "file",
-      new File([encoder.encode("%PDF-1.4 resume")], "bava.pdf", { type: PDF }),
-      "bava.pdf",
-    );
-    const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
-    expect(uploaded.status).toBe(201);
-    const { resume } = (await uploaded.json()) as { resume: { id: string } };
-    state.failHistoryAfterWrite = true;
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "bava");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "bava.pdf", { type: PDF }),
+    "bava.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(uploaded.status).toBe(201);
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+  state.failHistoryAfterWrite = true;
 
-    const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        profileId: "bava",
-        displayName: "Bava",
-        headline: "Engineer",
-        summary: "Summary",
-        skills: ["TypeScript"],
-      }),
-    });
-    expect(published.status).toBe(500);
-    expect(await published.json()).toMatchObject({
-      code: "RESUME_STORAGE_COMMIT_FAILED",
-      restored: true,
-    });
-
-    const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
-      resumes: Array<{ id: string; status: string }>;
-    };
-    expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
-    const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
-      resumes: unknown[];
-    }>();
-    expect(feed.resumes).toEqual([]);
-    expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "bava",
+      displayName: "Bava",
+      headline: "Engineer",
+      summary: "Summary",
+      skills: ["TypeScript"],
+    }),
   });
+  expect(published.status).toBe(500);
+  expect(await published.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+
+  const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
+    resumes: Array<{ id: string; status: string }>;
+  };
+  expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
+  const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
+    resumes: unknown[];
+  }>();
+  expect(feed.resumes).toEqual([]);
+  expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
+});
 
 
 it("rolls back a resume upload when the index write persists and then rejects", async () => {
@@ -379,7 +379,9 @@ it("restores the private original and published state when resume deletion fails
   const records = (await (await call(env, "/api/admin/resumes")).json()) as {
     resumes: Array<{ id: string; status: string }>;
   };
-  expect(records.resumes).toContainEqual(expect.objectContaining({ id: resume.id, status: "approved" }));
+  expect(records.resumes).toContainEqual(
+    expect.objectContaining({ id: resume.id, status: "approved" }),
+  );
   expect(await bucket.get(`private-admin/resumes/files/${resume.id}`)).not.toBeNull();
   const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
     resumes: Array<{ id: string }>;
