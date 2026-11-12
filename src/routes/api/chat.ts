@@ -214,10 +214,10 @@ export const Route = createFileRoute("/api/chat")({
         if (!upstream.ok || !upstream.body) {
           cleanupRequest();
           const status = upstream.status || 502;
-          const upstreamText = await upstream.text().catch(() => "");
+          await upstream.body?.cancel().catch(() => undefined);
           // Avoid returning raw provider errors that may contain implementation details.
           const profileScopeRejected =
-            provider.name === "jarvis" && status === 403 && /profile/i.test(upstreamText);
+            provider.name === "jarvis" && status === 403;
           const message = profileScopeRejected
             ? "This site's JARVIS key is not allowed to answer for this profile. Showing profile answers instead."
             : status === 401 || status === 403
