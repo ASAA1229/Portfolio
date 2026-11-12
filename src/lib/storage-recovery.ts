@@ -205,7 +205,11 @@ export async function runStorageTransaction(
   }
 
   await locked(bucket, async () => {
-    await recoverUnsafe(bucket);
+    try {
+      await recoverUnsafe(bucket);
+    } catch (error) {
+      throw new StorageTransactionError(false, error);
+    }
 
     const journal: Journal = {
       version: 1,
