@@ -736,12 +736,14 @@ async function commitResumeState(
       contentType: "application/json; charset=utf-8",
     },
     ...(history
-      ? [{
-          key: historyKey(history.after.profileId),
-          operation: "put" as const,
-          value: JSON.stringify(history.after),
-          contentType: "application/json; charset=utf-8",
-        }]
+      ? [
+          {
+            key: historyKey(history.after.profileId),
+            operation: "put" as const,
+            value: JSON.stringify(history.after),
+            contentType: "application/json; charset=utf-8",
+          },
+        ]
       : []),
     ...additionalMutations,
   ];
