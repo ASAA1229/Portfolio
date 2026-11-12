@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { PageBody } from "@/components/SitePrimitives";
 import { PublishedResumePanel } from "@/components/PublishedResumePanel";
-import { usePublishedProfileResume } from "@/lib/published-resume";
+import { usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
 import { Reveal } from "@/components/Reveal";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
@@ -20,11 +20,38 @@ export const Route = createFileRoute("/projects")({
     ),
   component: Projects,
 });
+
+function ShowcaseProject({ project, index }: { project: (typeof PROJECT_PAGES)[number]; index: number }) {
+  const cover = usePublishedProjectImages("abhishek", project.slug)[0];
+  return (
+    <Reveal delay={index * 0.05}>
+      <Link to="/projects/$slug" params={{ slug: project.slug }} className="showcase-project">
+        <div className={`showcase-art showcase-art-${index} relative overflow-hidden`}>
+          {cover ? (
+            <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <ProjectVisual index={index + 1} />
+          )}
+          <span className="relative z-10">{project.category}</span>
+        </div>
+        <div className="showcase-copy">
+          <p>{project.badge}</p>
+          <h3>{project.title}</h3>
+          <span>{project.overview}</span>
+          <TechnologyList items={project.tech} />
+          <ArrowUpRight className="showcase-arrow" />
+        </div>
+      </Link>
+    </Reveal>
+  );
+}
+
 function Projects() {
   const publishedResume = usePublishedProfileResume("abhishek");
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   if (pathname !== "/projects" && pathname !== "/projects/") return <Outlet />;
   const featured = PROJECT_PAGES[0];
+  const featuredCover = usePublishedProjectImages("abhishek", featured!.slug)[0];
   return (
     <>
       <section className="chapter-hero projects-hero">
@@ -65,9 +92,13 @@ function Projects() {
         {!publishedResume?.structuredSections?.projects?.length && (
           <>
             <section className="featured-project">
-              <div className="featured-project-art">
-                <ProjectVisual index={0} />
-                <span>FEATURED PRODUCTION · 01</span>
+              <div className="featured-project-art relative overflow-hidden">
+                {featuredCover ? (
+                  <img src={featuredCover.src} alt={featuredCover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+                ) : (
+                  <ProjectVisual index={0} />
+                )}
+                <span className="relative z-10">FEATURED PRODUCTION · 01</span>
               </div>
               <div className="featured-project-copy">
                 <p className="chapter-kicker">{featured!.badge}</p>
@@ -87,25 +118,7 @@ function Projects() {
             </div>
             <div className="project-showcase">
               {PROJECT_PAGES.slice(1).map((project, i) => (
-                <Reveal key={project.slug} delay={i * 0.05}>
-                  <Link
-                    to="/projects/$slug"
-                    params={{ slug: project.slug }}
-                    className="showcase-project"
-                  >
-                    <div className={`showcase-art showcase-art-${i}`}>
-                      <ProjectVisual index={i + 1} />
-                      <span>{project.category}</span>
-                    </div>
-                    <div className="showcase-copy">
-                      <p>{project.badge}</p>
-                      <h3>{project.title}</h3>
-                      <span>{project.overview}</span>
-                      <TechnologyList items={project.tech} />
-                      <ArrowUpRight className="showcase-arrow" />
-                    </div>
-                  </Link>
-                </Reveal>
+                <ShowcaseProject key={project.slug} project={project} index={i} />
               ))}
             </div>
             <p className="mt-8 max-w-3xl text-xs leading-6 text-muted-foreground">
