@@ -414,8 +414,8 @@ Remaining: execute the new tests after validation is resumed; verify every route
 - Multi-object resume, image and backup restore/migration writes now persist snapshots and a write-ahead journal before applying target mutations.
 - Pending applying journals can replay snapshots after a failed compensation or interrupted request.
 - Admin → Backup & Restore exposes recovery status and a confirmation-gated recovery action.
-- Same-isolate overlapping operations are serialized.
-- Distributed Worker concurrency, remaining resume file cleanup sequences and hosted R2 semantics remain open. The local queue is not a distributed lock/CAS primitive.
+- Journaled write phases are serialized per bucket object within one isolate. However, handlers can prepare stale read-modify-write snapshots before entering the queue, so lost-update protection is not complete.
+- Distributed Worker concurrency, remaining non-journaled paths and hosted R2 semantics remain open. The local queue is not a distributed lock/CAS primitive.
 
 ## PORT-E04 / PORT-US-046 — admin authentication/session hardening increment (2026-11-12)
 
