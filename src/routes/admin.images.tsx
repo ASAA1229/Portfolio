@@ -111,7 +111,7 @@ function ImageManager() {
       for (const image of publicImages) {
         if (typeof image.id !== "string" || typeof image.profileId !== "string") continue;
         if (image.slot === "portrait") latestPortraitByProfile.set(image.profileId, image.id);
-        else if (image.slot === "gallery") selected.add(image.id);
+        else if (image.slot === "gallery" || image.slot === "project") selected.add(image.id);
       }
       for (const id of latestPortraitByProfile.values()) selected.add(id);
       setActiveImageIds(selected);
