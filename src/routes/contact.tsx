@@ -6,6 +6,7 @@ import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
 import { CONTACT } from "@/lib/portfolio-data";
 import { usePublishedProfileResume } from "@/lib/published-resume";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 
 export const Route = createFileRoute("/contact")({
   head: () =>
@@ -18,7 +19,8 @@ export const Route = createFileRoute("/contact")({
 });
 function Contact() {
   const published = usePublishedProfileResume("abhishek");
-  const email = published?.contact?.email || CONTACT.email;
+  const { contact: cmsContact } = useAbhishekContent();
+  const email = published?.contact?.email || cmsContact.email || CONTACT.email;
   return (
     <>
       <section className="chapter-hero contact-hero">
