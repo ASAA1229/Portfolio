@@ -83,7 +83,7 @@ function Home() {
                 <SocialLinks github={content.contact.github} linkedin={content.contact.linkedin} />
               </div>
               <p className="mt-7 flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="size-3 text-violet" /> Hyderabad, India{" "}
+                <MapPin className="size-3 text-violet" /> {content.contact.location || "Hyderabad, India"}{" "}
                 <span className="mx-1">/</span> B.Tech IT · 2026
               </p>
             </div>
@@ -137,10 +137,9 @@ function Home() {
           <h2 className="text-4xl font-semibold">Beyond the interface.</h2>
           <div>
             <p className="max-w-xl text-sm leading-7 text-muted-foreground">
-              From enterprise finance workflows at Paves Technologies to AI product interfaces at
-              Bilvantis, I focus on responsive software, clear communication and purposeful
-              integration. My foundation is a B.Tech in Information Technology from TKR College of
-              Engineering & Technology.
+              {content.story ||
+                content.summary ||
+                "From enterprise finance workflows to AI product interfaces, I focus on responsive software, clear communication and purposeful integration."}
             </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <Link to="/experience">
