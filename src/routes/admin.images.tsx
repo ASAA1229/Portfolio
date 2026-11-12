@@ -255,7 +255,8 @@ function ImageManager() {
       await readApiResponse<{ error?: string }>(response);
       await loadImages();
       setPreviewVersion((value) => value + 1);
-      setMessage("Image file replaced. The previous file is kept privately until cleanup.");
+      setVersionsByImage({});
+      setMessage("Image file replaced. The previous file is available in version history until cleanup.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not replace image.");
     } finally {
@@ -314,7 +315,13 @@ function ImageManager() {
       });
       await readApiResponse<{ error?: string; restored?: boolean }>(response);
       await loadImages();
-      setVersionsByImage({});
+      const historyResponse = await fetch(`/api/admin/images/${id}/versions`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const history = await readApiResponse<{ versions?: ImageVersion[] }>(historyResponse);
+      setVersionsByImage((current) => ({ ...current, [id]: history.versions ?? [] }));
+      setExpandedVersions((current) => new Set(current).add(id));
       setPreviewVersion((value) => value + 1);
       setMessage("Previous image version restored. The image that was active before restoration is retained in version history.");
     } catch (reason) {
