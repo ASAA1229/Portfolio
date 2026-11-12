@@ -985,3 +985,11 @@ As the owner, I want every public image and resume resource to be managed indepe
 - Added test source for weak signing secrets, protected admin routes, CSRF rejection, session renewal and malformed epoch fail-closed behavior.
 
 **Still open:** the login throttle is in-memory per isolate and is not a distributed rate limiter; production secret rotation and deployment configuration need owner-controlled verification; the complete route/mutation inventory and production-like session lifecycle still need acceptance. No tests or security scans were run.
+
+
+### PORT-US-045 follow-up — resume binary upload and delete transaction (2026-11-12)
+
+- Resume upload now journals the private original and resume index together; an ambiguous index failure restores the previous index and removes the unreferenced upload.
+- Resume deletion now includes index, approved feed, publish-history redaction and private original deletion in one journaled transaction. If original deletion persists and then rejects, recovery restores the original and prior published state.
+- Added failure-injection test source for ambiguous upload-index persistence and ambiguous original-file deletion.
+- Tests remain authored only. Distributed concurrency and hosted R2 verification remain open.
