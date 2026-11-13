@@ -2,6 +2,10 @@
 
 A cinematic, Netflix-inspired, multi-profile portfolio and owner-managed content platform for **Abhishek**, **Amulya (Ammu)**, **Anjini (Bava)** and **Sai (Darling)**.
 
+## Project health
+
+**Current release status: NO-GO.** The latest CI build succeeds, but strict TypeScript validation still fails (15 diagnostics across 5 files); tests, lint and artifact verification have not run on that candidate. See [authoritative project status](docs/PROJECT_STATUS.md), [remaining stories](docs/USER_STORIES.md) and [release gates](docs/RELEASE_READINESS.md).
+
 ## What it does
 - Presents four profile-specific public experiences with shared navigation, design language and reusable sections.
 - Supports home, about, skills, projects and project details, experience, education, certifications and contact.
