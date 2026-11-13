@@ -151,6 +151,29 @@ function privateNotFound(): Response {
   });
 }
 
+// Apply a consistent browser-security boundary to every admin page and API
+// response, including successful JSON responses and early auth failures.
+function withAdminSecurityHeaders(response: Response, requestUrl: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store, max-age=0");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  headers.set("referrer-policy", "no-referrer");
+  headers.set("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("cross-origin-opener-policy", "same-origin");
+  headers.set("x-frame-options", "DENY");
+  // A separate CSP policy composes restrictively with any application CSP.
+  headers.append("content-security-policy", "frame-ancestors 'none'");
+  if (new URL(requestUrl).protocol === "https:") {
+    headers.set("strict-transport-security", "max-age=31536000");
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 // Short public caching for published (already-approved) content. Unpublishing or
 // replacing takes effect within this window; private/admin responses stay no-store.
 const PUBLIC_FEED_CACHE = "public, max-age=0, must-revalidate";
@@ -2802,9 +2825,13 @@ export default {
     const method = request.method;
     const auditRequest = new Request(request.url, { method });
     const response = await routeRequest(request, env, ctx);
+    const securedResponse = isAdminPath(normalizedPath(request))
+      ? withAdminSecurityHeaders(response, request.url)
+      : response;
     // Unauthenticated probes return a private 404 and are not worth an audit entry.
-    if (response.status !== 404) await auditAdminMutation(auditRequest, env, response);
-    return response;
+    if (securedResponse.status !== 404)
+      await auditAdminMutation(auditRequest, env, securedResponse);
+    return securedResponse;
   },
 };
 
