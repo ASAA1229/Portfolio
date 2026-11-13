@@ -1,11 +1,12 @@
 import type { ObjectBucket } from "@/lib/storage-adapter";
+import { StorageLeaseTimeoutError, withStorageLease } from "@/lib/storage-lock";
 
 /**
  * Durable write-ahead recovery for multi-object storage changes.
  *
  * A pending journal survives request/process failure and is replayed before the
- * next transaction or by the owner recovery endpoint. The in-process queue only
- * serializes one isolate; it is not a distributed R2 lock.
+ * next transaction or by the owner recovery endpoint. The in-process queue serializes
+ * one isolate; a conditional-write lease (storage-lock.ts) serializes isolates on R2.
  */
 export type RecoveryBucket = ObjectBucket;
 
@@ -159,7 +160,9 @@ async function locked<T>(bucket: RecoveryBucket, work: () => Promise<T>): Promis
   await previous.catch(() => undefined);
 
   try {
-    return await work();
+    // The in-process queue orders this isolate; the lease orders other isolates when the
+    // provider enforces conditional writes (R2). See storage-lock.ts.
+    return await withStorageLease(bucket, work);
   } finally {
     release();
   }
@@ -195,95 +198,101 @@ export async function runStorageTransaction(
     throw new Error("Storage transaction contains invalid or duplicate keys.");
   }
 
-  await locked(bucket, async () => {
-    try {
-      await recoverUnsafe(bucket);
-    } catch (error) {
-      throw new StorageTransactionError(false, error);
-    }
-
-    const journal: Journal = {
-      version: 1,
-      id: crypto.randomUUID(),
-      state: "preparing",
-      createdAt: new Date().toISOString(),
-      snapshots: [],
-    };
-
-    // Persist intent and immutable snapshots before any target object is changed.
-    try {
-      for (let index = 0; index < mutations.length; index += 1) {
-        const key = mutations[index]!.key;
-        const existing = await bucket.get(key);
-
-        if (existing) {
-          const snapshotKey = `${ROOT}${journal["id"]}/snapshot-${index}`;
-          journal["snapshots"].push({
-            key,
-            existed: true,
-            snapshotKey,
-            ...(existing.httpMetadata?.contentType
-              ? { contentType: existing.httpMetadata.contentType }
-              : {}),
-          });
-          await writeJournal(bucket, journal);
-          await bucket.put(snapshotKey, await existing.arrayBuffer(), {
-            ...(existing.httpMetadata?.contentType
-              ? { httpMetadata: { contentType: existing.httpMetadata.contentType } }
-              : {}),
-          });
-        } else {
-          journal["snapshots"].push({ key, existed: false });
-          await writeJournal(bucket, journal);
-        }
-      }
-
-      journal["state"] = "applying";
-      await writeJournal(bucket, journal);
-    } catch (error) {
-      // Target objects are not mutated until the applying marker is persisted.
-      // A failed preparation is therefore safe to report as unchanged.
+  try {
+    await locked(bucket, async () => {
       try {
         await recoverUnsafe(bucket);
-      } catch (recoveryError) {
-        console.error("Storage journal preparation cleanup remains pending.", recoveryError);
-      }
-      throw new StorageTransactionError(true, error);
-    }
-
-    try {
-      for (const mutation of mutations) {
-        if (mutation.operation === "delete") {
-          await bucket.delete(mutation.key);
-        } else {
-          await bucket.put(mutation.key, mutation.value, {
-            ...(mutation.contentType
-              ? { httpMetadata: { contentType: mutation.contentType } }
-              : {}),
-          });
-        }
+      } catch (error) {
+        throw new StorageTransactionError(false, error);
       }
 
-      journal["state"] = "committed";
-      await writeJournal(bucket, journal);
-    } catch (error) {
-      let restored = false;
+      const journal: Journal = {
+        version: 1,
+        id: crypto.randomUUID(),
+        state: "preparing",
+        createdAt: new Date().toISOString(),
+        snapshots: [],
+      };
+
+      // Persist intent and immutable snapshots before any target object is changed.
       try {
-        const recovery = await recoverUnsafe(bucket);
-        // A provider may persist the committed marker and then reject its response.
-        if (recovery.state === "committed") return;
-        restored = recovery.recovered;
-      } catch (recoveryError) {
-        console.error("Durable storage recovery remains pending.", recoveryError);
-      }
-      throw new StorageTransactionError(restored, error);
-    }
+        for (let index = 0; index < mutations.length; index += 1) {
+          const key = mutations[index]!.key;
+          const existing = await bucket.get(key);
 
-    // A committed journal is cleanup-only; retry cleanup later if needed.
-    try {
-      await cleanup(bucket, journal);
-    } catch (error) {
-      console.error("Committed storage transaction needs snapshot cleanup.", error);
-    }
-  });
+          if (existing) {
+            const snapshotKey = `${ROOT}${journal["id"]}/snapshot-${index}`;
+            journal["snapshots"].push({
+              key,
+              existed: true,
+              snapshotKey,
+              ...(existing.httpMetadata?.contentType
+                ? { contentType: existing.httpMetadata.contentType }
+                : {}),
+            });
+            await writeJournal(bucket, journal);
+            await bucket.put(snapshotKey, await existing.arrayBuffer(), {
+              ...(existing.httpMetadata?.contentType
+                ? { httpMetadata: { contentType: existing.httpMetadata.contentType } }
+                : {}),
+            });
+          } else {
+            journal["snapshots"].push({ key, existed: false });
+            await writeJournal(bucket, journal);
+          }
+        }
+
+        journal["state"] = "applying";
+        await writeJournal(bucket, journal);
+      } catch (error) {
+        // Target objects are not mutated until the applying marker is persisted.
+        // A failed preparation is therefore safe to report as unchanged.
+        try {
+          await recoverUnsafe(bucket);
+        } catch (recoveryError) {
+          console.error("Storage journal preparation cleanup remains pending.", recoveryError);
+        }
+        throw new StorageTransactionError(true, error);
+      }
+
+      try {
+        for (const mutation of mutations) {
+          if (mutation.operation === "delete") {
+            await bucket.delete(mutation.key);
+          } else {
+            await bucket.put(mutation.key, mutation.value, {
+              ...(mutation.contentType
+                ? { httpMetadata: { contentType: mutation.contentType } }
+                : {}),
+            });
+          }
+        }
+
+        journal["state"] = "committed";
+        await writeJournal(bucket, journal);
+      } catch (error) {
+        let restored = false;
+        try {
+          const recovery = await recoverUnsafe(bucket);
+          // A provider may persist the committed marker and then reject its response.
+          if (recovery.state === "committed") return;
+          restored = recovery.recovered;
+        } catch (recoveryError) {
+          console.error("Durable storage recovery remains pending.", recoveryError);
+        }
+        throw new StorageTransactionError(restored, error);
+      }
+
+      // A committed journal is cleanup-only; retry cleanup later if needed.
+      try {
+        await cleanup(bucket, journal);
+      } catch (error) {
+        console.error("Committed storage transaction needs snapshot cleanup.", error);
+      }
+    });
+  } catch (error) {
+    // Could not take the cross-isolate lease: nothing was mutated.
+    if (error instanceof StorageLeaseTimeoutError) throw new StorageTransactionError(true, error);
+    throw error;
+  }
 }

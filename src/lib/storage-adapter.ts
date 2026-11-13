@@ -13,18 +13,22 @@
 export interface StoredObjectBody {
   arrayBuffer(): Promise<ArrayBuffer>;
   httpMetadata?: { contentType?: string | undefined } | undefined;
+  /** Opaque version tag when the provider supplies one (R2 etag); used for conditional writes. */
+  etag?: string | undefined;
 }
 
 export interface StoredObject extends StoredObjectBody {
   json<T>(): Promise<T>;
   size?: number | undefined;
-  /** Opaque version tag when the provider supplies one (R2 etag). */
-  etag?: string | undefined;
 }
 
 export type PutOptions = {
   httpMetadata?: { contentType?: string | undefined };
-  /** Conditional write (R2 onlyIf subset). Providers that cannot honour it must reject, never ignore. */
+  /**
+   * Conditional write (R2 onlyIf subset). A provider that enforces it resolves `null` when
+   * the precondition fails (R2 semantics). Providers that cannot enforce it (local disk,
+   * memory) resolve normally; callers must then rely on single-process serialization.
+   */
   onlyIf?: { etagMatches?: string; etagDoesNotMatch?: string };
 };
 
@@ -58,7 +62,7 @@ export interface R2BucketLike {
   put(
     key: string,
     value: ArrayBuffer | string | Uint8Array,
-    options?: { httpMetadata?: { contentType?: string } },
+    options?: PutOptions,
   ): Promise<unknown>;
   delete(key: string): Promise<unknown>;
   list?(options: { prefix?: string; cursor?: string; limit?: number }): Promise<{
