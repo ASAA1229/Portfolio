@@ -3,12 +3,12 @@
 **Updated:** 2026-11-13  
 **Repository:** `ASAA1229/Portfolio`  
 **Working branch:** `new` only  
-**Observed source baseline:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`  
+**Latest observed candidate:** `b30436b3a8f4595b7d9780b849867c353f328b53`  
 **Current status source:** [PROJECT_STATUS.md](PROJECT_STATUS.md)  
 **Release disposition:** NOT READY / NOT APPROVED  
-**Validation disposition:** PAUSED by owner direction
+**Validation disposition:** ACTIVE on `new` under the ASAA maturity initiative
 
-This file is the current actionable story index. The historical story/roadmap appendix in [REQUIREMENTS.md](REQUIREMENTS.md) is retained for traceability; historical status statements do not override this file's current status and the execution constraints above.
+This file is the current actionable story index. The historical story/roadmap appendix in [REQUIREMENTS.md](REQUIREMENTS.md) is retained for traceability; historical status statements do not override this file's current status. Validation is authorized on `new`; merges, production deployment, Nexus publication and release remain separately gated.
 
 ## Status vocabulary
 
@@ -26,13 +26,13 @@ Implementation is not acceptance. ACCEPTED requires evidence for every criterion
 | P0 | PORT-US-049 Admin control room and unified navigation | NEEDS TESTING |
 | P0 | PORT-US-050 Admin-managed resources drive public profiles | NEEDS TESTING |
 | P0 | PORT-US-051 Resource lifecycle integrity | NEEDS TESTING |
-| P0 | PORT-US-052 Exact-candidate engineering and E2E acceptance | TEST FAILED |
+| P0 | PORT-US-052 Exact-candidate engineering and E2E acceptance | TEST FAILED — latest CI has 15 type errors; tests skipped |
 | P1 | PORT-US-034 / PORT-US-037 JARVIS integration | NEEDS TESTING |
 | P1 | PORT-US-044 SEO and discoverability | NEEDS TESTING |
 | P1 | PORT-US-047 Visual customization | NEEDS TESTING |
 | P1 | PORT-US-048 Four-profile content and asset sign-off | OWNER ACCEPTANCE PENDING |
 | P1 | PORT-US-053 Accessibility, responsiveness and performance | NEEDS TESTING |
-| P1 | PORT-US-054 CI/CD and artifact assurance | TEST FAILED |
+| P1 | PORT-US-054 CI/CD and artifact assurance | TEST FAILED — artifact verification skipped |
 | P1 | PORT-US-055 Production operations and rollback | PLANNED |
 
 ---
@@ -291,4 +291,4 @@ A story closes only when every acceptance criterion has exact-candidate evidence
 | PORT-US-054 | P1 | Actions/Jenkins/artifact tooling exist; run #617 fails | PORT-GAP-001; Jenkins agent | Exact GitHub run and actual Jenkins/read-back | TEST FAILED |
 | PORT-US-055 | P1 | Ops and recovery docs/tooling exist | PORT-GAP-002/010/011 | Staging and DR/rollback rehearsal | PLANNED |
 
-Current statuses and maturity scores are authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md). Historical dated implementation records remain in [REQUIREMENTS.md](REQUIREMENTS.md).
+Latest candidate CI: [run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), 15 TypeScript diagnostics in 5 files; build and SBOM pass, tests/lint/artifact checks skipped. Fix the remaining Admin route literal and backup/recovery test contracts before accepting PORT-US-052. Current statuses and maturity scores are authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md). Historical dated implementation records remain in [REQUIREMENTS.md](REQUIREMENTS.md).
