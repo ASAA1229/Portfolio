@@ -14,20 +14,20 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md) · Release gate: [RELEASE
 
 ## Latest exact-head CI evidence
 
-[Run #617](https://github.com/ASAA1229/Portfolio/actions/runs/43417280389), commit 3eed0529535221f328bae8f99bcf48bcd4be9289:
+[Latest run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), candidate `b30436b3a8f4595b7d9780b849867c353f328b53`:
 
 | Check | Result |
 |---|---|
 | npm ci | PASS |
 | CycloneDX SBOM | PASS |
 | Production build | PASS |
-| Typecheck | FAIL — 89 diagnostics / 10 files |
+| Typecheck | FAIL — 15 diagnostics / 5 files |
 | ESLint | SKIPPED |
 | Vitest + Node tests | SKIPPED |
 | Artifact verification | SKIPPED |
 | Artifact upload | SKIPPED |
 
-The preceding source commit run #43362744141 also failed typecheck. No successful exact-head full pipeline is evidenced.
+Previous baseline run #617 had 89 diagnostics across 10 files. The latest candidate has reduced the reported errors to 15 across 5 files, but still fails. Remaining error groups: Admin route literals (`/admin/` vs `/admin`), backup test mock shape, backup `StorageMutation` content type, and `RecoveryBucket.get` mock return type (repeated call-site incompatibilities). Lint, unit/integration tests and artifact verification remain skipped. No successful exact-head full pipeline is evidenced.
 
 ## Required test layers
 
