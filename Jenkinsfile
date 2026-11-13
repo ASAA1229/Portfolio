@@ -34,6 +34,8 @@ pipeline {
         bat 'node --version'
         bat 'npm --version'
         bat 'npm ci'
+        bat 'npm run check:pm'
+        bat 'npm run audit:deps'
         bat 'npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json'
       }
     }
@@ -41,8 +43,9 @@ pipeline {
       steps {
         bat 'npm run typecheck'
         bat 'npm run lint'
-        bat 'npm run build'
         bat 'npm test'
+        bat 'npm run build'
+        bat 'npm run check:budget'
       }
     }
     stage('Package and verify integrity') {

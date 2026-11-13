@@ -36,17 +36,23 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Package manager authority (npm)
+        run: npm run check:pm
+      - name: Dependency vulnerability gate (high or critical fails)
+        run: npm run audit:deps
       - name: Generate CycloneDX dependency SBOM
         continue-on-error: true # Keep functional/security tests running if npm cannot create a PURL for the private root package.
         run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
-      - name: Build
-        run: npm run build
       - name: Type check
         run: npm run typecheck
       - name: Lint
         run: npm run lint
       - name: Tests
         run: npm test
+      - name: Build
+        run: npm run build
+      - name: Bundle size budget
+        run: npm run check:budget
       - name: Upload dependency SBOM
         uses: actions/upload-artifact@v4
         with:

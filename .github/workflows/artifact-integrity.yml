@@ -41,16 +41,22 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Package manager authority (npm)
+        run: npm run check:pm
+      - name: Dependency vulnerability gate (high or critical fails)
+        run: npm run audit:deps
       - name: Generate CycloneDX dependency SBOM
         run: npm sbom --sbom-format=cyclonedx > portfolio-dependencies.cdx.json
-      - name: Build
-        run: npm run build
       - name: Type check
         run: npm run typecheck
       - name: Lint
         run: npm run lint
       - name: Tests
         run: npm test
+      - name: Build
+        run: npm run build
+      - name: Bundle size budget
+        run: npm run check:budget
       - name: Create and verify SHA-256 build manifest
         shell: bash
         env:
@@ -121,4 +127,38 @@ jobs:
           name: portfolio-release-failure-${{ github.run_number }}
           path: customer-release-report.json
           if-no-files-found: error
+          retention-days: 14
+
+  browser-audit:
+    # Advisory: real-browser axe (with contrast), reflow, Web Vitals and HTTP status audit of the
+    # production build served locally. Findings are uploaded; they do not block the integrity job.
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build for Node (local audit target)
+        run: NITRO_PRESET=node-server npm run build
+      - name: Serve build and audit
+        env:
+          BROWSER_CHANNEL: chrome
+        run: |
+          PORT=4173 node .output/server/index.mjs &
+          for i in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          node scripts/browser-audit.mjs http://localhost:4173 browser-audit-report.json
+      - name: Upload audit report
+        if: always() && hashFiles('browser-audit-report.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-audit-${{ github.run_number }}
+          path: browser-audit-report.json
           retention-days: 14

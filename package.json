@@ -3,6 +3,10 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -13,7 +17,12 @@
     "format": "prettier --write .",
     "test": "vitest run && node --test scripts/on-site-change-detection.test.mjs",
     "test:watch": "vitest",
-    "audit:images": "node scripts/audit-public-images.mjs"
+    "audit:images": "node scripts/audit-public-images.mjs",
+    "audit:deps": "npm audit --audit-level=high",
+    "check:pm": "node scripts/check-package-manager.mjs",
+    "check:budget": "node scripts/bundle-budget.mjs",
+    "check:browser": "node scripts/browser-audit.mjs",
+    "verify": "npm run check:pm && npm run typecheck && npm run lint && npm test && npm run build && npm run check:budget"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -71,7 +80,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -96,7 +105,7 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "8.1.5",
+    "vite": "8.3.8",
     "vitest": "^4.1.10"
   },
   "version": "0.1.0"
