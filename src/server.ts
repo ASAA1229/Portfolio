@@ -2785,7 +2785,7 @@ function checkRuntimeConfig(env: unknown): void {
     console.info("OPENAI_API_KEY is set but unused: paid fallback is not enabled.");
   }
   if (optionalFeaturesUnavailable.length) {
-    console.info("Optional portfolio features are not configured; core pages and local admin remain available.", {
+    console.info("Optional portfolio features are not configured; only the listed features are unavailable.", {
       unavailable: optionalFeaturesUnavailable,
     });
   }
