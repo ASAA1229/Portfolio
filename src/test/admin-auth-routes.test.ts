@@ -58,6 +58,13 @@ describe("admin authentication route lifecycle", () => {
     });
 
     expect(login.status).toBe(200);
+    expect(login.headers.get("cache-control")).toContain("no-store");
+    expect(login.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(login.headers.get("x-robots-tag")).toContain("noindex");
+    expect(login.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(login.headers.get("permissions-policy")).toContain("camera=()");
+    expect(login.headers.get("x-frame-options")).toBe("DENY");
+    expect(login.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
     const setCookie = login.headers.get("set-cookie");
     expect(setCookie).toContain("portfolio_admin_session=");
     const cookie = setCookie!.split(";")[0]!;
@@ -163,6 +170,8 @@ describe("admin authentication route lifecycle", () => {
     expect(response.status).toBe(404);
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(response.headers.get("x-robots-tag")).toContain("noindex");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
   });
 
   it("fails closed when the stored session epoch is malformed", async () => {
