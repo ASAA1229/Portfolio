@@ -33,7 +33,7 @@ The utility is read-only: create a baseline from a verified release, transfer it
 Quarantine/recovery commands create evidence records only. They do not move/delete artifacts, change branches, deploy, promote, publish or roll back. Preserve evidence, record operator/reason/fingerprints, validate a different known-good candidate, obtain explicit owner approval, then follow the separate manual rollback procedure. Record approval reference, operator, target identity, execution time and outcome.
 
 ## Evidence
-A commit/PR does not prove deployment readiness. Record exact SHA, CI/Jenkins run, build/test/typecheck/lint results, artifact identity, environment, storage checks, backup/restore evidence and owner approval. Validation is currently paused; historical reports are traceability only.
+A commit/PR does not prove deployment readiness. Record exact SHA, CI/Jenkins run, build/test/typecheck/lint results, artifact identity, environment, storage checks, backup/restore evidence and owner approval. Validation is authorized on `new` under the ASAA maturity initiative; production operations, deployment, Nexus publication and release remain separately gated.
 
 
 ## Current release disposition — 2026-11-13
@@ -51,4 +51,4 @@ Release remains blocked until all items in [Release Readiness](RELEASE_READINESS
 - Artifact provenance, SBOM, checksums, policy authenticity, package verification and rollback instructions are recorded.
 - Owner completes four-profile content/asset sign-off and separately approves release.
 
-Validation is authorized on `new` for this maturity initiative. This does not authorize production probing, deployment, Nexus publication or release. Latest exact-head run #617 failed typecheck; see [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
+Validation is authorized on `new` for this maturity initiative. This does not authorize production probing, deployment, Nexus publication or release. Latest observed candidate run [#43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801) failed typecheck with 15 diagnostics in 5 files; build and SBOM passed, lint/tests/artifact verification skipped. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
