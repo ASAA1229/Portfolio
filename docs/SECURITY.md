@@ -29,3 +29,18 @@ Validate paths, content types, sizes, IDs and file signatures. SHA-256 detects i
 
 ## Asset rights
 Preserve dependency licenses/notices. Use owner-provided or approved portraits/media. Do not label generated/stylized portraits as authentic photographs. Review terms before redistribution or reuse.
+
+
+## Open production-security acceptance — 2026-11-13
+
+The presence of authentication, validation and security-control source code is not production acceptance. Before release, verify on the exact candidate and production-like environment:
+
+- Admin authentication on every page, loader, action and API; direct URL/API bypass attempts; owner-only authorization and profile/resource scope.
+- Session creation, secure cookie attributes, expiry, revocation, secret rotation and behavior when required secret/epoch configuration is absent or malformed.
+- Shared/distributed login throttling across multiple instances; process-local throttling alone is insufficient.
+- CSRF/same-origin enforcement, request-size limits, upload signature/content-type/size checks, canonical path handling and symlink/path traversal defenses.
+- Public/private separation for drafts, resume originals, image originals, backups, audit records, AI context and all four profile IDs.
+- Production JARVIS gateway authentication, HTTPS, timeouts, cancellation, safe error handling and explicit paid OpenAI fallback opt-in.
+- Dependency vulnerability triage, SBOM review, signing-key custody and independent trust of release signatures/digests.
+
+Record test evidence, environment and exact commit SHA. Do not run security scans or production probes while the owner-directed validation pause remains active.
