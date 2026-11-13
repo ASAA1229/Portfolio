@@ -11,17 +11,19 @@ import {
   validateBackup,
   type BackupStorage,
 } from "@/lib/admin-backup";
+import type { StoredObject } from "@/lib/storage-adapter";
 
 const RESUME_ID = "resume-123456";
 const RESUME_KEY = `private-admin/resumes/files/${RESUME_ID}`;
 
 function storageWithResumeIndex(): BackupStorage {
   return {
-    get: vi.fn(async (key: string) => {
+    get: vi.fn(async (key: string): Promise<StoredObject | null> => {
       if (key !== RESUME_INDEX_KEY) return null;
+      const bytes = new TextEncoder().encode(JSON.stringify([{ id: RESUME_ID }]));
       return {
-        json: async () => [{ id: RESUME_ID }],
-        arrayBuffer: async () => new TextEncoder().encode("[]").buffer,
+        json: async <T>() => JSON.parse(new TextDecoder().decode(bytes)) as T,
+        arrayBuffer: async () => bytes.slice().buffer,
       };
     }),
     put: vi.fn(async () => undefined),

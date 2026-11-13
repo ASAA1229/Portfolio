@@ -54,28 +54,33 @@ function Certifications() {
             </div>
             <div className="certificate-archive">
               {certs.length === 0 ? (
-                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                <p
+                  role="status"
+                  className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+                >
                   No certifications have been published yet.
                 </p>
-              ) : certs.map(([title, issuer], i) => (
-                <Reveal key={title} delay={i * 0.035}>
-                  <article className="certificate-item">
-                    <div className="certificate-art" aria-hidden="true">
-                      <span className="certificate-stamp">
-                        <Award />
-                      </span>
-                      <span>LEARNING ARCHIVE</span>
-                      <i>0{i + 1}</i>
-                    </div>
-                    <div className="certificate-copy">
-                      <p>{issuer}</p>
-                      <h2>{title}</h2>
-                      <span>Credential details not supplied</span>
-                    </div>
-                    <Award className="certificate-award" aria-hidden="true" />
-                  </article>
-                </Reveal>
-              ))}
+              ) : (
+                certs.map(([title, issuer], i) => (
+                  <Reveal key={title} delay={i * 0.035}>
+                    <article className="certificate-item">
+                      <div className="certificate-art" aria-hidden="true">
+                        <span className="certificate-stamp">
+                          <Award />
+                        </span>
+                        <span>LEARNING ARCHIVE</span>
+                        <i>0{i + 1}</i>
+                      </div>
+                      <div className="certificate-copy">
+                        <p>{issuer}</p>
+                        <h2>{title}</h2>
+                        <span>Credential details not supplied</span>
+                      </div>
+                      <Award className="certificate-award" aria-hidden="true" />
+                    </article>
+                  </Reveal>
+                ))
+              )}
             </div>
             <section className="cert-recognition">
               <div>

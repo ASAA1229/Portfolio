@@ -63,47 +63,52 @@ function Experience() {
             </section>
             <div id="timeline" className="career-timeline">
               {missions.length === 0 ? (
-                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                <p
+                  role="status"
+                  className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+                >
                   No experience entries have been published yet.
                 </p>
-              ) : missions.map((job, i) => (
-                <Reveal key={job.id} delay={i * 0.08}>
-                  <article className="career-chapter">
-                    <div className="career-rail">
-                      <span>EPISODE {job.id}</span>
-                      <i />
-                    </div>
-                    <div className="career-content">
-                      <header>
-                        <div>
-                          <p className="chapter-kicker">{job.period}</p>
-                          <h2>{job.company}</h2>
-                          <p className="career-role">
-                            <BriefcaseBusiness /> {job.role}
-                          </p>
-                        </div>
-                        {job.location && (
-                          <span className="career-location">
-                            <MapPin />
-                            {job.location}
-                          </span>
-                        )}
-                      </header>
-                      {job.projects.map((project) => (
-                        <section key={project.name} className="career-project">
-                          <h3>{project.name}</h3>
-                          <ul>
-                            {project.points.map((point) => (
-                              <li key={point}>{point}</li>
-                            ))}
-                          </ul>
-                        </section>
-                      ))}
-                      <TechnologyList items={job.tags} />
-                    </div>
-                  </article>
-                </Reveal>
-              ))}
+              ) : (
+                missions.map((job, i) => (
+                  <Reveal key={job.id} delay={i * 0.08}>
+                    <article className="career-chapter">
+                      <div className="career-rail">
+                        <span>EPISODE {job.id}</span>
+                        <i />
+                      </div>
+                      <div className="career-content">
+                        <header>
+                          <div>
+                            <p className="chapter-kicker">{job.period}</p>
+                            <h2>{job.company}</h2>
+                            <p className="career-role">
+                              <BriefcaseBusiness /> {job.role}
+                            </p>
+                          </div>
+                          {job.location && (
+                            <span className="career-location">
+                              <MapPin />
+                              {job.location}
+                            </span>
+                          )}
+                        </header>
+                        {job.projects.map((project) => (
+                          <section key={project.name} className="career-project">
+                            <h3>{project.name}</h3>
+                            <ul>
+                              {project.points.map((point) => (
+                                <li key={point}>{point}</li>
+                              ))}
+                            </ul>
+                          </section>
+                        ))}
+                        <TechnologyList items={job.tags} />
+                      </div>
+                    </article>
+                  </Reveal>
+                ))
+              )}
             </div>
           </>
         )}

@@ -86,8 +86,15 @@ export interface ContentVersion {
 }
 
 export const PROFILE_REVIEW_ITEMS = [
-  "biography", "skills", "projects", "experience", "education",
-  "certifications", "contact", "imagery", "profileIsolation",
+  "biography",
+  "skills",
+  "projects",
+  "experience",
+  "education",
+  "certifications",
+  "contact",
+  "imagery",
+  "profileIsolation",
 ] as const;
 export type ProfileReviewItem = (typeof PROFILE_REVIEW_ITEMS)[number];
 export interface ProfileReviewRecord {
@@ -129,7 +136,14 @@ export function contentKey(profileId: ContentProfileId): string {
 }
 
 export function emptyContentDocument(profileId: ContentProfileId): ContentDocument {
-  return { schemaVersion: 1, profileId, draft: null, publishedVersion: null, history: [], review: null };
+  return {
+    schemaVersion: 1,
+    profileId,
+    draft: null,
+    publishedVersion: null,
+    history: [],
+    review: null,
+  };
 }
 
 type Errors = string[];
@@ -560,10 +574,15 @@ export function rollbackContent(
 
 export function signOffProfile(
   doc: ContentDocument,
-  input: { reviewer: string; checks: Partial<Record<ProfileReviewItem, unknown>>; exceptions?: string[] },
+  input: {
+    reviewer: string;
+    checks: Partial<Record<ProfileReviewItem, unknown>>;
+    exceptions?: string[];
+  },
   now: string,
 ): ContentDocument {
-  if (doc.publishedVersion === null) throw new Error("Publish profile content before signing it off.");
+  if (doc.publishedVersion === null)
+    throw new Error("Publish profile content before signing it off.");
   const reviewer = input.reviewer.trim();
   if (!reviewer || reviewer.length > 100) throw new Error("Enter the owner's/reviewer's name.");
   if (!PROFILE_REVIEW_ITEMS.every((item) => input.checks[item] === true)) {
@@ -573,7 +592,10 @@ export function signOffProfile(
   if (exceptions.length > 10 || exceptions.some((item) => item.length > 300)) {
     throw new Error("Record up to 10 accepted exceptions, each no longer than 300 characters.");
   }
-  const checks = Object.fromEntries(PROFILE_REVIEW_ITEMS.map((item) => [item, true])) as Record<ProfileReviewItem, true>;
+  const checks = Object.fromEntries(PROFILE_REVIEW_ITEMS.map((item) => [item, true])) as Record<
+    ProfileReviewItem,
+    true
+  >;
   return {
     ...doc,
     review: { reviewer, signedAt: now, publishedVersion: doc.publishedVersion, checks, exceptions },
@@ -619,7 +641,11 @@ export function mergePersonPortfolio(
       items: [...group.items],
     }));
   }
-  if (overrides.projects) {
+  if (overrides.projects && overrides.projects.length === 0) {
+    // Explicit empty collection = the owner intentionally cleared projects
+    // (omitted = no override, curated fallback). A non-empty list merges by slug.
+    merged.projects = [];
+  } else if (overrides.projects) {
     const bySlug = new Map<string, PersonProject>(
       profile.projects.map((project) => [project.slug, project]),
     );

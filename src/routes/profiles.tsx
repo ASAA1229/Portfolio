@@ -145,7 +145,10 @@ function ProfileSelect() {
       </div>
       <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-[10px] text-muted-foreground">
         <span>GUDA ABHISHEK · SOFTWARE ENGINEER & AI DEVELOPER</span>
-        <Link to="/privacy" className="underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        <Link
+          to="/privacy"
+          className="underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
           Privacy
         </Link>
       </footer>

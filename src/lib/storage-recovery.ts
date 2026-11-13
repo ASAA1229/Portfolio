@@ -1,3 +1,5 @@
+import type { ObjectBucket } from "@/lib/storage-adapter";
+
 /**
  * Durable write-ahead recovery for multi-object storage changes.
  *
@@ -5,25 +7,14 @@
  * next transaction or by the owner recovery endpoint. The in-process queue only
  * serializes one isolate; it is not a distributed R2 lock.
  */
-export interface RecoveryBucket {
-  get(key: string): Promise<{
-    arrayBuffer(): Promise<ArrayBuffer>;
-    httpMetadata?: { contentType?: string | undefined };
-  } | null>;
-  put(
-    key: string,
-    value: ArrayBuffer | string | Uint8Array,
-    options?: { httpMetadata?: { contentType?: string } },
-  ): Promise<unknown>;
-  delete(key: string): Promise<unknown>;
-}
+export type RecoveryBucket = ObjectBucket;
 
 export type StorageMutation =
   | {
       key: string;
       operation: "put";
       value: ArrayBuffer | string | Uint8Array;
-      contentType?: string;
+      contentType?: string | undefined;
     }
   | { key: string; operation: "delete" };
 
@@ -161,7 +152,10 @@ async function locked<T>(bucket: RecoveryBucket, work: () => Promise<T>): Promis
     release = resolve;
   });
 
-  queues.set(bucket as object, previous.then(() => next));
+  queues.set(
+    bucket as object,
+    previous.then(() => next),
+  );
   await previous.catch(() => undefined);
 
   try {
@@ -197,10 +191,7 @@ export async function runStorageTransaction(
   if (!mutations.length) return;
 
   const keys = mutations.map((mutation) => mutation.key);
-  if (
-    keys.some((key) => !key || key.startsWith(ROOT)) ||
-    new Set(keys).size !== keys.length
-  ) {
+  if (keys.some((key) => !key || key.startsWith(ROOT)) || new Set(keys).size !== keys.length) {
     throw new Error("Storage transaction contains invalid or duplicate keys.");
   }
 

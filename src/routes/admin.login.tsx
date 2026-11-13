@@ -84,7 +84,8 @@ function AdminLogin() {
           </button>
         </form>
         <p className="mt-6 border-t border-white/10 pt-5 text-[11px] leading-5 text-white/65">
-          Minimum 12-character password · eight-hour signed session · HttpOnly cookie · server-side authorization
+          Minimum 12-character password · eight-hour signed session · HttpOnly cookie · server-side
+          authorization
         </p>
       </div>
     </section>

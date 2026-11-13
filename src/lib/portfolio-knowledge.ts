@@ -89,7 +89,12 @@ export function buildRelevantProfileKnowledge(
     {
       name: "contact",
       keywords: ["contact", "email", "phone", "reach", "linkedin", "github", "hire"],
-      value: { email: profile.email, phone: profile.phone, location: profile.location, socialLabels: profile.socialLabels },
+      value: {
+        email: profile.email,
+        phone: profile.phone,
+        location: profile.location,
+        socialLabels: profile.socialLabels,
+      },
     },
   ];
   const normalized = question.toLowerCase().replace(/[^a-z0-9+.#\s-]/g, " ");

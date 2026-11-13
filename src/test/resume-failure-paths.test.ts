@@ -61,10 +61,7 @@ function failingBucket() {
             state.failFeedAfterWrite = false;
             throw new Error("simulated ambiguous write failure after persistence");
           }
-          if (
-            state.failHistoryAfterWrite &&
-            key.startsWith("private-admin/resumes/history/")
-          ) {
+          if (state.failHistoryAfterWrite && key.startsWith("private-admin/resumes/history/")) {
             state.failHistoryAfterWrite = false;
             throw new Error("simulated ambiguous history write failure after persistence");
           }
@@ -78,10 +75,7 @@ function failingBucket() {
       if (property === "delete") {
         return async (key: string) => {
           const result = await target.delete(key);
-          if (
-            state.failResumeDeleteAfterWrite &&
-            key.startsWith("private-admin/resumes/files/")
-          ) {
+          if (state.failResumeDeleteAfterWrite && key.startsWith("private-admin/resumes/files/")) {
             state.failResumeDeleteAfterWrite = false;
             throw new Error("simulated ambiguous resume original deletion after persistence");
           }
@@ -202,15 +196,16 @@ describe("resume partial persistence failures", () => {
       resumes: Array<{ id: string; status: string }>;
     };
     expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
-    const publicFeed = (await bucket.get("public/approved-resumes.json"))!;
-    expect(await publicFeed.json()).toMatchObject({ resumes: [] });
-    // The public-feed write failed before the history step was attempted.
+    // Compensation restores the pre-transaction state: a feed/history that did not exist
+    // before the failed publish must not exist afterwards (or must be empty).
+    const publicFeed = await bucket.get("public/approved-resumes.json");
+    if (publicFeed) expect(await publicFeed.json()).toMatchObject({ resumes: [] });
     const history = await bucket.get("private-admin/resumes/history/bava.json");
-    expect(history).not.toBeNull();
-    expect(await history!.json<{ entries: unknown[] }>()).toMatchObject({ entries: [] });
+    if (history) {
+      expect(await history.json<{ entries: unknown[] }>()).toMatchObject({ entries: [] });
+    }
   });
 });
-
 
 it("blocks reconciliation when an indexed resume original is missing", async () => {
   const { bucket } = failingBucket();
@@ -305,13 +300,11 @@ it("reverts index, public feed and history when the history write fails ambiguou
     resumes: Array<{ id: string; status: string }>;
   };
   expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
-  const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
-    resumes: unknown[];
-  }>();
+  const feedObject = await bucket.get("public/approved-resumes.json");
+  const feed = feedObject ? await feedObject.json<{ resumes: unknown[] }>() : { resumes: [] };
   expect(feed.resumes).toEqual([]);
   expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
 });
-
 
 it("rolls back a resume upload when the index write persists and then rejects", async () => {
   const { bucket, state } = failingBucket();

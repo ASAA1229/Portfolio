@@ -34,9 +34,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 // No published resume: the curated profile data is rendered.
-vi.mock("@/lib/published-resume", () => ({
+vi.mock("@/lib/published-resume", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/published-resume")>()),
   usePublishedProfileResume: () => null,
   usePublishedProfilePortrait: () => null,
+  usePublishedProfileImages: () => [],
+  usePublishedProjectImages: () => [],
+  usePublishedImageFeed: () => [],
 }));
 
 const people = [PERSON_PORTFOLIOS.ammu, PERSON_PORTFOLIOS.bava, PERSON_PORTFOLIOS.sai];

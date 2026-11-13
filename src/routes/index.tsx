@@ -20,13 +20,24 @@ export const Route = createFileRoute("/")({
 function Home() {
   const publishedResume = usePublishedProfileResume("abhishek");
   const publishedImages = usePublishedProfileImages("abhishek");
-  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
+  const publishedPortrait = [...publishedImages]
+    .reverse()
+    .find((image) => image.slot === "portrait");
   // Owner CMS edits (headline, summary, projects) over curated content.
   const content = useAbhishekContent();
-  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find(
+    (entry) => typeof entry === "object",
+  );
   const educationTitle = resumeEducation?.title || content.education?.qualification || "B.Tech IT";
-  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || content.education?.period || "2022–2026";
-  const educationLocation = resumeEducation?.location || content.education?.location || content.contact.location || "Hyderabad, India";
+  const educationPeriod =
+    [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") ||
+    content.education?.period ||
+    "2022–2026";
+  const educationLocation =
+    resumeEducation?.location ||
+    content.education?.location ||
+    content.contact.location ||
+    "Hyderabad, India";
   return (
     <>
       <section className="home-hero">
@@ -80,7 +91,10 @@ function Home() {
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4">
                 <AiIntro compact />
-                <SocialLinks github={publishedResume?.contact?.github || content.contact.github} linkedin={publishedResume?.contact?.linkedin || content.contact.linkedin} />
+                <SocialLinks
+                  github={publishedResume?.contact?.github || content.contact.github}
+                  linkedin={publishedResume?.contact?.linkedin || content.contact.linkedin}
+                />
               </div>
               <p className="mt-7 flex items-center gap-2 text-xs text-muted-foreground">
                 <MapPin className="size-3 text-violet" /> {educationLocation}{" "}
@@ -125,11 +139,9 @@ function Home() {
           </Button>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          {content.projects
-            .slice(0, 2)
-            .map((p) => (
-              <ProjectCard key={p.slug} project={p} />
-            ))}
+          {content.projects.slice(0, 2).map((p) => (
+            <ProjectCard key={p.slug} project={p} />
+          ))}
         </div>
       </section>
       <section className="home-about">

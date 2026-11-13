@@ -120,7 +120,6 @@ describe("POST /api/chat request flow", () => {
     expect(sent.messages.at(-1)).toEqual({ role: "user", content: "What does Ammu build?" });
   });
 
-
   it("grounds Abhishek chat in the currently published CMS document", async () => {
     const key = "jrv_0123456789ab_" + "C".repeat(43);
     vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
@@ -137,7 +136,9 @@ describe("POST /api/chat request flow", () => {
       person: "abhishek",
       _publishedContent: {
         basics: { headline: "Owner-published engineering headline" },
-        skills: [{ cat: "Owner Skills", desc: "Approved CMS skills", items: ["Rust", "PostgreSQL"] }],
+        skills: [
+          { cat: "Owner Skills", desc: "Approved CMS skills", items: ["Rust", "PostgreSQL"] },
+        ],
       },
       messages: [{ role: "user", content: "What skills are listed?" }],
     });
@@ -184,15 +185,17 @@ describe("POST /api/chat request flow", () => {
     vi.stubEnv("JARVIS_AI_URL", "https://jarvis.example.test");
     vi.stubEnv("JARVIS_AI_KEY", "jrv_0123456789ab_" + "E".repeat(43));
     let cancelled = false;
-    vi.stubGlobal("fetch", async () =>
-      new Response(
-        new ReadableStream({
-          cancel() {
-            cancelled = true;
-          },
-        }),
-        { status: 500 },
-      ),
+    vi.stubGlobal(
+      "fetch",
+      async () =>
+        new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { status: 500 },
+        ),
     );
 
     const response = await post({

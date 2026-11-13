@@ -21,11 +21,18 @@ function About() {
   // Owner-published CMS basics replace the curated copy; curated text is the fallback.
   const { headline, summary, story, education, contact, missions } = useAbhishekContent();
   const publishedResume = usePublishedProfileResume("abhishek");
-  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find(
+    (entry) => typeof entry === "object",
+  );
   const resumeExperience = publishedResume?.structuredSections?.experience ?? [];
-  const educationTitle = resumeEducation?.title || education?.qualification || "B.Tech Information Technology";
-  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || education?.period || "2022–2026";
-  const educationLocation = resumeEducation?.location || education?.location || contact.location || "Hyderabad, India";
+  const educationTitle =
+    resumeEducation?.title || education?.qualification || "B.Tech Information Technology";
+  const educationPeriod =
+    [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") ||
+    education?.period ||
+    "2022–2026";
+  const educationLocation =
+    resumeEducation?.location || education?.location || contact.location || "Hyderabad, India";
   const publishedImages = usePublishedProfileImages("abhishek");
   const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
   const publishedHero = [...publishedImages].reverse().find((image) => image.slot === "portrait");
@@ -124,18 +131,35 @@ function About() {
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
-            {(publishedGallery.length ? publishedGallery : [
-              { id: "fallback-1", src: "/images/profiles/abhishek/abhishek_main.jpeg", alt: "Abhishek at his graduation celebration" },
-              { id: "fallback-2", src: "/images/profiles/abhishek/abhishek_1.jpeg", alt: "Abhishek presenting in a classroom" },
-              { id: "fallback-3", src: "/images/profiles/abhishek/abhishek_2.jpeg", alt: "Abhishek standing on the college campus" },
-            ]).map((photo) => (
+            {(publishedGallery.length
+              ? publishedGallery
+              : [
+                  {
+                    id: "fallback-1",
+                    src: "/images/profiles/abhishek/abhishek_main.jpeg",
+                    alt: "Abhishek at his graduation celebration",
+                  },
+                  {
+                    id: "fallback-2",
+                    src: "/images/profiles/abhishek/abhishek_1.jpeg",
+                    alt: "Abhishek presenting in a classroom",
+                  },
+                  {
+                    id: "fallback-3",
+                    src: "/images/profiles/abhishek/abhishek_2.jpeg",
+                    alt: "Abhishek standing on the college campus",
+                  },
+                ]
+            ).map((photo) => (
               <img
                 key={photo.id}
                 src={photo.src}
                 alt={photo.alt}
                 loading="lazy"
                 className="aspect-[4/5] w-full rounded-lg border border-border object-cover"
-                onError={(event) => { event.currentTarget.style.display = "none"; }}
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
               />
             ))}
           </div>
@@ -151,12 +175,14 @@ function About() {
           <div className="milestone-list">
             {resumeExperience.length > 0 ? (
               resumeExperience.map((entry, i) => {
-                const title = typeof entry === "string"
-                  ? entry
-                  : entry.organization || entry.title || entry.role || "Experience";
-                const period = typeof entry === "string"
-                  ? ""
-                  : [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
+                const title =
+                  typeof entry === "string"
+                    ? entry
+                    : entry.organization || entry.title || entry.role || "Experience";
+                const period =
+                  typeof entry === "string"
+                    ? ""
+                    : [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
                 const description = typeof entry === "string" ? "" : entry.description || "";
                 return (
                   <Reveal key={i} delay={i * 0.04}>
@@ -172,21 +198,31 @@ function About() {
                 );
               })
             ) : missions.length === 0 ? (
-              <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+              <p
+                role="status"
+                className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+              >
                 No experience milestones have been published yet.
               </p>
-            ) : missions.map((item, i) => (
-              <Reveal key={item.id} delay={i * 0.04}>
-                <article className="milestone">
-                  <span>{item.period}</span>
-                  <div>
-                    <h3>{item.company}</h3>
-                    <p>{item.role}{item.projects.length ? ` · ${item.projects.map((project) => project.name).join(" · ")}` : ""}</p>
-                  </div>
-                  <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
-                </article>
-              </Reveal>
-            ))}
+            ) : (
+              missions.map((item, i) => (
+                <Reveal key={item.id} delay={i * 0.04}>
+                  <article className="milestone">
+                    <span>{item.period}</span>
+                    <div>
+                      <h3>{item.company}</h3>
+                      <p>
+                        {item.role}
+                        {item.projects.length
+                          ? ` · ${item.projects.map((project) => project.name).join(" · ")}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
+                  </article>
+                </Reveal>
+              ))
+            )}
           </div>
         </section>
       </PageBody>

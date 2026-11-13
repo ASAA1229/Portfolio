@@ -9,11 +9,34 @@
  * The source of truth for each data class is documented in docs/STORAGE.md.
  */
 
-export interface StoredObject {
-  json<T>(): Promise<T>;
+/** Minimal readable body shared by every storage consumer (recovery journal, backup, adapters). */
+export interface StoredObjectBody {
   arrayBuffer(): Promise<ArrayBuffer>;
+  httpMetadata?: { contentType?: string | undefined } | undefined;
+}
+
+export interface StoredObject extends StoredObjectBody {
+  json<T>(): Promise<T>;
+  size?: number | undefined;
+  /** Opaque version tag when the provider supplies one (R2 etag). */
+  etag?: string | undefined;
+}
+
+export type PutOptions = {
   httpMetadata?: { contentType?: string | undefined };
-  size?: number;
+  /** Conditional write (R2 onlyIf subset). Providers that cannot honour it must reject, never ignore. */
+  onlyIf?: { etagMatches?: string; etagDoesNotMatch?: string };
+};
+
+/** The bucket surface shared by recovery, backup and the adapters. R2 buckets satisfy it structurally. */
+export interface ObjectBucket {
+  get(key: string): Promise<StoredObjectBody | null>;
+  put(
+    key: string,
+    value: ArrayBuffer | string | Uint8Array,
+    options?: PutOptions,
+  ): Promise<unknown>;
+  delete(key: string): Promise<unknown>;
 }
 
 export interface StorageAdapter {

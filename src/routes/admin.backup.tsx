@@ -269,8 +269,8 @@ function BackupManager() {
       <section className="mt-6 rounded-lg border border-border bg-card p-5">
         <h2 className="text-2xl">Storage recovery</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Multi-object writes keep a private recovery journal before changing stored objects.
-          If a provider failure prevents automatic rollback, this action replays the saved snapshots.
+          Multi-object writes keep a private recovery journal before changing stored objects. If a
+          provider failure prevents automatic rollback, this action replays the saved snapshots.
         </p>
         {recovery ? (
           <div className="mt-3 space-y-2 text-sm">
@@ -279,7 +279,9 @@ function BackupManager() {
                 ? `Pending journal: ${recovery.state ?? "unknown"} · ${recovery.affectedObjects} affected objects`
                 : "No pending recovery journal."}
             </p>
-            {recovery.createdAt && <p className="text-muted-foreground">Started: {recovery.createdAt}</p>}
+            {recovery.createdAt && (
+              <p className="text-muted-foreground">Started: {recovery.createdAt}</p>
+            )}
             {recovery.pending && (
               <>
                 <label className="block max-w-xs">
@@ -302,7 +304,9 @@ function BackupManager() {
             )}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">Storage recovery status is unavailable.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Storage recovery status is unavailable.
+          </p>
         )}
       </section>
 

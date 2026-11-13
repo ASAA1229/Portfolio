@@ -22,14 +22,25 @@ export const Route = createFileRoute("/projects")({
   component: Projects,
 });
 
-function ShowcaseProject({ project, index }: { project: (typeof PROJECT_PAGES)[number]; index: number }) {
+function ShowcaseProject({
+  project,
+  index,
+}: {
+  project: (typeof PROJECT_PAGES)[number];
+  index: number;
+}) {
   const cover = usePublishedProjectImages("abhishek", project.slug)[0];
   return (
     <Reveal delay={index * 0.05}>
       <Link to="/projects/$slug" params={{ slug: project.slug }} className="showcase-project">
         <div className={`showcase-art showcase-art-${index} relative overflow-hidden`}>
           {cover ? (
-            <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+            <img
+              src={cover.src}
+              alt={cover.alt}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
           ) : (
             <ProjectVisual index={index + 1} />
           )}
@@ -104,24 +115,29 @@ function Projects() {
         {!publishedResume?.structuredSections?.projects?.length && (
           <>
             {featured && (
-            <section className="featured-project">
-              <div className="featured-project-art relative overflow-hidden">
-                {featuredCover ? (
-                  <img src={featuredCover.src} alt={featuredCover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
-                ) : (
-                  <ProjectVisual index={0} />
-                )}
-                <span className="relative z-10">FEATURED PRODUCTION · 01</span>
-              </div>
-              <div className="featured-project-copy">
-                <p className="chapter-kicker">{featured!.badge}</p>
-                <h2>{featured!.title}</h2>
-                <p>{featured!.overview}</p>
-                <Link to="/projects/$slug" params={{ slug: featured.slug }}>
-                  Explore the case study <ArrowUpRight />
-                </Link>
-              </div>
-            </section>
+              <section className="featured-project">
+                <div className="featured-project-art relative overflow-hidden">
+                  {featuredCover ? (
+                    <img
+                      src={featuredCover.src}
+                      alt={featuredCover.alt}
+                      loading="lazy"
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  ) : (
+                    <ProjectVisual index={0} />
+                  )}
+                  <span className="relative z-10">FEATURED PRODUCTION · 01</span>
+                </div>
+                <div className="featured-project-copy">
+                  <p className="chapter-kicker">{featured!.badge}</p>
+                  <h2>{featured!.title}</h2>
+                  <p>{featured!.overview}</p>
+                  <Link to="/projects/$slug" params={{ slug: featured.slug }}>
+                    Explore the case study <ArrowUpRight />
+                  </Link>
+                </div>
+              </section>
             )}
             <div className="chapter-section-heading projects-list-heading">
               <div>
@@ -132,12 +148,19 @@ function Projects() {
             </div>
             <div className="project-showcase">
               {projectPages.length === 0 ? (
-                <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                <p
+                  role="status"
+                  className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+                >
                   No projects have been published yet.
                 </p>
-              ) : projectPages.slice(1).map((project, i) => (
-                <ShowcaseProject key={project.slug} project={project} index={i} />
-              ))}
+              ) : (
+                projectPages
+                  .slice(1)
+                  .map((project, i) => (
+                    <ShowcaseProject key={project.slug} project={project} index={i} />
+                  ))
+              )}
             </div>
             <p className="mt-8 max-w-3xl text-xs leading-6 text-muted-foreground">
               Project descriptions reflect documented scope and contributions. Repository, live

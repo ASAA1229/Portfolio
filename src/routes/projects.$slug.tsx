@@ -67,7 +67,10 @@ function ProjectDetailPage() {
         github: null,
         demo: null,
       };
-  const index = Math.max(0, PROJECT_PAGES.findIndex((item) => item.slug === slug));
+  const index = Math.max(
+    0,
+    PROJECT_PAGES.findIndex((item) => item.slug === slug),
+  );
   return (
     <article className="page-content project-detail">
       <Button asChild variant="ghost" className="mb-8 min-h-11 px-0">
@@ -81,10 +84,21 @@ function ProjectDetailPage() {
         description={project.overview}
       />
       {projectImages.length > 0 ? (
-        <section className="mt-8 grid gap-4 sm:grid-cols-2" aria-label={`Images for ${project.title}`}>
+        <section
+          className="mt-8 grid gap-4 sm:grid-cols-2"
+          aria-label={`Images for ${project.title}`}
+        >
           {projectImages.map((image) => (
-            <figure key={image.id} className="overflow-hidden rounded-lg border border-white/10 bg-card">
-              <img src={image.src} alt={image.alt} loading="lazy" className="aspect-video w-full object-cover" />
+            <figure
+              key={image.id}
+              className="overflow-hidden rounded-lg border border-white/10 bg-card"
+            >
+              <img
+                src={image.src}
+                alt={image.alt}
+                loading="lazy"
+                className="aspect-video w-full object-cover"
+              />
             </figure>
           ))}
         </section>

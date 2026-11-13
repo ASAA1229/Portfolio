@@ -181,7 +181,9 @@ function ResumeManager() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved">("all");
-  const [profileFilter, setProfileFilter] = useState<"all" | NonNullable<ResumeRecord["profileId"]>>("all");
+  const [profileFilter, setProfileFilter] = useState<
+    "all" | NonNullable<ResumeRecord["profileId"]>
+  >("all");
 
   const pendingCount = resumes.filter((resume) => resume.status === "pending").length;
   const approvedCount = resumes.filter((resume) => resume.status === "approved").length;
@@ -193,7 +195,8 @@ function ResumeManager() {
         (value) => value.toLowerCase().includes(query),
       );
     const matchesStatus = statusFilter === "all" || resume.status === statusFilter;
-    const matchesProfile = profileFilter === "all" || (resume.profileId ?? "unassigned") === profileFilter;
+    const matchesProfile =
+      profileFilter === "all" || (resume.profileId ?? "unassigned") === profileFilter;
     return matchesQuery && matchesStatus && matchesProfile;
   });
 

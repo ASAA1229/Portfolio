@@ -47,7 +47,12 @@ async function uploadResume(env: unknown, profileId: (typeof PROFILES)[number], 
   return (await response.json()) as { resume: { id: string; profileId: string; status: string } };
 }
 
-async function publishResume(env: unknown, id: string, profileId: (typeof PROFILES)[number], version: string) {
+async function publishResume(
+  env: unknown,
+  id: string,
+  profileId: (typeof PROFILES)[number],
+  version: string,
+) {
   return call(env, `/api/admin/resumes/${id}/publish`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -91,11 +96,21 @@ describe("four-profile resume resource lifecycle", () => {
 
       const second = await uploadResume(env, profileId, `${profileId}-second.pdf`);
       expect((await publishResume(env, second.resume.id, profileId, "second")).status).toBe(200);
-      const privateIndex = (await (await bucket.get("private-admin/resumes/index.json"))!.json()) as Array<{
-        id: string; status: string; profileId: string;
+      const privateIndex = (await (await bucket.get(
+        "private-admin/resumes/index.json",
+      ))!.json()) as Array<{
+        id: string;
+        status: string;
+        profileId: string;
       }>;
-      expect(privateIndex.find((item) => item.id === first.resume.id)).toMatchObject({ status: "pending", profileId });
-      expect(privateIndex.find((item) => item.id === second.resume.id)).toMatchObject({ status: "approved", profileId });
+      expect(privateIndex.find((item) => item.id === first.resume.id)).toMatchObject({
+        status: "pending",
+        profileId,
+      });
+      expect(privateIndex.find((item) => item.id === second.resume.id)).toMatchObject({
+        status: "approved",
+        profileId,
+      });
 
       const history = await call(env, `/api/admin/resumes/history?profileId=${profileId}`);
       expect(history.status).toBe(200);
@@ -112,19 +127,32 @@ describe("four-profile resume resource lifecycle", () => {
       expect(publicFeed.resumes.some((item) => item.id === first.resume.id)).toBe(true);
       expect(publicFeed.resumes.some((item) => item.id === second.resume.id)).toBe(false);
 
-      expect((await call(env, `/api/admin/resumes/${first.resume.id}/unpublish`, { method: "POST" })).status).toBe(200);
+      expect(
+        (await call(env, `/api/admin/resumes/${first.resume.id}/unpublish`, { method: "POST" }))
+          .status,
+      ).toBe(200);
       publicFeed = (await (await call(env, "/api/published-resumes")).json()) as typeof publicFeed;
       expect(publicFeed.resumes.some((item) => item.id === first.resume.id)).toBe(false);
       expect((await call(env, `/api/published-resumes/${first.resume.id}`)).status).toBe(404);
       expect((await call(env, `/api/admin/resumes/${first.resume.id}/download`)).status).toBe(200);
 
-      expect((await call(env, `/api/admin/resumes/${first.resume.id}`, { method: "DELETE" })).status).toBe(200);
+      expect(
+        (await call(env, `/api/admin/resumes/${first.resume.id}`, { method: "DELETE" })).status,
+      ).toBe(200);
       expect(await bucket.get(`private-admin/resumes/files/${first.resume.id}`)).toBeNull();
-      const afterDelete = (await (await call(env, "/api/published-resumes")).json()) as typeof publicFeed;
+      const afterDelete = (await (
+        await call(env, "/api/published-resumes")
+      ).json()) as typeof publicFeed;
       expect(afterDelete.resumes.some((item) => item.id === first.resume.id)).toBe(false);
       const redactedHistory = await call(env, `/api/admin/resumes/history?profileId=${profileId}`);
-      const entries = ((await redactedHistory.json()) as { entries: Array<{ resumeId: string; displayName: string }> }).entries;
-      expect(entries.find((entry) => entry.resumeId === first.resume.id)?.displayName).toBe("");
+      const entries = (
+        (await redactedHistory.json()) as {
+          entries: Array<{ resumeId: string; displayName: string }>;
+        }
+      ).entries;
+      expect(entries.find((entry) => entry.resumeId === first.resume.id)?.displayName).toBe(
+        "[deleted resume]",
+      );
     },
   );
 });

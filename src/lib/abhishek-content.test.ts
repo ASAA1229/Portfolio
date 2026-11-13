@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { mergeAbhishekContact, mergeCerts, mergeMissions, mergeSiteProjects, mergeSkills } from "@/lib/abhishek-content";
+import {
+  mergeAbhishekContact,
+  mergeCerts,
+  mergeMissions,
+  mergeSiteProjects,
+  mergeSkills,
+} from "@/lib/abhishek-content";
 import { SKILLS } from "@/lib/portfolio-data";
 import { CONTACT } from "@/lib/portfolio-data";
 
@@ -41,12 +47,13 @@ describe("Abhishek published contact overrides", () => {
 
   it("matches social platform names case-insensitively", () => {
     const result = mergeAbhishekContact({
-      basics: { socials: [{ platform: "LinkedIn", handle: "https://www.linkedin.com/in/example" }] },
+      basics: {
+        socials: [{ platform: "LinkedIn", handle: "https://www.linkedin.com/in/example" }],
+      },
     });
     expect(result.linkedin).toBe("https://www.linkedin.com/in/example");
   });
 });
-
 
 describe("Abhishek published skill groups", () => {
   it("uses curated skill groups when no CMS override is published", () => {
@@ -65,7 +72,6 @@ describe("Abhishek published skill groups", () => {
     ).toEqual([{ cat: "Custom", desc: "Owner-managed", items: ["TypeScript", "React"] }]);
   });
 });
-
 
 describe("Abhishek CMS collection lifecycle", () => {
   it("adds new published projects and removes archived projects from the root list", () => {

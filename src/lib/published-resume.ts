@@ -209,7 +209,6 @@ export function normalizePublishedPortrait(payload: unknown, profileId: string):
     : null;
 }
 
-
 export type PublishedProfileImage = {
   id: string;
   profileId: string;
@@ -226,20 +225,28 @@ export function normalizePublishedImageFeed(payload: unknown): PublishedProfileI
   return profileIds.flatMap((profileId) => normalizePublishedProfileImages(payload, profileId));
 }
 
-export function normalizePublishedProfileImages(payload: unknown, profileId: string): PublishedProfileImage[] {
+export function normalizePublishedProfileImages(
+  payload: unknown,
+  profileId: string,
+): PublishedProfileImage[] {
   if (!isRecord(payload) || !Array.isArray(payload["images"])) return [];
   return payload["images"]
-    .filter((item): item is Record<string, unknown> =>
-      isRecord(item) &&
-      item["profileId"] === profileId &&
-      typeof item["id"] === "string" &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item["id"]) &&
-      item["src"] === `/api/published-images/${item["id"]}` &&
-      (item["slot"] === "portrait" || item["slot"] === "gallery" || item["slot"] === "project") &&
-      typeof item["alt"] === "string" && item["alt"].trim().length > 0 &&
-      (item["slot"] === "project"
-        ? typeof item["projectSlug"] === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(item["projectSlug"])
-        : item["projectSlug"] === undefined)
+    .filter(
+      (item): item is Record<string, unknown> =>
+        isRecord(item) &&
+        item["profileId"] === profileId &&
+        typeof item["id"] === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          item["id"],
+        ) &&
+        item["src"] === `/api/published-images/${item["id"]}` &&
+        (item["slot"] === "portrait" || item["slot"] === "gallery" || item["slot"] === "project") &&
+        typeof item["alt"] === "string" &&
+        item["alt"].trim().length > 0 &&
+        (item["slot"] === "project"
+          ? typeof item["projectSlug"] === "string" &&
+            /^[a-z0-9][a-z0-9-]{0,79}$/.test(item["projectSlug"])
+          : item["projectSlug"] === undefined),
     )
     .map((item) => ({
       id: item["id"] as string,
@@ -247,12 +254,17 @@ export function normalizePublishedProfileImages(payload: unknown, profileId: str
       src: item["src"] as string,
       alt: (item["alt"] as string).trim().slice(0, 300),
       slot: item["slot"] as "portrait" | "gallery" | "project",
-      ...(item["slot"] === "project" && typeof item["projectSlug"] === "string" ? { projectSlug: item["projectSlug"] } : {}),
+      ...(item["slot"] === "project" && typeof item["projectSlug"] === "string"
+        ? { projectSlug: item["projectSlug"] }
+        : {}),
     }));
 }
 
 /** Published image assets assigned to one profile project slug. */
-export function usePublishedProjectImages(profileId: string, projectSlug: string): PublishedProfileImage[] {
+export function usePublishedProjectImages(
+  profileId: string,
+  projectSlug: string,
+): PublishedProfileImage[] {
   return usePublishedProfileImages(profileId).filter(
     (image) => image.slot === "project" && image.projectSlug === projectSlug,
   );
@@ -265,25 +277,38 @@ export function usePublishedImageFeed(): PublishedProfileImage[] {
     let active = true;
     fetch("/api/published-images", { headers: { accept: "application/json" }, cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
-      .then((payload: unknown) => { if (active) setImages(normalizePublishedImageFeed(payload)); })
-      .catch(() => { if (active) setImages([]); });
-    return () => { active = false; };
+      .then((payload: unknown) => {
+        if (active) setImages(normalizePublishedImageFeed(payload));
+      })
+      .catch(() => {
+        if (active) setImages([]);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   return images;
 }
 
 /** Shared client hook for all currently published images belonging to a profile. */
 export function usePublishedProfileImages(profileId: string): PublishedProfileImage[] {
-  const [state, setState] = useState<{ profileId: string; images: PublishedProfileImage[] }>(() => ({ profileId, images: [] }));
+  const [state, setState] = useState<{ profileId: string; images: PublishedProfileImage[] }>(
+    () => ({ profileId, images: [] }),
+  );
   useEffect(() => {
     let active = true;
     fetch("/api/published-images", { headers: { accept: "application/json" }, cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((payload: unknown) => {
-        if (active) setState({ profileId, images: normalizePublishedProfileImages(payload, profileId) });
+        if (active)
+          setState({ profileId, images: normalizePublishedProfileImages(payload, profileId) });
       })
-      .catch(() => { if (active) setState({ profileId, images: [] }); });
-    return () => { active = false; };
+      .catch(() => {
+        if (active) setState({ profileId, images: [] });
+      });
+    return () => {
+      active = false;
+    };
   }, [profileId]);
   return state.profileId === profileId ? state.images : [];
 }

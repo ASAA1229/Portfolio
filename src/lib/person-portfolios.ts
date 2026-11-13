@@ -570,6 +570,8 @@ export function personHead(person: string, page: string, description: string, pa
     title: `${page} — ${name}`,
     description,
     path,
-    ...(profile ? { image: profile.portrait, imageAlt: `${profile.displayName} profile portrait` } : {}),
+    ...(profile
+      ? { image: profile.portrait, imageAlt: `${profile.displayName} profile portrait` }
+      : {}),
   });
 }

@@ -38,8 +38,12 @@ export function isSafeStorageKey(key: string): boolean {
 }
 
 export function createLocalDiskBucket(root: string): LocalDiskBucket {
-  const load = async () => {
-    const [fs, path] = await Promise.all([import("node:fs/promises"), import("node:path")]);
+  const loadUncached = async () => {
+    const [fs, path, os] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+      import("node:os"),
+    ]);
     const base = path.resolve(root);
     const resolve = (key: string) => {
       if (!isSafeStorageKey(key)) throw new Error("Unsafe storage key.");
@@ -51,11 +55,43 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
     // located inside the storage root. Check the configured root and each
     // descendant, but do not compare ordinary ancestors (e.g. C:\\Users) with
     // the storage root: those ancestors must necessarily be outside it.
+    const sameOrInside = (parent: string, child: string) => {
+      const relative = path.relative(parent, child);
+      return (
+        relative === "" ||
+        (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+      );
+    };
+    // A storage root beneath a symlinked/junctioned parent could be redirected
+    // outside the intended tree. Ancestors of the process working directory and
+    // of the OS temp directory are trusted platform locations (they may legitimately
+    // be aliases, e.g. /var on macOS); every directory below those anchors, or every
+    // ancestor when the root is elsewhere, must be a real directory.
+    let ancestorsVerified = false;
+    const assertAncestorsNotLinked = async () => {
+      if (ancestorsVerified) return;
+      let anchor = path.parse(base).root;
+      for (const candidate of [process.cwd(), os.tmpdir()]) {
+        const resolved = path.resolve(candidate);
+        if (sameOrInside(resolved, base) && resolved.length > anchor.length) anchor = resolved;
+      }
+      const relative = path.relative(anchor, base);
+      let current = anchor;
+      for (const segment of relative.split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        try {
+          if ((await fs.lstat(current)).isSymbolicLink()) {
+            throw new Error("Storage path must not traverse symbolic links.");
+          }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+          throw error;
+        }
+      }
+      ancestorsVerified = true;
+    };
     const assertNoSymlink = async (target: string) => {
-      const canonicalBase = await fs.realpath(base).catch((error: NodeJS.ErrnoException) => {
-        if (error.code === "ENOENT") return base;
-        throw error;
-      });
+      await assertAncestorsNotLinked();
       const relativeTarget = path.relative(base, target);
       if (
         relativeTarget === ".." ||
@@ -64,7 +100,9 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       ) {
         throw new Error("Unsafe storage key.");
       }
-
+      // Every component from the root down is lstat-ed; a non-link chain from a
+      // verified, link-free ancestry cannot resolve outside the root, so no
+      // separate realpath round trip is needed.
       let current = base;
       const pathsToCheck = [base];
       for (const segment of relativeTarget.split(path.sep).filter(Boolean)) {
@@ -73,18 +111,8 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       }
       for (const candidate of pathsToCheck) {
         try {
-          const stat = await fs.lstat(candidate);
-          if (stat.isSymbolicLink()) {
+          if ((await fs.lstat(candidate)).isSymbolicLink()) {
             throw new Error("Storage path must not traverse symbolic links.");
-          }
-          const canonicalCurrent = await fs.realpath(candidate);
-          const relativeCanonical = path.relative(canonicalBase, canonicalCurrent);
-          if (
-            relativeCanonical === ".." ||
-            relativeCanonical.startsWith(`..${path.sep}`) ||
-            path.isAbsolute(relativeCanonical)
-          ) {
-            throw new Error("Storage path resolves outside the configured root.");
           }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
@@ -94,6 +122,9 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
     };
     return { fs, path, resolve, assertNoSymlink };
   };
+
+  let cached: ReturnType<typeof loadUncached> | undefined;
+  const load = () => (cached ??= loadUncached());
 
   return {
     root,
@@ -116,7 +147,9 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       return {
         httpMetadata: { contentType: meta.contentType },
         size: bytes.byteLength,
-        async text() { return new TextDecoder().decode(bytes); },
+        async text() {
+          return new TextDecoder().decode(bytes);
+        },
         async json<T>() {
           return JSON.parse(new TextDecoder().decode(bytes)) as T;
         },
@@ -140,7 +173,7 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       await assertNoSymlink(file);
       await assertNoSymlink(file + META_SUFFIX);
       // Write-then-rename so a crash never leaves a half-written index or file.
-      const temporary = `${file}.${process.pid}.tmp`;
+      const temporary = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
       await fs.writeFile(temporary, bytes);
       await fs.rename(temporary, file);
       const contentType = options?.httpMetadata?.contentType;

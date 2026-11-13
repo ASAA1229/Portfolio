@@ -49,10 +49,7 @@ function call(env: unknown, pathname: string, init: RequestInit = {}) {
   return server.fetch(new Request(origin + pathname, { ...init, headers }), env, {});
 }
 
-async function uploadImage(
-  env: unknown,
-  publishOnUpload = false,
-): Promise<{ id: string }> {
+async function uploadImage(env: unknown, publishOnUpload = false): Promise<{ id: string }> {
   const form = new FormData();
   form.set("profileId", "ammu");
   form.set("alt", "Ammu profile image");

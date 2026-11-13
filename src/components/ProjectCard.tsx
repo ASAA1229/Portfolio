@@ -18,7 +18,12 @@ export function ProjectCard({ project, index }: { project: ProjectPage; index: n
       >
         <div className="project-art relative overflow-hidden">
           {cover ? (
-            <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+            <img
+              src={cover.src}
+              alt={cover.alt}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
           ) : (
             <ProjectVisual index={index} />
           )}

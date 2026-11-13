@@ -65,10 +65,12 @@ export function ResumeAction({ profileId = "abhishek" }: { profileId?: string } 
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>Resume & professional background</DialogTitle>
-        <DialogDescription>A downloadable resume has not been published for this profile.</DialogDescription>
+        <DialogDescription>
+          A downloadable resume has not been published for this profile.
+        </DialogDescription>
         <p className="text-sm leading-7">
-          No resume has been published for this profile yet. Upload the correct profile's resume
-          in Admin, review its extracted details, and publish it to enable this download.
+          No resume has been published for this profile yet. Upload the correct profile's resume in
+          Admin, review its extracted details, and publish it to enable this download.
         </p>
       </DialogContent>
     </Dialog>
@@ -99,7 +101,12 @@ export function ProjectCard({ project }: { project: (typeof siteProjects)[number
   return (
     <article className="project-card group">
       {cover ? (
-        <img src={cover.src} alt={cover.alt} loading="lazy" className="aspect-video w-full object-cover" />
+        <img
+          src={cover.src}
+          alt={cover.alt}
+          loading="lazy"
+          className="aspect-video w-full object-cover"
+        />
       ) : (
         <ProjectVisual index={project.index === 3 ? 2 : project.index} />
       )}

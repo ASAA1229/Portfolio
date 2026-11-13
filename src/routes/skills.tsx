@@ -19,7 +19,6 @@ export const Route = createFileRoute("/skills")({
   component: Skills,
 });
 
-
 function Skills() {
   const publishedResume = usePublishedProfileResume("abhishek");
   const { skills: contentSkills } = useAbhishekContent();
@@ -81,51 +80,58 @@ function Skills() {
               </div>
               <div className="skill-groups">
                 {contentSkills.length === 0 ? (
-                  <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                  <p
+                    role="status"
+                    className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+                  >
                     No skills have been published for this profile yet.
                   </p>
-                ) : contentSkills.map((group, index) => {
-                  const category = group.cat.toLowerCase();
-                  const Icon = /data|database|sql/.test(category)
-                    ? Database
-                    : /cloud|devops|deploy/.test(category)
-                      ? Cloud
-                      : /ai|machine|intelligence/.test(category)
-                        ? BrainCircuit
-                        : /backend|api|server/.test(category)
-                          ? Server
-                          : /workflow|practice|method/.test(category)
-                            ? Workflow
-                            : /frontend|framework|web|interface/.test(category)
-                              ? Braces
-                              : Code2;
-                  return (
-                    <Reveal key={group.cat} delay={index * 0.04}>
-                      <details className="skill-group" open={index === 0}>
-                        <summary>
-                          <span className="skill-group-icon">
-                            <Icon />
-                          </span>
-                          <span>
-                            <small>SECTOR {String(index + 1).padStart(2, "0")}</small>
-                            <strong>{group.cat}</strong>
-                            <em>{group.items.length} technologies</em>
-                            <span className="block text-xs text-muted-foreground">{group.desc}</span>
-                          </span>
-                          <span className="skill-group-plus">+</span>
-                        </summary>
-                        <ul>
-                          {group.items.map((item) => (
-                            <li key={item}>
-                              <TechLogo name={item} />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    </Reveal>
-                  );
-                })}
+                ) : (
+                  contentSkills.map((group, index) => {
+                    const category = group.cat.toLowerCase();
+                    const Icon = /data|database|sql/.test(category)
+                      ? Database
+                      : /cloud|devops|deploy/.test(category)
+                        ? Cloud
+                        : /ai|machine|intelligence/.test(category)
+                          ? BrainCircuit
+                          : /backend|api|server/.test(category)
+                            ? Server
+                            : /workflow|practice|method/.test(category)
+                              ? Workflow
+                              : /frontend|framework|web|interface/.test(category)
+                                ? Braces
+                                : Code2;
+                    return (
+                      <Reveal key={group.cat} delay={index * 0.04}>
+                        <details className="skill-group" open={index === 0}>
+                          <summary>
+                            <span className="skill-group-icon">
+                              <Icon />
+                            </span>
+                            <span>
+                              <small>SECTOR {String(index + 1).padStart(2, "0")}</small>
+                              <strong>{group.cat}</strong>
+                              <em>{group.items.length} technologies</em>
+                              <span className="block text-xs text-muted-foreground">
+                                {group.desc}
+                              </span>
+                            </span>
+                            <span className="skill-group-plus">+</span>
+                          </summary>
+                          <ul>
+                            {group.items.map((item) => (
+                              <li key={item}>
+                                <TechLogo name={item} />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      </Reveal>
+                    );
+                  })
+                )}
               </div>
             </div>
           </>

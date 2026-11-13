@@ -22,7 +22,9 @@ export function mergeAbhishekContact(overrides: ContentOverrides | null) {
   const basics = overrides?.basics;
   const socials = basics?.socials ?? [];
   const secureSocial = (platform: string, fallback: string | null) => {
-    const candidate = socials.find((item) => item.platform.trim().toLowerCase() === platform)?.handle.trim();
+    const candidate = socials
+      .find((item) => item.platform.trim().toLowerCase() === platform)
+      ?.handle.trim();
     if (!candidate) return basics?.socials === undefined ? fallback : null;
     try {
       const url = new URL(candidate);

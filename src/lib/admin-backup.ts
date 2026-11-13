@@ -15,6 +15,7 @@ import { CONTENT_PROFILE_IDS, contentKey, isContentDocument } from "@/lib/cms-co
 import { PERSONA_PROFILE_IDS, isPersonaDocument, personaKey } from "@/lib/persona";
 import { historyKey, isPublishHistory } from "@/lib/resume-publish-history";
 import { AUDIT_LOG_KEY } from "@/lib/admin-audit";
+import type { ObjectBucket, StoredObject } from "@/lib/storage-adapter";
 import { runStorageTransaction, StorageTransactionError } from "@/lib/storage-recovery";
 
 export const BACKUP_FORMAT = "portfolio-admin-backup";
@@ -94,20 +95,11 @@ export interface AdminBackup {
   files?: Record<string, BackupFile>;
 }
 
-interface StoredObjectLike {
-  json<T>(): Promise<T>;
-  arrayBuffer(): Promise<ArrayBuffer>;
-  httpMetadata?: { contentType?: string | undefined };
-}
+/** Backup reads need JSON access in addition to the shared body contract. */
+export type StoredObjectLike = StoredObject;
 
-export interface BackupStorage {
+export interface BackupStorage extends ObjectBucket {
   get(key: string): Promise<StoredObjectLike | null>;
-  put(
-    key: string,
-    value: ArrayBuffer | string | Uint8Array,
-    options?: { httpMetadata?: { contentType?: string } },
-  ): Promise<unknown>;
-  delete(key: string): Promise<unknown>;
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -279,7 +271,8 @@ export async function restoreBackup(
   // of using validateBackup. Never replace an index without all referenced files.
   if (backup.missingFiles.length) {
     const preview = backup.missingFiles.slice(0, 5).join(", ");
-    const remainder = backup.missingFiles.length > 5 ? ` (+${backup.missingFiles.length - 5} more)` : "";
+    const remainder =
+      backup.missingFiles.length > 5 ? ` (+${backup.missingFiles.length - 5} more)` : "";
     return {
       ok: false,
       error: `Backup is incomplete: ${backup.missingFiles.length} referenced file(s) are missing: ${preview}${remainder}.`,

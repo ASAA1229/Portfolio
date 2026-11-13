@@ -33,9 +33,12 @@ export function AdminNavigation({ current }: { current: AdminDestination }) {
   }
 
   return (
-    <nav aria-label="Admin workspace" className="admin-workspace-nav mb-8 rounded-lg border border-border bg-card p-3">
+    <nav
+      aria-label="Admin workspace"
+      className="admin-workspace-nav mb-8 rounded-lg border border-border bg-card p-3"
+    >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-2">
-        <Link to="/admin/" className="font-semibold tracking-wide hover:text-primary">
+        <Link to="/admin" className="font-semibold tracking-wide hover:text-primary">
           Portfolio Admin
         </Link>
         <div className="flex flex-wrap items-center gap-2">

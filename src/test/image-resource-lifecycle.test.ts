@@ -53,7 +53,11 @@ async function uploadImage(
   form.set("publishOnUpload", String(options.publish ?? false));
   form.set(
     "file",
-    new File([Uint8Array.from(options.bytes ?? ORIGINAL).buffer], options.filename ?? `${profileId}.png`, { type: PNG }),
+    new File(
+      [Uint8Array.from(options.bytes ?? ORIGINAL).buffer],
+      options.filename ?? `${profileId}.png`,
+      { type: PNG },
+    ),
   );
   const response = await call(env, "/api/admin/images", { method: "POST", body: form });
   expect(response.status).toBe(201);
@@ -72,11 +76,11 @@ describe("four-profile public image resource lifecycle", () => {
         images: Array<{ id: string }>;
       };
       expect(pendingFeed.images.some((item) => item.id === image.id)).toBe(false);
-      expect(
-        await (await call(env, `/api/admin/images/${image.id}/file`)).status,
-      ).toBe(200);
+      expect(await (await call(env, `/api/admin/images/${image.id}/file`)).status).toBe(200);
 
-      expect((await call(env, `/api/admin/images/${image.id}/publish`, { method: "POST" })).status).toBe(200);
+      expect(
+        (await call(env, `/api/admin/images/${image.id}/publish`, { method: "POST" })).status,
+      ).toBe(200);
       let feed = (await (await call(env, "/api/published-images")).json()) as {
         images: Array<{ id: string; profileId: string; slot: string }>;
       };
@@ -90,10 +94,12 @@ describe("four-profile public image resource lifecycle", () => {
       const replacement = new FormData();
       replacement.set("file", new File([REPLACEMENT], "replacement.png", { type: PNG }));
       expect(
-        (await call(env, `/api/admin/images/${image.id}/replace`, {
-          method: "POST",
-          body: replacement,
-        })).status,
+        (
+          await call(env, `/api/admin/images/${image.id}/replace`, {
+            method: "POST",
+            body: replacement,
+          })
+        ).status,
       ).toBe(200);
       const versionsResponse = await call(env, `/api/admin/images/${image.id}/versions`);
       expect(versionsResponse.status).toBe(200);
@@ -113,14 +119,20 @@ describe("four-profile public image resource lifecycle", () => {
       const restoredPublic = await call(env, `/api/published-images/${image.id}`);
       expect([...new Uint8Array(await restoredPublic.arrayBuffer())]).toEqual([...ORIGINAL]);
 
-      expect((await call(env, `/api/admin/images/${image.id}/unpublish`, { method: "POST" })).status).toBe(200);
+      expect(
+        (await call(env, `/api/admin/images/${image.id}/unpublish`, { method: "POST" })).status,
+      ).toBe(200);
       feed = (await (await call(env, "/api/published-images")).json()) as typeof feed;
       expect(feed.images.some((item) => item.id === image.id)).toBe(false);
       expect((await call(env, `/api/published-images/${image.id}`)).status).toBe(404);
       expect((await call(env, `/api/admin/images/${image.id}/file`)).status).toBe(200);
 
-      expect((await call(env, `/api/admin/images/${image.id}/publish`, { method: "POST" })).status).toBe(200);
-      expect((await call(env, `/api/admin/images/${image.id}`, { method: "DELETE" })).status).toBe(200);
+      expect(
+        (await call(env, `/api/admin/images/${image.id}/publish`, { method: "POST" })).status,
+      ).toBe(200);
+      expect((await call(env, `/api/admin/images/${image.id}`, { method: "DELETE" })).status).toBe(
+        200,
+      );
       feed = (await (await call(env, "/api/published-images")).json()) as typeof feed;
       expect(feed.images.some((item) => item.id === image.id)).toBe(false);
       expect(await bucket.get(`private-admin/images/files/${image.id}`)).toBeNull();

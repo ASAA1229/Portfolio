@@ -35,13 +35,15 @@ const TOOLS = [
   {
     to: "/admin/content",
     title: "Content manager",
-    description: "Edit profile facts, projects, skills, experience, education, contact, SEO and appearance.",
+    description:
+      "Edit profile facts, projects, skills, experience, education, contact, SEO and appearance.",
     Icon: LayoutList,
   },
   {
     to: "/admin/resumes",
     title: "Resume manager",
-    description: "Upload private source documents, review extracted details and publish approved fields.",
+    description:
+      "Upload private source documents, review extracted details and publish approved fields.",
     Icon: FileText,
   },
   {
@@ -149,11 +151,11 @@ function AdminHome() {
     const personas: Record<string, VersionedDocument | null> = {};
     PROFILES.forEach((profile, index) => {
       content[profile.id] =
-        take<{ document: VersionedDocument }>(4 + index * 2, `${profile.label} content`)?.document ??
-        null;
+        take<{ document: VersionedDocument }>(4 + index * 2, `${profile.label} content`)
+          ?.document ?? null;
       personas[profile.id] =
-        take<{ persona: VersionedDocument }>(5 + index * 2, `${profile.label} AI persona`)?.persona ??
-        null;
+        take<{ persona: VersionedDocument }>(5 + index * 2, `${profile.label} AI persona`)
+          ?.persona ?? null;
     });
     setData({
       resumes: resumePayload?.resumes ?? [],
@@ -166,7 +168,9 @@ function AdminHome() {
       unavailable,
     });
     if (unavailable.length === results.length) {
-      setError("Admin services could not be loaded. Refresh the page or check private storage configuration.");
+      setError(
+        "Admin services could not be loaded. Refresh the page or check private storage configuration.",
+      );
     }
     setBusy(false);
   }, []);
@@ -181,7 +185,8 @@ function AdminHome() {
     if (
       everywhere &&
       !window.confirm("End every admin session on every device, including this one?")
-    ) return;
+    )
+      return;
     setSessionMessage("");
     setBusy(true);
     const response = await fetch(everywhere ? "/api/admin/logout-all" : "/api/admin/logout", {
@@ -198,11 +203,13 @@ function AdminHome() {
   const pendingImages = data?.images.filter((item) => item.status === "pending").length ?? 0;
   const publishedImages = data?.images.filter((item) => item.status === "approved").length ?? 0;
   const draftCount = Object.values(data?.content ?? {}).filter((item) => item?.draft).length;
-  const personaDraftCount = Object.values(data?.personas ?? {}).filter((item) => item?.draft).length;
+  const personaDraftCount = Object.values(data?.personas ?? {}).filter(
+    (item) => item?.draft,
+  ).length;
 
   return (
     <main className="site-container max-w-6xl py-8 sm:py-12">
-      <AdminNavigation current="/admin/" />
+      <AdminNavigation current="/admin" />
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
@@ -210,8 +217,8 @@ function AdminHome() {
           </p>
           <h1 className="mt-3 text-4xl font-semibold">Portfolio control room</h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-            Manage the four public identities, approve content and media, control AI personas,
-            and protect every change with version history and backups.
+            Manage the four public identities, approve content and media, control AI personas, and
+            protect every change with version history and backups.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -246,26 +253,55 @@ function AdminHome() {
         </div>
       </header>
 
-      {error && <p role="alert" className="mt-6 rounded border border-red-400/40 p-3 text-sm text-red-300">{error}</p>}
-      {sessionMessage && <p role="alert" className="mt-3 text-sm text-red-300">{sessionMessage}</p>}
+      {error && (
+        <p role="alert" className="mt-6 rounded border border-red-400/40 p-3 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+      {sessionMessage && (
+        <p role="alert" className="mt-3 text-sm text-red-300">
+          {sessionMessage}
+        </p>
+      )}
       {data?.unavailable.length ? (
-        <p role="status" className="mt-4 rounded border border-amber-400/30 p-3 text-sm text-amber-200">
-          Some status sources are unavailable: {data.unavailable.join(", ")}. Counts below may be incomplete.
+        <p
+          role="status"
+          className="mt-4 rounded border border-amber-400/30 p-3 text-sm text-amber-200"
+        >
+          Some status sources are unavailable: {data.unavailable.join(", ")}. Counts below may be
+          incomplete.
         </p>
       ) : null}
 
-      <section aria-label="Portfolio operations" className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Pending resume reviews" value={pendingResumes} detail={`${approvedResumes} approved source documents`} />
-        <Metric label="Pending image reviews" value={pendingImages} detail={`${publishedImages} published images`} />
+      <section
+        aria-label="Portfolio operations"
+        className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <Metric
+          label="Pending resume reviews"
+          value={pendingResumes}
+          detail={`${approvedResumes} approved source documents`}
+        />
+        <Metric
+          label="Pending image reviews"
+          value={pendingImages}
+          detail={`${publishedImages} published images`}
+        />
         <Metric label="Content drafts" value={draftCount} detail="Across four profiles" />
-        <Metric label="AI persona drafts" value={personaDraftCount} detail="Across four profile assistants" />
+        <Metric
+          label="AI persona drafts"
+          value={personaDraftCount}
+          detail="Across four profile assistants"
+        />
       </section>
 
       <section className="mt-8 rounded-lg border border-border bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Profile operations</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Content, AI persona, resume and image status for each identity.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Content, AI persona, resume and image status for each identity.
+            </p>
           </div>
           <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
             <Activity className="size-4" /> {busy ? "Refreshing…" : "Latest available status"}
@@ -281,17 +317,56 @@ function AdminHome() {
               <article key={profile.id} className="rounded-md border border-border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold">{profile.label}</h3>
-                  <a href={profile.route} className="text-xs text-primary underline underline-offset-4">View public profile</a>
+                  <a
+                    href={profile.route}
+                    className="text-xs text-primary underline underline-offset-4"
+                  >
+                    View public profile
+                  </a>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                  <Status label="Content" value={contentDoc?.publishedVersion ? `v${contentDoc.publishedVersion} published` : "Curated default"} pending={Boolean(contentDoc?.draft)} />
-                  <Status label="AI persona" value={personaDoc?.publishedVersion ? `v${personaDoc.publishedVersion} published` : "Default assistant"} pending={Boolean(personaDoc?.draft)} />
-                  <Status label="Resumes" value={`${resumes.length} total · ${resumes.filter((item) => item.status === "approved").length} approved`} pending={resumes.some((item) => item.status === "pending")} />
-                  <Status label="Images" value={`${images.length} total · ${images.filter((item) => item.status === "approved").length} published`} pending={images.some((item) => item.status === "pending")} />
+                  <Status
+                    label="Content"
+                    value={
+                      contentDoc?.publishedVersion
+                        ? `v${contentDoc.publishedVersion} published`
+                        : "Curated default"
+                    }
+                    pending={Boolean(contentDoc?.draft)}
+                  />
+                  <Status
+                    label="AI persona"
+                    value={
+                      personaDoc?.publishedVersion
+                        ? `v${personaDoc.publishedVersion} published`
+                        : "Default assistant"
+                    }
+                    pending={Boolean(personaDoc?.draft)}
+                  />
+                  <Status
+                    label="Resumes"
+                    value={`${resumes.length} total · ${resumes.filter((item) => item.status === "approved").length} approved`}
+                    pending={resumes.some((item) => item.status === "pending")}
+                  />
+                  <Status
+                    label="Images"
+                    value={`${images.length} total · ${images.filter((item) => item.status === "approved").length} published`}
+                    pending={images.some((item) => item.status === "pending")}
+                  />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                  <Link to="/admin/content" className="rounded border border-border px-2 py-1.5 hover:border-primary">Edit content</Link>
-                  <Link to="/admin/personas" className="rounded border border-border px-2 py-1.5 hover:border-primary">Edit AI persona</Link>
+                  <Link
+                    to="/admin/content"
+                    className="rounded border border-border px-2 py-1.5 hover:border-primary"
+                  >
+                    Edit content
+                  </Link>
+                  <Link
+                    to="/admin/personas"
+                    className="rounded border border-border px-2 py-1.5 hover:border-primary"
+                  >
+                    Edit AI persona
+                  </Link>
                 </div>
               </article>
             );
@@ -312,22 +387,32 @@ function AdminHome() {
                 ? "No private storage adapter is available. Publishing and backup operations are unavailable."
                 : "Checking private storage…"}
           </p>
-          <Link to="/admin/backup" className="mt-4 inline-flex min-h-10 items-center text-sm text-primary underline underline-offset-4">
+          <Link
+            to="/admin/backup"
+            className="mt-4 inline-flex min-h-10 items-center text-sm text-primary underline underline-offset-4"
+          >
             Open backup & restore
           </Link>
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Recent admin activity</h2>
-            <Link to="/admin/audit" className="text-xs text-primary underline underline-offset-4">Full audit log</Link>
+            <Link to="/admin/audit" className="text-xs text-primary underline underline-offset-4">
+              Full audit log
+            </Link>
           </div>
           {data?.audit.length ? (
             <ol className="mt-3 divide-y divide-border">
               {data.audit.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                <li
+                  key={entry.id}
+                  className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
+                >
                   <div>
                     <p className="font-medium">{entry.action}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{entry.targets.join(", ") || "No record identifiers"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {entry.targets.join(", ") || "No record identifiers"}
+                    </p>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
                     <p>{entry.outcome}</p>
@@ -337,18 +422,25 @@ function AdminHome() {
               ))}
             </ol>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">No activity entries are available yet.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              No activity entries are available yet.
+            </p>
           )}
         </div>
       </section>
 
       <section className="mt-10">
         <h2 className="text-xl font-semibold">Admin tools</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Open a focused workspace to make and publish changes.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Open a focused workspace to make and publish changes.
+        </p>
         <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {TOOLS.map(({ to, title, description, Icon }) => (
             <li key={to}>
-              <Link to={to} className="flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              <Link
+                to={to}
+                className="flex h-full flex-col gap-3 rounded-lg border border-border bg-card p-5 transition-colors hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
                 <Icon className="size-6 text-primary" aria-hidden="true" />
                 <span className="font-semibold">{title}</span>
                 <span className="text-sm leading-6 text-muted-foreground">{description}</span>

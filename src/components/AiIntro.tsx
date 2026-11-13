@@ -19,7 +19,9 @@ import videoSet from "@/assets/video_set.mp4";
 const OFFLINE_INTRO = AI_INTRO_SEGMENTS.map((segment) => segment.text).join(" ");
 
 function DynamicIntroPlayer() {
-  const publishedPortrait = [...usePublishedProfileImages("abhishek")].reverse().find((image) => image.slot === "portrait");
+  const publishedPortrait = [...usePublishedProfileImages("abhishek")]
+    .reverse()
+    .find((image) => image.slot === "portrait");
   const [intro, setIntro] = useState("");
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);

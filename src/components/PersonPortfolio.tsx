@@ -35,7 +35,11 @@ import {
   type PortfolioSection,
 } from "@/lib/person-portfolios";
 import backdrop from "@/assets/series-billboard.jpg";
-import { usePublishedProfileImages, usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
+import {
+  usePublishedProfileImages,
+  usePublishedProfileResume,
+  usePublishedProjectImages,
+} from "@/lib/published-resume";
 import { usePublishedContent } from "@/lib/published-content";
 
 function PersonLink({
@@ -86,12 +90,12 @@ export function PersonShell({
 function profileSocialUrl(platform: string, handle: string | null): string | undefined {
   if (!handle) return undefined;
   const normalized = platform.trim().toLowerCase();
-  const host = normalized === "linkedin" ? "linkedin.com" : normalized === "github" ? "github.com" : null;
+  const host =
+    normalized === "linkedin" ? "linkedin.com" : normalized === "github" ? "github.com" : null;
   if (!host) return undefined;
   try {
     const url = new URL(handle);
-    return url.protocol === "https:" &&
-      (url.hostname === host || url.hostname.endsWith("." + host))
+    return url.protocol === "https:" && (url.hostname === host || url.hostname.endsWith("." + host))
       ? url.toString()
       : undefined;
   } catch {
@@ -106,7 +110,8 @@ function profileSocialUrl(platform: string, handle: string | null): string | und
 function usePersonContact(profile: PersonPortfolio) {
   const published = usePublishedProfileResume(profile.id);
   const social = (platform: string) =>
-    profile.socialLabels.find((item) => item.platform.trim().toLowerCase() === platform)?.handle ?? null;
+    profile.socialLabels.find((item) => item.platform.trim().toLowerCase() === platform)?.handle ??
+    null;
   return {
     email: published?.contact?.email || profile.email,
     phone: published?.contact?.phone || profile.phone,
@@ -258,11 +263,18 @@ function ProjectTile({
         aria-label={`Explore ${project.title}`}
       >
         {cover ? (
-          <img src={cover.src} alt={cover.alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
+          <img
+            src={cover.src}
+            alt={cover.alt}
+            loading="lazy"
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : (
           <Icon strokeWidth={1} />
         )}
-        <span className="relative z-10 font-mono text-xs">ORIGINAL {String(index + 1).padStart(2, "0")}</span>
+        <span className="relative z-10 font-mono text-xs">
+          ORIGINAL {String(index + 1).padStart(2, "0")}
+        </span>
       </Link>
       <div className="p-6">
         <p className="font-mono text-[10px] leading-5 text-primary">{project.context}</p>
@@ -324,15 +336,27 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedContent = usePublishedContent(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
-  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
-  const resumeEducation = publishedResume?.structuredSections?.education?.find((entry) => typeof entry === "object");
+  const publishedPortrait = [...publishedImages]
+    .reverse()
+    .find((image) => image.slot === "portrait");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find(
+    (entry) => typeof entry === "object",
+  );
   const educationTitle = resumeEducation?.title || profile.education.qualification;
   const educationOrganization = resumeEducation?.organization || profile.education.college;
-  const educationPeriod = [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") || profile.education.period;
+  const educationPeriod =
+    [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") ||
+    profile.education.period;
   const educationScore = resumeEducation?.grade || profile.education.score;
-  const educationLocation = resumeEducation?.location || profile.location || profile.education.location;
-  const headline = publishedContent?.basics?.headline || publishedResume?.headline || profile.headline;
-  const story = publishedContent?.basics?.story || publishedContent?.basics?.summary || publishedResume?.summary || profile.story;
+  const educationLocation =
+    resumeEducation?.location || profile.location || profile.education.location;
+  const headline =
+    publishedContent?.basics?.headline || publishedResume?.headline || profile.headline;
+  const story =
+    publishedContent?.basics?.story ||
+    publishedContent?.basics?.summary ||
+    publishedResume?.summary ||
+    profile.story;
   return (
     <>
       <section className="person-hero">
@@ -383,8 +407,14 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
             <p className="mt-7 max-w-lg font-mono text-xs leading-6 text-muted-foreground">
               {educationTitle} · {educationPeriod}
               <br />
-              {educationOrganization}{educationScore ? " · " + educationScore : ""}
-              {educationLocation && <><br />{educationLocation}</>}
+              {educationOrganization}
+              {educationScore ? " · " + educationScore : ""}
+              {educationLocation && (
+                <>
+                  <br />
+                  {educationLocation}
+                </>
+              )}
             </p>
           </Reveal>
         </div>
@@ -426,7 +456,10 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
           <h2 className="text-4xl">Beyond the work.</h2>
           <div>
             <p className="text-sm leading-8 text-muted-foreground">
-              {publishedContent?.basics?.story || publishedContent?.basics?.summary || publishedResume?.summary || profile.summary}
+              {publishedContent?.basics?.story ||
+                publishedContent?.basics?.summary ||
+                publishedResume?.summary ||
+                profile.summary}
             </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <PersonLink person={profile.id} section="experience">
@@ -486,12 +519,12 @@ export function PersonContent({
   const publishedResume = usePublishedProfileResume(profile.id);
   const publishedContent = usePublishedContent(profile.id);
   const publishedImages = usePublishedProfileImages(profile.id);
-  const publishedPortrait = [...publishedImages].reverse().find((image) => image.slot === "portrait");
+  const publishedPortrait = [...publishedImages]
+    .reverse()
+    .find((image) => image.slot === "portrait");
   const contact = usePersonContact(profile);
   const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
-  const galleryPhotos = publishedGallery.length
-    ? publishedGallery
-    : profile.gallery;
+  const galleryPhotos = publishedGallery.length ? publishedGallery : profile.gallery;
   const sectionLabel = PERSON_SECTIONS.find((item) => item.id === section)?.label ?? section;
   const name = profile.displayName.toUpperCase();
   const publishedProjects = publishedResume?.structuredSections?.projects?.length ?? 0;
@@ -614,7 +647,11 @@ export function PersonContent({
           <>
             <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
               <div>
-                <h2 className="text-4xl">{publishedContent?.basics?.headline || publishedResume?.headline || profile.headline}</h2>
+                <h2 className="text-4xl">
+                  {publishedContent?.basics?.headline ||
+                    publishedResume?.headline ||
+                    profile.headline}
+                </h2>
                 <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
                   <img
                     src={publishedPortrait?.src ?? profile.portrait}
@@ -712,70 +749,68 @@ export function PersonContent({
                 <ResumeEntryCard key={index} entry={entry} section="projects" index={index} />
               ))}
             </div>
-          ) : (
-            featured ? (
-              <>
-                <section className="featured-project">
-                  <div className="featured-project-art">
-                    <ProjectVisual index={0} />
-                    <span>FEATURED PRODUCTION · 01</span>
-                  </div>
-                  <div className="featured-project-copy">
-                    <p className="chapter-kicker">{featured.context}</p>
-                    <h2>{featured.title}</h2>
-                    <p>{featured.overview}</p>
-                    <Link
-                      to="/people/$person/projects/$slug"
-                      params={{ person: profile.id, slug: featured.slug }}
-                    >
-                      Explore the case study <ArrowUpRight />
-                    </Link>
-                  </div>
-                </section>
-                {profile.projects.length > 1 && (
-                  <>
-                    <div className="chapter-section-heading projects-list-heading">
-                      <div>
-                        <p className="chapter-kicker">MORE STORIES</p>
-                        <h2>Other work in the series.</h2>
-                      </div>
-                      <span>{String(profile.projects.length).padStart(2, "0")} PROJECTS</span>
+          ) : featured ? (
+            <>
+              <section className="featured-project">
+                <div className="featured-project-art">
+                  <ProjectVisual index={0} />
+                  <span>FEATURED PRODUCTION · 01</span>
+                </div>
+                <div className="featured-project-copy">
+                  <p className="chapter-kicker">{featured.context}</p>
+                  <h2>{featured.title}</h2>
+                  <p>{featured.overview}</p>
+                  <Link
+                    to="/people/$person/projects/$slug"
+                    params={{ person: profile.id, slug: featured.slug }}
+                  >
+                    Explore the case study <ArrowUpRight />
+                  </Link>
+                </div>
+              </section>
+              {profile.projects.length > 1 && (
+                <>
+                  <div className="chapter-section-heading projects-list-heading">
+                    <div>
+                      <p className="chapter-kicker">MORE STORIES</p>
+                      <h2>Other work in the series.</h2>
                     </div>
-                    <div className="project-showcase">
-                      {profile.projects.slice(1).map((project, i) => (
-                        <Reveal key={project.slug} delay={i * 0.05}>
-                          <Link
-                            to="/people/$person/projects/$slug"
-                            params={{ person: profile.id, slug: project.slug }}
-                            className="showcase-project"
-                          >
-                            <div className={`showcase-art showcase-art-${i % 3}`}>
-                              <ProjectVisual index={(i + 1) % 3} />
-                              <span>{project.context}</span>
-                            </div>
-                            <div className="showcase-copy">
-                              <p>ORIGINAL {String(i + 2).padStart(2, "0")}</p>
-                              <h3>{project.title}</h3>
-                              <span>{project.overview}</span>
-                              <TechnologyList items={project.tech.slice(0, 6)} />
-                              <ArrowUpRight className="showcase-arrow" />
-                            </div>
-                          </Link>
-                        </Reveal>
-                      ))}
-                    </div>
-                  </>
-                )}
-                <p className="mt-8 max-w-3xl text-xs leading-6 text-muted-foreground">
-                  Project descriptions reflect documented scope and contributions. Repository, live
-                  demo, and implementation media appear when verified links or assets are available.
-                </p>
-              </>
-            ) : (
-              <p role="status" className="text-sm text-muted-foreground">
-                No projects have been published for this profile yet.
+                    <span>{String(profile.projects.length).padStart(2, "0")} PROJECTS</span>
+                  </div>
+                  <div className="project-showcase">
+                    {profile.projects.slice(1).map((project, i) => (
+                      <Reveal key={project.slug} delay={i * 0.05}>
+                        <Link
+                          to="/people/$person/projects/$slug"
+                          params={{ person: profile.id, slug: project.slug }}
+                          className="showcase-project"
+                        >
+                          <div className={`showcase-art showcase-art-${i % 3}`}>
+                            <ProjectVisual index={(i + 1) % 3} />
+                            <span>{project.context}</span>
+                          </div>
+                          <div className="showcase-copy">
+                            <p>ORIGINAL {String(i + 2).padStart(2, "0")}</p>
+                            <h3>{project.title}</h3>
+                            <span>{project.overview}</span>
+                            <TechnologyList items={project.tech.slice(0, 6)} />
+                            <ArrowUpRight className="showcase-arrow" />
+                          </div>
+                        </Link>
+                      </Reveal>
+                    ))}
+                  </div>
+                </>
+              )}
+              <p className="mt-8 max-w-3xl text-xs leading-6 text-muted-foreground">
+                Project descriptions reflect documented scope and contributions. Repository, live
+                demo, and implementation media appear when verified links or assets are available.
               </p>
-            )
+            </>
+          ) : (
+            <p role="status" className="text-sm text-muted-foreground">
+              No projects have been published for this profile yet.
+            </p>
           ))}
         {section === "experience" && (
           <>
@@ -791,38 +826,40 @@ export function PersonContent({
                   <p role="status" className="text-sm text-muted-foreground">
                     No experience entries have been published for this profile yet.
                   </p>
-                ) : profile.experience.map((job, index) => (
-                  <section
-                    key={job.role}
-                    className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
-                  >
-                    <div>
-                      <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
-                      <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
-                      <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
-                      {job.company && <p className="mt-3 text-sm">{job.role}</p>}
-                      {!job.company && (
-                        <p className="mt-3 text-xs text-muted-foreground">
-                          Employer not specified in the resume.
-                        </p>
-                      )}
-                      {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
-                    </div>
-                    <div>
-                      <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
-                        {job.points.map((point) => (
-                          <li key={point} className="flex gap-3">
-                            <span className="text-primary" aria-hidden="true">
-                              —
-                            </span>
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <TechnologyList items={job.tech} />
-                    </div>
-                  </section>
-                ))}
+                ) : (
+                  profile.experience.map((job, index) => (
+                    <section
+                      key={job.role}
+                      className="grid gap-6 border-l-2 border-primary py-3 pl-6 md:grid-cols-[1fr_2fr]"
+                    >
+                      <div>
+                        <p className="font-mono text-xs text-primary">EPISODE 0{index + 1}</p>
+                        <p className="mt-4 text-sm text-muted-foreground">{job.period}</p>
+                        <h2 className="mt-3 text-3xl">{job.company ?? job.role}</h2>
+                        {job.company && <p className="mt-3 text-sm">{job.role}</p>}
+                        {!job.company && (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            Employer not specified in the resume.
+                          </p>
+                        )}
+                        {job.context && <p className="mt-3 text-sm text-primary">{job.context}</p>}
+                      </div>
+                      <div>
+                        <ul className="space-y-4 text-sm leading-7 text-muted-foreground">
+                          {job.points.map((point) => (
+                            <li key={point} className="flex gap-3">
+                              <span className="text-primary" aria-hidden="true">
+                                —
+                              </span>
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <TechnologyList items={job.tech} />
+                      </div>
+                    </section>
+                  ))
+                )}
               </div>
             )}
           </>
@@ -830,7 +867,10 @@ export function PersonContent({
         {section === "certifications" && (
           <>
             {publishedResume?.structuredSections?.certifications?.length ? (
-              <div className="mb-10 rounded-lg border border-primary/30 bg-card p-6" aria-label="Certifications from published resume">
+              <div
+                className="mb-10 rounded-lg border border-primary/30 bg-card p-6"
+                aria-label="Certifications from published resume"
+              >
                 <p className="font-mono text-xs text-primary">
                   LATEST PUBLISHED RESUME · {publishedResume.displayName}
                 </p>
@@ -850,15 +890,18 @@ export function PersonContent({
                 </div>
               </div>
             ) : profile.certifications.length === 0 ? (
-              <p role="status" className="rounded-lg border border-border p-6 text-sm text-muted-foreground">
+              <p
+                role="status"
+                className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+              >
                 No certifications have been published for this profile yet.
               </p>
             ) : (
               <>
                 <div className="certs-note">
                   <p>
-                    Credentials are listed from the portfolio record. Certificate scans, issue dates,
-                    IDs, and verification links have not been provided.
+                    Credentials are listed from the portfolio record. Certificate scans, issue
+                    dates, IDs, and verification links have not been provided.
                   </p>
                 </div>
                 <div className="certificate-archive">
@@ -967,10 +1010,21 @@ export function PersonProjectDetail({
       <h1 className="page-title mt-5 max-w-4xl">{project.title}</h1>
       <p className="mt-7 max-w-3xl text-sm leading-8 text-muted-foreground">{project.overview}</p>
       {projectImages.length > 0 && (
-        <section className="mt-10 grid gap-4 sm:grid-cols-2" aria-label={`Images for ${project.title}`}>
+        <section
+          className="mt-10 grid gap-4 sm:grid-cols-2"
+          aria-label={`Images for ${project.title}`}
+        >
           {projectImages.map((image) => (
-            <figure key={image.id} className="overflow-hidden rounded-lg border border-border bg-card">
-              <img src={image.src} alt={image.alt} loading="lazy" className="aspect-video w-full object-cover" />
+            <figure
+              key={image.id}
+              className="overflow-hidden rounded-lg border border-border bg-card"
+            >
+              <img
+                src={image.src}
+                alt={image.alt}
+                loading="lazy"
+                className="aspect-video w-full object-cover"
+              />
             </figure>
           ))}
         </section>

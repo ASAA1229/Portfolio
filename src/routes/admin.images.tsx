@@ -15,10 +15,24 @@ type ImageRecord = {
   slot?: "gallery" | "portrait" | "project";
   projectSlug?: string;
 };
-type ImageVersion = { version: string; filename: string; contentType: string; size: number; uploadedAt: string };
+type ImageVersion = {
+  version: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  uploadedAt: string;
+};
 type LifecycleReport = {
   healthy: boolean;
-  summary: { resumes: number; publishedResumes: number; images: number; publishedImages: number; findings: number; errors: number; warnings: number };
+  summary: {
+    resumes: number;
+    publishedResumes: number;
+    images: number;
+    publishedImages: number;
+    findings: number;
+    errors: number;
+    warnings: number;
+  };
   findings: { code: string; resource: string; id: string; severity: "error" | "warning" }[];
 };
 type ImageListPayload = {
@@ -45,7 +59,8 @@ export const Route = createFileRoute("/admin/images")({
 });
 
 async function readApiResponse<T>(response: Response): Promise<T> {
-  const payload = (await response.json().catch(() => null)) as (T & { error?: string; detail?: string }) | null;
+  const payload = (await response.json().catch(() => null)) as
+    (T & { error?: string; detail?: string }) | null;
   if (!response.ok) {
     throw new Error(
       [payload?.error, payload?.detail].filter(Boolean).join(" — ") ||
@@ -83,8 +98,20 @@ function ImageManager() {
   const [statusFilter, setStatusFilter] = useState<"all" | ImageRecord["status"]>("all");
   const visibleImages = images.filter((image) => {
     const query = searchQuery.trim().toLowerCase();
-    const matchesQuery = !query || [image.filename, image.alt, image.profileId, image.slot ?? "gallery", image.projectSlug ?? ""].some((value) => value.toLowerCase().includes(query));
-    return matchesQuery && (profileFilter === "all" || image.profileId === profileFilter) && (statusFilter === "all" || image.status === statusFilter);
+    const matchesQuery =
+      !query ||
+      [
+        image.filename,
+        image.alt,
+        image.profileId,
+        image.slot ?? "gallery",
+        image.projectSlug ?? "",
+      ].some((value) => value.toLowerCase().includes(query));
+    return (
+      matchesQuery &&
+      (profileFilter === "all" || image.profileId === profileFilter) &&
+      (statusFilter === "all" || image.status === statusFilter)
+    );
   });
 
   async function loadImages(signal?: AbortSignal) {
@@ -107,7 +134,9 @@ function ImageManager() {
         signal: signal ?? null,
       });
       const publicPayload = publicResponse.ok
-        ? (await publicResponse.json()) as { images?: Array<{ id?: string; profileId?: string; slot?: string }> }
+        ? ((await publicResponse.json()) as {
+            images?: Array<{ id?: string; profileId?: string; slot?: string }>;
+          })
         : null;
       const publicImages = Array.isArray(publicPayload?.images) ? publicPayload.images : [];
       const selected = new Set<string>();
@@ -268,7 +297,9 @@ function ImageManager() {
       await loadImages();
       setPreviewVersion((value) => value + 1);
       setVersionsByImage({});
-      setMessage("Image file replaced. The previous file is available in version history until cleanup.");
+      setMessage(
+        "Image file replaced. The previous file is available in version history until cleanup.",
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not replace image.");
     } finally {
@@ -312,9 +343,12 @@ function ImageManager() {
   }
 
   async function restoreImageVersion(id: string, version: ImageVersion) {
-    if (!window.confirm(
-      `Restore "${version.filename}" from ${new Date(version.uploadedAt).toLocaleString()}? The current image will be preserved as a new version.`,
-    )) return;
+    if (
+      !window.confirm(
+        `Restore "${version.filename}" from ${new Date(version.uploadedAt).toLocaleString()}? The current image will be preserved as a new version.`,
+      )
+    )
+      return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -335,7 +369,9 @@ function ImageManager() {
       setVersionsByImage((current) => ({ ...current, [id]: history.versions ?? [] }));
       setExpandedVersions((current) => new Set(current).add(id));
       setPreviewVersion((value) => value + 1);
-      setMessage("Previous image version restored. The image that was active before restoration is retained in version history.");
+      setMessage(
+        "Previous image version restored. The image that was active before restoration is retained in version history.",
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not restore image version.");
     } finally {
@@ -353,9 +389,11 @@ function ImageManager() {
       });
       const report = await readApiResponse<LifecycleReport>(response);
       setLifecycleReport(report);
-      setMessage(report.healthy
-        ? "Resource lifecycle inspection found no integrity issues."
-        : `Resource lifecycle inspection found ${report.summary.errors} error(s) and ${report.summary.warnings} warning(s). No storage was changed.`);
+      setMessage(
+        report.healthy
+          ? "Resource lifecycle inspection found no integrity issues."
+          : `Resource lifecycle inspection found ${report.summary.errors} error(s) and ${report.summary.warnings} warning(s). No storage was changed.`,
+      );
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not inspect resource lifecycle.");
     } finally {
@@ -440,7 +478,9 @@ function ImageManager() {
             <select
               className="min-h-11 rounded border border-border bg-background px-3"
               value={slot}
-              onChange={(event) => setSlot(event.target.value as "gallery" | "portrait" | "project")}
+              onChange={(event) =>
+                setSlot(event.target.value as "gallery" | "portrait" | "project")
+              }
             >
               <option value="gallery">Profile gallery</option>
               <option value="portrait">Main profile portrait</option>
@@ -453,13 +493,17 @@ function ImageManager() {
               <input
                 className="min-h-11 rounded border border-border bg-background px-3"
                 value={projectSlug}
-                onChange={(event) => setProjectSlug(event.target.value.toLowerCase().replace(/\s+/g, "-"))}
+                onChange={(event) =>
+                  setProjectSlug(event.target.value.toLowerCase().replace(/\s+/g, "-"))
+                }
                 maxLength={80}
                 pattern="[a-z0-9][a-z0-9-]{0,79}"
                 placeholder="e.g. data-analysis-ai"
                 required
               />
-              <span className="text-xs text-muted-foreground">Use the exact slug from this profile&apos;s project URL.</span>
+              <span className="text-xs text-muted-foreground">
+                Use the exact slug from this profile&apos;s project URL.
+              </span>
             </label>
           )}
           <label className="grid gap-2 text-sm">
@@ -527,46 +571,82 @@ function ImageManager() {
         <section aria-live="polite" className="mb-6 rounded-lg border border-border p-4">
           <h2 className="font-semibold">Resource lifecycle report</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {lifecycleReport.summary.resumes} resumes ({lifecycleReport.summary.publishedResumes} published) · {lifecycleReport.summary.images} images ({lifecycleReport.summary.publishedImages} published)
+            {lifecycleReport.summary.resumes} resumes ({lifecycleReport.summary.publishedResumes}{" "}
+            published) · {lifecycleReport.summary.images} images (
+            {lifecycleReport.summary.publishedImages} published)
           </p>
           <p className="mt-2 text-sm">
-            {lifecycleReport.healthy ? "No integrity findings." : `${lifecycleReport.summary.errors} errors · ${lifecycleReport.summary.warnings} warnings`}
+            {lifecycleReport.healthy
+              ? "No integrity findings."
+              : `${lifecycleReport.summary.errors} errors · ${lifecycleReport.summary.warnings} warnings`}
           </p>
           {lifecycleReport.findings.length > 0 && (
             <ul className="mt-3 grid gap-2 text-sm">
               {lifecycleReport.findings.map((finding, index) => (
-                <li key={`${finding.code}-${finding.id}-${index}`} className="rounded border border-border px-3 py-2">
+                <li
+                  key={`${finding.code}-${finding.id}-${index}`}
+                  className="rounded border border-border px-3 py-2"
+                >
                   <span className="font-mono text-xs">{finding.severity.toUpperCase()}</span>
                   <span className="ml-2 font-medium">{finding.code}</span>
-                  <span className="ml-2 text-muted-foreground">{finding.resource}: {finding.id}</span>
+                  <span className="ml-2 text-muted-foreground">
+                    {finding.resource}: {finding.id}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-muted-foreground">Inspection is read-only. Findings do not trigger automatic deletion, repair or publication changes.</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Inspection is read-only. Findings do not trigger automatic deletion, repair or
+            publication changes.
+          </p>
         </section>
       )}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
-        <label className="text-xs text-muted-foreground">Search images
-          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Filename, alt text, profile…" className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground" />
+        <label className="text-xs text-muted-foreground">
+          Search images
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Filename, alt text, profile…"
+            className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+          />
         </label>
-        <label className="text-xs text-muted-foreground">Profile
-          <select value={profileFilter} onChange={(event) => setProfileFilter(event.target.value as typeof profileFilter)} className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground">
+        <label className="text-xs text-muted-foreground">
+          Profile
+          <select
+            value={profileFilter}
+            onChange={(event) => setProfileFilter(event.target.value as typeof profileFilter)}
+            className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+          >
             <option value="all">All profiles</option>
-            {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.label}
+              </option>
+            ))}
           </select>
         </label>
-        <label className="text-xs text-muted-foreground">Publication status
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground">
-            <option value="all">All statuses</option><option value="pending">Pending review</option><option value="approved">Published</option>
+        <label className="text-xs text-muted-foreground">
+          Publication status
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+            className="mt-2 min-h-11 w-full rounded border border-border bg-background px-3 text-sm text-foreground"
+          >
+            <option value="all">All statuses</option>
+            <option value="pending">Pending review</option>
+            <option value="approved">Published</option>
           </select>
         </label>
       </div>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl">Uploaded images</h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Showing {visibleImages.length} of {images.length}</span>
+          <span className="text-sm text-muted-foreground">
+            Showing {visibleImages.length} of {images.length}
+          </span>
           <button
             className="inline-flex min-h-10 items-center gap-2 rounded border border-border px-3 text-sm disabled:opacity-50"
             disabled={busy}
@@ -611,8 +691,12 @@ function ImageManager() {
                   <h3 className="break-words font-semibold">{image.filename}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {profiles.find((item) => item.id === image.profileId)?.label} ·{" "}
-                    {image.slot === "portrait" ? "Main portrait" : image.slot === "project" ? `Project · ${image.projectSlug ?? "unassigned"}` : "Profile gallery"} ·{" "}
-                    {(image.size / 1024).toFixed(1)} KB
+                    {image.slot === "portrait"
+                      ? "Main portrait"
+                      : image.slot === "project"
+                        ? `Project · ${image.projectSlug ?? "unassigned"}`
+                        : "Profile gallery"}{" "}
+                    · {(image.size / 1024).toFixed(1)} KB
                   </p>
                   <p className="mt-2 text-sm">{image.alt}</p>
                 </div>
@@ -621,8 +705,12 @@ function ImageManager() {
                     {image.status === "approved" ? "Published" : "Pending review"}
                   </span>
                   {image.status === "approved" && (
-                    <span className={`rounded border px-2 py-1 text-[11px] ${activeImageIds.has(image.id) ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-200"}`}>
-                      {activeImageIds.has(image.id) ? "Live on profile" : "Published · not selected"}
+                    <span
+                      className={`rounded border px-2 py-1 text-[11px] ${activeImageIds.has(image.id) ? "border-emerald-400/40 text-emerald-300" : "border-amber-400/40 text-amber-200"}`}
+                    >
+                      {activeImageIds.has(image.id)
+                        ? "Live on profile"
+                        : "Published · not selected"}
                     </span>
                   )}
                 </div>
@@ -644,15 +732,20 @@ function ImageManager() {
                   <div className="mt-3 grid gap-2">
                     {(versionsByImage[image.id] ?? []).length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        No restorable versions found. Versions created before version metadata was added cannot be safely restored.
+                        No restorable versions found. Versions created before version metadata was
+                        added cannot be safely restored.
                       </p>
                     ) : (
                       (versionsByImage[image.id] ?? []).map((version) => (
-                        <div key={version.version} className="flex flex-wrap items-center justify-between gap-3 rounded border border-border p-3">
+                        <div
+                          key={version.version}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded border border-border p-3"
+                        >
                           <div className="min-w-0">
                             <p className="break-all text-sm font-medium">{version.filename}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {new Date(version.uploadedAt).toLocaleString()} · {(version.size / 1024).toFixed(1)} KB · {version.contentType}
+                              {new Date(version.uploadedAt).toLocaleString()} ·{" "}
+                              {(version.size / 1024).toFixed(1)} KB · {version.contentType}
                             </p>
                           </div>
                           <button

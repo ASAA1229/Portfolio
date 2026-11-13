@@ -20,10 +20,14 @@ describe("AI introduction fallback behavior", () => {
   });
 
   it("recovers the live AI introduction after a successful retry", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockRejectedValueOnce(new Error("AI service down"))
-      .mockResolvedValueOnce(new Response("Live AI introduction from the gateway."));
+    // The intro also reads the published-image feed; sequence only /api/chat calls.
+    let chatCalls = 0;
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      if (String(input) !== "/api/chat") return new Response("{}", { status: 404 });
+      chatCalls += 1;
+      if (chatCalls === 1) throw new Error("AI service down");
+      return new Response("Live AI introduction from the gateway.");
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<AiIntro />);
     fireEvent.click(screen.getByRole("button", { name: /meet my ai intro/i }));

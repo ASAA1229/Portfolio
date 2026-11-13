@@ -482,7 +482,16 @@ let localDevelopmentBucket: PrivateBucket | undefined;
 function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
   const configured = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (configured) return configured;
-  if (import.meta.env.DEV !== true) return undefined;
+  // The disk-backed bucket exists only for the local `vite dev` server. Builds,
+  // previews and test runners (where import.meta.env.DEV is also true) must bind
+  // storage explicitly so missing storage fails closed instead of writing to disk.
+  if (
+    import.meta.env.DEV !== true ||
+    typeof __PORTFOLIO_VITE_DEV_SERVER__ === "undefined" ||
+    __PORTFOLIO_VITE_DEV_SERVER__ !== true
+  ) {
+    return undefined;
+  }
   localDevelopmentBucket ??= createLocalDiskBucket(
     process.env["PORTFOLIO_LOCAL_STORAGE_DIR"] || ".local-storage",
   );
@@ -825,7 +834,13 @@ function bucketNotConfigured(): Response {
 
 async function handleResumeApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
-  if (!path.startsWith("/api/admin/resumes") && path !== "/api/admin/resources/consistency" && path !== "/api/published-resumes" && !path.startsWith("/api/published-resumes/")) return null;
+  if (
+    !path.startsWith("/api/admin/resumes") &&
+    path !== "/api/admin/resources/consistency" &&
+    path !== "/api/published-resumes" &&
+    !path.startsWith("/api/published-resumes/")
+  )
+    return null;
   if (path === "/api/published-resumes" && request.method === "GET") {
     const publicBucket = resolvePrivateBucket(env);
     if (!publicBucket) return jsonResponse({ updatedAt: null, resumes: [] }, 200);
@@ -887,12 +902,17 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     try {
       const resumes = await readResumeIndex(bucket);
       const feedObject = await bucket.get("public/approved-resumes.json");
-      const feedValue = feedObject ? await feedObject.json<unknown>().catch(() => null) : { resumes: [] };
+      const feedValue = feedObject
+        ? await feedObject.json<unknown>().catch(() => null)
+        : { resumes: [] };
       const feedIds =
-        feedValue && typeof feedValue === "object" && !Array.isArray(feedValue) &&
+        feedValue &&
+        typeof feedValue === "object" &&
+        !Array.isArray(feedValue) &&
         Array.isArray((feedValue as { resumes?: unknown }).resumes) &&
         (feedValue as { resumes: unknown[] }).resumes.every(
-          (item) => !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string",
+          (item) =>
+            !!item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string",
         )
           ? (feedValue as { resumes: { id: string }[] }).resumes.map((item) => item.id)
           : null;
@@ -903,21 +923,29 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         listBucketKeys(bucket, "public/profile-images/"),
         listBucketKeys(bucket, "private-admin/images/superseded/"),
       ]);
-      const ids = (keys: string[], prefix: string) => keys
-        .filter((key) => key.startsWith(prefix))
-        .map((key) => key.slice(prefix.length));
-      return jsonResponse(inspectResourceLifecycle({
-        resumes,
-        resumeFeedIds: feedIds,
-        resumePrivateFileIds: ids(resumeFiles, "private-admin/resumes/files/"),
-        images,
-        imagePrivateFileIds: ids(imageFiles, "private-admin/images/files/"),
-        imagePublicFileIds: ids(publicImages, "public/profile-images/"),
-        supersededImageKeys: supersededImages,
-      }), 200);
+      const ids = (keys: string[], prefix: string) =>
+        keys.filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length));
+      return jsonResponse(
+        inspectResourceLifecycle({
+          resumes,
+          resumeFeedIds: feedIds,
+          resumePrivateFileIds: ids(resumeFiles, "private-admin/resumes/files/"),
+          images,
+          imagePrivateFileIds: ids(imageFiles, "private-admin/images/files/"),
+          imagePublicFileIds: ids(publicImages, "public/profile-images/"),
+          supersededImageKeys: supersededImages,
+        }),
+        200,
+      );
     } catch (error) {
       console.error("Portfolio resource lifecycle inspection failed.", error);
-      return jsonResponse({ error: "Resource integrity could not be inspected. Check storage availability and index integrity." }, 503);
+      return jsonResponse(
+        {
+          error:
+            "Resource integrity could not be inspected. Check storage availability and index integrity.",
+        },
+        503,
+      );
     }
   }
 
@@ -1100,7 +1128,8 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     if (missingFiles.length) {
       return jsonResponse(
         {
-          error: "Resume reconciliation was blocked because one or more indexed originals are missing.",
+          error:
+            "Resume reconciliation was blocked because one or more indexed originals are missing.",
           code: "RESUME_ORIGINALS_MISSING",
           missingFiles,
           reconciled: false,
@@ -1521,7 +1550,8 @@ function isPortfolioImageRecord(value: unknown): value is PortfolioImageRecord {
     record.alt.length <= 300 &&
     (record.slot === undefined || ["gallery", "portrait", "project"].includes(record.slot)) &&
     (record.slot === "project"
-      ? typeof record.projectSlug === "string" && /^[a-z0-9][a-z0-9-]{0,79}$/.test(record.projectSlug)
+      ? typeof record.projectSlug === "string" &&
+        /^[a-z0-9][a-z0-9-]{0,79}$/.test(record.projectSlug)
       : record.projectSlug === undefined)
   );
 }
@@ -1614,7 +1644,12 @@ async function writeImageIndex(
 }
 
 type BucketMutation =
-  | { key: string; operation: "put"; value: ArrayBuffer | string | Uint8Array; contentType?: string }
+  | {
+      key: string;
+      operation: "put";
+      value: ArrayBuffer | string | Uint8Array;
+      contentType?: string;
+    }
   | { key: string; operation: "delete" };
 
 /**
@@ -1622,10 +1657,7 @@ type BucketMutation =
  * Snapshot every key before the first write and include an ambiguous failing
  * operation in compensation because providers can persist then reject.
  */
-async function commitImageState(
-  bucket: PrivateBucket,
-  mutations: BucketMutation[],
-): Promise<void> {
+async function commitImageState(bucket: PrivateBucket, mutations: BucketMutation[]): Promise<void> {
   await runStorageTransaction(bucket, mutations);
 }
 
@@ -1866,7 +1898,13 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       .map((key) => key.slice(prefix.length, -5))
       .filter((version) => /^\d{13}-[a-f0-9]{8}$/.test(version))
       .sort((a, b) => b.localeCompare(a));
-    const versions: Array<{ version: string; filename: string; contentType: string; size: number; uploadedAt: string }> = [];
+    const versions: Array<{
+      version: string;
+      filename: string;
+      contentType: string;
+      size: number;
+      uploadedAt: string;
+    }> = [];
     for (const version of candidates) {
       const metadataObject = await bucket.get(`${prefix}${version}.json`);
       const imageObject = await bucket.get(`${prefix}${version}`);
@@ -1875,11 +1913,18 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) continue;
       const value = metadata as Record<string, unknown>;
       if (
-        typeof value["filename"] !== "string" || value["filename"].length < 1 || value["filename"].length > 120 ||
-        typeof value["contentType"] !== "string" || !IMAGE_TYPES.has(value["contentType"]) ||
-        !Number.isSafeInteger(value["size"]) || Number(value["size"]) <= 0 || Number(value["size"]) > MAX_IMAGE_BYTES ||
-        typeof value["uploadedAt"] !== "string" || !Number.isFinite(Date.parse(value["uploadedAt"]))
-      ) continue;
+        typeof value["filename"] !== "string" ||
+        value["filename"].length < 1 ||
+        value["filename"].length > 120 ||
+        typeof value["contentType"] !== "string" ||
+        !IMAGE_TYPES.has(value["contentType"]) ||
+        !Number.isSafeInteger(value["size"]) ||
+        Number(value["size"]) <= 0 ||
+        Number(value["size"]) > MAX_IMAGE_BYTES ||
+        typeof value["uploadedAt"] !== "string" ||
+        !Number.isFinite(Date.parse(value["uploadedAt"]))
+      )
+        continue;
       if (imageObject.size !== undefined && imageObject.size !== Number(value["size"])) continue;
       versions.push({
         version,
@@ -1913,7 +1958,10 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const target = await bucket.get(`${prefix}${version}`);
     const metadataObject = await bucket.get(`${prefix}${version}.json`);
     if (!target || !metadataObject) {
-      return jsonResponse({ error: "This image version is unavailable or cannot be restored safely." }, 409);
+      return jsonResponse(
+        { error: "This image version is unavailable or cannot be restored safely." },
+        409,
+      );
     }
     const metadata = await metadataObject.json<unknown>().catch(() => null);
     if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
@@ -1921,23 +1969,35 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     }
     const value = metadata as Record<string, unknown>;
     if (
-      typeof value["filename"] !== "string" || value["filename"].length < 1 || value["filename"].length > 120 ||
-      typeof value["contentType"] !== "string" || !IMAGE_TYPES.has(value["contentType"]) ||
-      !Number.isSafeInteger(value["size"]) || Number(value["size"]) <= 0 || Number(value["size"]) > MAX_IMAGE_BYTES ||
-      typeof value["uploadedAt"] !== "string" || !Number.isFinite(Date.parse(value["uploadedAt"]))
+      typeof value["filename"] !== "string" ||
+      value["filename"].length < 1 ||
+      value["filename"].length > 120 ||
+      typeof value["contentType"] !== "string" ||
+      !IMAGE_TYPES.has(value["contentType"]) ||
+      !Number.isSafeInteger(value["size"]) ||
+      Number(value["size"]) <= 0 ||
+      Number(value["size"]) > MAX_IMAGE_BYTES ||
+      typeof value["uploadedAt"] !== "string" ||
+      !Number.isFinite(Date.parse(value["uploadedAt"]))
     ) {
       return jsonResponse({ error: "The saved image version metadata failed validation." }, 409);
     }
     const targetBytes = await target.arrayBuffer();
     if (targetBytes.byteLength !== Number(value["size"])) {
-      return jsonResponse({ error: "The saved image version failed its size-integrity check." }, 409);
+      return jsonResponse(
+        { error: "The saved image version failed its size-integrity check." },
+        409,
+      );
     }
     const signature = new Uint8Array(targetBytes, 0, Math.min(16, targetBytes.byteLength));
     const signatureValid =
       value["contentType"] === "image/jpeg"
         ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
         : value["contentType"] === "image/png"
-          ? signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47
+          ? signature[0] === 0x89 &&
+            signature[1] === 0x50 &&
+            signature[2] === 0x4e &&
+            signature[3] === 0x47
           : value["contentType"] === "image/webp"
             ? String.fromCharCode(...signature.slice(0, 4)) === "RIFF" &&
               String.fromCharCode(...signature.slice(8, 12)) === "WEBP"
@@ -1946,7 +2006,10 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
                 String.fromCharCode(...signature.slice(4, 12)).includes("ftypavis")
               : false;
     if (!signatureValid) {
-      return jsonResponse({ error: "The saved image version failed its file-signature check." }, 409);
+      return jsonResponse(
+        { error: "The saved image version failed its file-signature check." },
+        409,
+      );
     }
     const privateKey = `private-admin/images/files/${id}`;
     const currentObject = await bucket.get(privateKey);
@@ -1981,9 +2044,21 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
           }),
           contentType: "application/json; charset=utf-8",
         },
-        { key: privateKey, operation: "put", value: targetBytes, contentType: value["contentType"] },
+        {
+          key: privateKey,
+          operation: "put",
+          value: targetBytes,
+          contentType: value["contentType"],
+        },
         ...(record.status === "approved"
-          ? [{ key: `public/profile-images/${id}`, operation: "put" as const, value: targetBytes, contentType: value["contentType"] }]
+          ? [
+              {
+                key: `public/profile-images/${id}`,
+                operation: "put" as const,
+                value: targetBytes,
+                contentType: value["contentType"],
+              },
+            ]
           : []),
         {
           key: IMAGE_INDEX_KEY,
@@ -2451,7 +2526,9 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     }
   }
 
-  const action = path.match(/^\/api\/admin\/content\/(draft|publish|rollback|unpublish|review)$/)?.[1];
+  const action = path.match(
+    /^\/api\/admin\/content\/(draft|publish|rollback|unpublish|review)$/,
+  )?.[1];
   if (!action || request.method !== "POST") return privateNotFound();
   const bounded = await limitRequestBody(request, 128 * 1024);
   if (bounded instanceof Response) return bounded;
@@ -2487,19 +2564,31 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
       }
       next = rollbackContent(doc, payload.version, now);
     } else if (action === "review") {
-      if (typeof payload?.reviewer !== "string" || !payload.checks || typeof payload.checks !== "object") {
+      if (
+        typeof payload?.reviewer !== "string" ||
+        !payload.checks ||
+        typeof payload.checks !== "object"
+      ) {
         return jsonResponse({ error: "Reviewer and profile review checks are required." }, 400);
       }
       if (payload.exceptions !== undefined && !Array.isArray(payload.exceptions)) {
         return jsonResponse({ error: "Accepted exceptions must be a list." }, 400);
       }
-      next = signOffProfile(doc, {
-        reviewer: payload.reviewer,
-        checks: payload.checks as Partial<Record<ProfileReviewItem, unknown>>,
-        ...(Array.isArray(payload.exceptions)
-          ? { exceptions: payload.exceptions.filter((item): item is string => typeof item === "string") }
-          : {}),
-      }, now);
+      next = signOffProfile(
+        doc,
+        {
+          reviewer: payload.reviewer,
+          checks: payload.checks as Partial<Record<ProfileReviewItem, unknown>>,
+          ...(Array.isArray(payload.exceptions)
+            ? {
+                exceptions: payload.exceptions.filter(
+                  (item): item is string => typeof item === "string",
+                ),
+              }
+            : {}),
+        },
+        now,
+      );
     } else {
       next = unpublishContent(doc);
     }
@@ -2574,7 +2663,10 @@ async function handleBackupApi(request: Request, env: unknown): Promise<Response
     }
     try {
       const result = await recoverPendingStorageTransaction(bucket);
-      return jsonResponse({ ...result, pending: (await storageRecoveryStatus(bucket)).pending }, 200);
+      return jsonResponse(
+        { ...result, pending: (await storageRecoveryStatus(bucket)).pending },
+        200,
+      );
     } catch (error) {
       return storageFailure(error, "recover storage transaction");
     }
@@ -2794,7 +2886,7 @@ function checkRuntimeConfig(env: unknown): void {
       typeof bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] === "string"
         ? (bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] as string)
         : typeof process !== "undefined"
-          ? process.env["PORTFOLIO_ADMIN_SESSION_SECRET"] ?? ""
+          ? (process.env["PORTFOLIO_ADMIN_SESSION_SECRET"] ?? "")
           : "";
     if (
       !has("PORTFOLIO_ADMIN_PASSWORD") ||
@@ -2805,16 +2897,21 @@ function checkRuntimeConfig(env: unknown): void {
           : 0) < 12 ||
       new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
     ) {
-      requiredDeploymentConfigMissing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)");
+      requiredDeploymentConfigMissing.push(
+        "PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)",
+      );
     }
   }
   if (has("OPENAI_API_KEY") && !has("PORTFOLIO_AI_ALLOW_PAID_FALLBACK")) {
     console.info("OPENAI_API_KEY is set but unused: paid fallback is not enabled.");
   }
   if (optionalFeaturesUnavailable.length) {
-    console.info("Optional portfolio features are not configured; only the listed features are unavailable.", {
-      unavailable: optionalFeaturesUnavailable,
-    });
+    console.info(
+      "Optional portfolio features are not configured; only the listed features are unavailable.",
+      {
+        unavailable: optionalFeaturesUnavailable,
+      },
+    );
   }
   if (requiredDeploymentConfigMissing.length) {
     console.warn("Required production configuration is incomplete.", {

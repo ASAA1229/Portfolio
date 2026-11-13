@@ -186,10 +186,7 @@ describe("admin authentication route lifecycle", () => {
       body: JSON.stringify({ password: "test-admin-password" }),
     });
     const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
-    await bucket.put(
-      "private-admin/session-epoch.json",
-      JSON.stringify({ epoch: "not-an-epoch" }),
-    );
+    await bucket.put("private-admin/session-epoch.json", JSON.stringify({ epoch: "not-an-epoch" }));
     const session = await request(runtime, "/api/admin/session", {
       headers: { cookie },
     });
