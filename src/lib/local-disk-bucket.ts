@@ -46,34 +46,38 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       return target;
     };
     // Lexical containment alone does not stop a key from traversing a symlink
-    // located inside the storage root. Reject symlinks in every existing path
-    // component before any read, write, or delete.
+    // located inside the storage root. Check the configured root and each
+    // descendant, but do not compare ordinary ancestors (e.g. C:\\Users) with
+    // the storage root: those ancestors must necessarily be outside it.
     const assertNoSymlink = async (target: string) => {
-      // Check every component from the filesystem root: the configured storage
-      // root or one of its parent directories may itself be a symlink. Verify
-      // both the directory entry and its canonical path to defend against
-      // symlink traversal even when an ancestor is resolved by the OS.
-      const filesystemRoot = path.parse(base).root;
       const canonicalBase = await fs.realpath(base).catch((error: NodeJS.ErrnoException) => {
         if (error.code === "ENOENT") return base;
         throw error;
       });
-      const segments = [
-        ...path.relative(filesystemRoot, base).split(path.sep).filter(Boolean),
-        ...path.relative(base, target).split(path.sep).filter(Boolean),
-      ];
-      let current = filesystemRoot;
-      for (const segment of segments) {
-        current = path.join(current, segment);
+      const relativeTarget = path.relative(base, target);
+      if (
+        relativeTarget === ".." ||
+        relativeTarget.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativeTarget)
+      ) {
+        throw new Error("Unsafe storage key.");
+      }
+
+      let current = base;
+      const segments = relativeTarget.split(path.sep).filter(Boolean);
+      for (const [index, segment] of ["", ...segments].entries()) {
+        if (index > 0) current = path.join(current, segment);
         try {
           const stat = await fs.lstat(current);
           if (stat.isSymbolicLink()) {
             throw new Error("Storage path must not traverse symbolic links.");
           }
           const canonicalCurrent = await fs.realpath(current);
+          const relativeCanonical = path.relative(canonicalBase, canonicalCurrent);
           if (
-            canonicalCurrent !== canonicalBase &&
-            !canonicalCurrent.startsWith(canonicalBase + path.sep)
+            relativeCanonical === ".." ||
+            relativeCanonical.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativeCanonical)
           ) {
             throw new Error("Storage path resolves outside the configured root.");
           }
