@@ -301,7 +301,7 @@ function ContentManager() {
   const input = "mt-2 w-full rounded border border-border bg-background p-2 text-sm";
 
   return (
-    <main className="site-container max-w-5xl py-10 sm:py-14">
+    <div className="site-container max-w-5xl py-10 sm:py-14">
       <AdminNavigation current="/admin/content" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
@@ -744,6 +744,6 @@ function ContentManager() {
           <p className="mt-3 text-sm text-muted-foreground">No versions published yet.</p>
         )}
       </section>
-    </main>
+    </div>
   );
 }

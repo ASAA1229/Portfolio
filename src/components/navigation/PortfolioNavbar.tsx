@@ -93,7 +93,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
         <Link
           to={homeTo}
           className="site-nav-brand flex shrink-0 items-center"
-          aria-label={brandLabel}
+          aria-label={personMonogram ? `${personMonogram}. ${brandLabel}` : brandLabel}
         >
           {personMonogram ? (
             <span className="brand-monogram site-nav-monogram" aria-hidden="true">
@@ -141,7 +141,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             variant="outline"
             className="site-nav-ai min-h-11 gap-1.5 px-3 text-xs font-semibold sm:px-3.5 sm:text-sm"
             onClick={handleAiIntroClick}
-            aria-label="Open AI Introduction"
+            aria-label="AI Intro: open the AI introduction"
           >
             <Bot className="size-4 shrink-0" aria-hidden="true" />
             <span>AI Intro</span>

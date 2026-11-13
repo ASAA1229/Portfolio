@@ -208,7 +208,7 @@ function AdminHome() {
   ).length;
 
   return (
-    <main className="site-container max-w-6xl py-8 sm:py-12">
+    <div className="site-container max-w-6xl py-8 sm:py-12">
       <AdminNavigation current="/admin" />
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div>
@@ -449,7 +449,7 @@ function AdminHome() {
           ))}
         </ul>
       </section>
-    </main>
+    </div>
   );
 }
 

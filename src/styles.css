@@ -1134,7 +1134,8 @@ section {
 }
 .endcard-mark {
   font: 800 clamp(5rem, 14vw, 12rem)/0.8 var(--font-display);
-  color: #292326;
+  /* Decorative mark; 3:1 against the page background keeps it compliant (WCAG 1.4.11/1.4.3). */
+  color: #6b646a;
 }
 .endcard-mark span {
   color: var(--primary-text);
@@ -1811,6 +1812,16 @@ section {
   .site-nav-inner {
     min-height: 72px;
   }
+  /* 320px reflow: keep the header actions inside the viewport. */
+  .site-nav-actions {
+    min-width: 0;
+  }
+  .site-nav-ai span {
+    display: none;
+  }
+  .site-nav-ai {
+    padding-inline: 0.75rem;
+  }
   .site-shell {
     --space-page: 18px;
   }
@@ -1838,4 +1849,31 @@ section {
 :where(button, [role="button"], input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
+}
+
+/* WCAG 2.4.1 Bypass Blocks: visible only while focused. */
+.skip-link {
+  position: fixed;
+  left: 0.75rem;
+  top: -4rem;
+  z-index: 1000;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  background: var(--background, #000);
+  color: var(--foreground, #fff);
+  border: 2px solid currentColor;
+  font-weight: 600;
+  transition: top 0.15s ease;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+#main-content:focus {
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
 }

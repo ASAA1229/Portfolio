@@ -199,7 +199,7 @@ export function PortfolioChat() {
             ref={launcherRef}
             onClick={() => setOpen(true)}
             className="min-h-12 gap-2 rounded-full px-4 shadow-lg transition-transform hover:scale-105 active:scale-95"
-            aria-label="Open portfolio assistant chat"
+            aria-label="Ask about Abhishek: open the portfolio assistant chat"
           >
             <Bot /> <span className="hidden sm:inline">Ask about Abhishek</span>
           </Button>

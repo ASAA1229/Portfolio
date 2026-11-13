@@ -233,7 +233,7 @@ function BackupManager() {
   }
 
   return (
-    <main className="site-container max-w-3xl py-10 sm:py-14">
+    <div className="site-container max-w-3xl py-10 sm:py-14">
       <AdminNavigation current="/admin/backup" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
@@ -319,6 +319,7 @@ function BackupManager() {
           className="mt-4 block text-sm"
           type="file"
           accept="application/json,.json"
+          aria-label="Backup file to restore"
           onChange={(event) => void choose(event)}
           disabled={busy}
         />
@@ -384,6 +385,6 @@ function BackupManager() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

@@ -69,7 +69,7 @@ function AuditHistory() {
   }, []);
 
   return (
-    <main className="site-container max-w-5xl py-10 sm:py-14">
+    <div className="site-container max-w-5xl py-10 sm:py-14">
       <AdminNavigation current="/admin/audit" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
@@ -166,6 +166,6 @@ function AuditHistory() {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

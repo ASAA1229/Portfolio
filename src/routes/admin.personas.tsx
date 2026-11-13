@@ -117,7 +117,7 @@ function PersonaManager() {
   const history = [...(doc?.history ?? [])].reverse();
 
   return (
-    <main className="site-container max-w-5xl py-10 sm:py-14">
+    <div className="site-container max-w-5xl py-10 sm:py-14">
       <AdminNavigation current="/admin/personas" />
       <p className="font-mono text-xs text-primary">CONTENT WORKFLOW · PRIVATE</p>
       <h1 className="mt-3 flex items-center gap-3 text-4xl font-semibold">
@@ -288,7 +288,7 @@ function PersonaManager() {
           </ol>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 

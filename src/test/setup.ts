@@ -36,3 +36,12 @@ if (typeof HTMLMediaElement !== "undefined") {
     value: () => undefined,
   });
 }
+
+// jsdom has no canvas implementation; decorative canvases (particles) only need a null context.
+if (typeof HTMLCanvasElement !== "undefined") {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    writable: true,
+    value: () => null,
+  });
+}

@@ -260,7 +260,7 @@ export function PersonPortfolioAssistant({ profile }: { profile: PersonPortfolio
         <Button
           onClick={() => setOpen(true)}
           className="min-h-12 gap-2 rounded-full px-4 shadow-lg"
-          aria-label={`Ask ${profile.displayName}'s AI assistant`}
+          aria-label={`Ask ${profile.nickname}: open ${profile.displayName}'s AI assistant`}
         >
           <Bot size={18} /> Ask {profile.nickname}
         </Button>

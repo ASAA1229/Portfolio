@@ -124,7 +124,7 @@ describe("PortfolioNavbar standardization", () => {
     const { container } = render(<PortfolioNavbar />);
 
     // 1. AI Intro button
-    const aiIntroBtn = screen.getByRole("button", { name: /open ai introduction/i });
+    const aiIntroBtn = screen.getByRole("button", { name: /ai intro: open the ai introduction/i });
     expect(aiIntroBtn).toBeInTheDocument();
     expect(aiIntroBtn.textContent).toContain("AI Intro");
 

@@ -421,11 +421,11 @@ function ImageManager() {
   }
 
   if (checking) {
-    return <main className="site-container py-16">Checking private image manager…</main>;
+    return <div className="site-container py-16">Checking private image manager…</div>;
   }
 
   return (
-    <main className="site-container max-w-5xl py-10 sm:py-14">
+    <div className="site-container max-w-5xl py-10 sm:py-14">
       <AdminNavigation current="/admin/images" />
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -812,6 +812,6 @@ function ImageManager() {
         Publishing makes the image publicly retrievable through an approved-image endpoint. Do not
         upload confidential images or images you do not have permission to publish.
       </p>
-    </main>
+    </div>
   );
 }

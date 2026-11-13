@@ -55,7 +55,7 @@ function ProfileSelect() {
       <header className="profile-selector-header flex items-center justify-between gap-4">
         <Link
           to="/"
-          aria-label="Return to Abhishek's portfolio home"
+          aria-label="ABHISHEK THE SERIES: return to Abhishek's portfolio home"
           className="series-logo rounded-sm text-3xl transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
         >
           ABHISHEK{" "}

@@ -260,7 +260,9 @@ function ProjectTile({
         to="/people/$person/projects/$slug"
         params={{ person: profile.id, slug: project.slug }}
         className="person-project-art relative overflow-hidden"
-        aria-label={`Explore ${project.title}`}
+        // Decorative duplicate of the title link below: keep it out of the tab order and a11y tree.
+        aria-hidden="true"
+        tabIndex={-1}
       >
         {cover ? (
           <img

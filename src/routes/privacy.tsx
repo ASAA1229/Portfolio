@@ -18,7 +18,7 @@ export const Route = createFileRoute("/privacy")({
  */
 function Privacy() {
   return (
-    <main className="site-container max-w-3xl py-14 sm:py-20">
+    <div className="site-container max-w-3xl py-14 sm:py-20">
       <p className="font-mono text-xs text-primary">PRIVACY</p>
       <h1 className="mt-3 text-4xl font-semibold">Your privacy on this portfolio</h1>
       <p className="mt-4 text-sm leading-7 text-muted-foreground">
@@ -78,7 +78,7 @@ function Privacy() {
           deletion of anything you sent by email, reply to the person you contacted.
         </p>
       </Section>
-    </main>
+    </div>
   );
 }
 

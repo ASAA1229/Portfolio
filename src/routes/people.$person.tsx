@@ -23,7 +23,7 @@ export const Route = createFileRoute("/people/$person")({
 /** A failure inside one profile keeps navigation available and offers a retry. */
 function PersonError({ reset }: ErrorComponentProps) {
   return (
-    <main className="site-container flex min-h-[60vh] flex-col items-start justify-center gap-4 py-16">
+    <div className="site-container flex min-h-[60vh] flex-col items-start justify-center gap-4 py-16">
       <h1 className="text-3xl font-semibold">This section didn&apos;t load</h1>
       <p className="max-w-xl text-sm leading-7 text-muted-foreground">
         Something went wrong while showing this profile. Try again, or choose another profile.
@@ -43,7 +43,7 @@ function PersonError({ reset }: ErrorComponentProps) {
           Choose a profile
         </Link>
       </div>
-    </main>
+    </div>
   );
 }
 function PersonLayout() {
