@@ -29,6 +29,7 @@ import {
   type ContentProfileId,
   type ProfileReviewItem,
 } from "@/lib/cms-content";
+import type { PutOptions, StoredObject } from "@/lib/storage-adapter";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import { getPersonProject } from "@/lib/person-portfolios";
 import { inspectResourceLifecycle } from "@/lib/resource-lifecycle";
@@ -453,19 +454,39 @@ type ResumeRecord = {
 };
 
 type PrivateBucket = {
-  get(key: string): Promise<{
-    json<T>(): Promise<T>;
-    arrayBuffer(): Promise<ArrayBuffer>;
-    httpMetadata?: { contentType?: string | undefined };
-    size?: number;
-  } | null>;
+  get(key: string): Promise<StoredObject | null>;
   put(
     key: string,
     value: ArrayBuffer | string | Uint8Array,
-    options?: { httpMetadata?: { contentType?: string } },
+    options?: PutOptions,
   ): Promise<unknown>;
   delete(key: string): Promise<unknown>;
 };
+
+class ConcurrentModificationError extends Error {
+  constructor() {
+    super("This document was changed by another session. Reload it and apply your edit again.");
+    this.name = "ConcurrentModificationError";
+  }
+}
+
+/**
+ * Optimistic concurrency for read-modify-write documents: the write only succeeds when the
+ * object is still at the etag that was read (or is still absent). R2 resolves null when the
+ * precondition fails; providers that ignore preconditions simply write.
+ */
+async function putIfUnchanged(
+  bucket: PrivateBucket,
+  key: string,
+  body: string,
+  etag: string | undefined,
+): Promise<void> {
+  const result = await bucket.put(key, body, {
+    httpMetadata: { contentType: "application/json; charset=utf-8" },
+    onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
+  });
+  if (result === null) throw new ConcurrentModificationError();
+}
 
 type AdminEnv = {
   RESUME_BUCKET?: PrivateBucket;
@@ -2366,23 +2387,32 @@ async function attachPublishedResumeContext(
 // Owner-configured AI personas (PORT-US-038). Private storage, owner-only.
 // ---------------------------------------------------------------------------
 
-async function readPersonaDocument(
+async function readPersonaDocumentVersioned(
   bucket: PrivateBucket,
   profileId: PersonaProfileId,
-): Promise<PersonaDocument> {
+): Promise<{ doc: PersonaDocument; etag: string | undefined }> {
   const object = await bucket.get(personaKey(profileId));
-  if (!object) return emptyPersonaDocument(profileId);
+  if (!object) return { doc: emptyPersonaDocument(profileId), etag: undefined };
   const value = await object.json<unknown>();
   if (!isPersonaDocument(value, profileId)) {
     throw new Error("Stored persona failed integrity validation.");
   }
-  return value;
+  return { doc: value, etag: object.etag };
 }
 
-async function writePersonaDocument(bucket: PrivateBucket, doc: PersonaDocument): Promise<void> {
-  await bucket.put(personaKey(doc.profileId), JSON.stringify(doc), {
-    httpMetadata: { contentType: "application/json; charset=utf-8" },
-  });
+async function readPersonaDocument(
+  bucket: PrivateBucket,
+  profileId: PersonaProfileId,
+): Promise<PersonaDocument> {
+  return (await readPersonaDocumentVersioned(bucket, profileId)).doc;
+}
+
+async function writePersonaDocument(
+  bucket: PrivateBucket,
+  doc: PersonaDocument,
+  etag: string | undefined,
+): Promise<void> {
+  await putIfUnchanged(bucket, personaKey(doc.profileId), JSON.stringify(doc), etag);
 }
 
 /** Published persona for one profile, or null. Never throws (chat must not break). */
@@ -2436,8 +2466,9 @@ async function handlePersonaApi(request: Request, env: unknown): Promise<Respons
   if (!isPersonaProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
 
   let doc: PersonaDocument;
+  let docEtag: string | undefined;
   try {
-    doc = await readPersonaDocument(bucket, profileId);
+    ({ doc, etag: docEtag } = await readPersonaDocumentVersioned(bucket, profileId));
   } catch (error) {
     return storageFailure(error, "read persona");
   }
@@ -2465,8 +2496,11 @@ async function handlePersonaApi(request: Request, env: unknown): Promise<Respons
     );
   }
   try {
-    await writePersonaDocument(bucket, next);
+    await writePersonaDocument(bucket, next, docEtag);
   } catch (error) {
+    if (error instanceof ConcurrentModificationError) {
+      return jsonResponse({ error: error.message, code: "CONCURRENT_MODIFICATION" }, 409);
+    }
     return storageFailure(error, `persona ${action}`);
   }
   // Operational log without persona text.
@@ -2483,17 +2517,24 @@ async function handlePersonaApi(request: Request, env: unknown): Promise<Respons
 // published version only. Logs carry ids and versions, never content text.
 // ---------------------------------------------------------------------------
 
-async function readContentDocument(
+async function readContentDocumentVersioned(
   bucket: PrivateBucket,
   profileId: ContentProfileId,
-): Promise<ContentDocument> {
+): Promise<{ doc: ContentDocument; etag: string | undefined }> {
   const object = await bucket.get(contentKey(profileId));
-  if (!object) return emptyContentDocument(profileId);
+  if (!object) return { doc: emptyContentDocument(profileId), etag: undefined };
   const value = await object.json<unknown>();
   if (!isContentDocument(value, profileId)) {
     throw new Error("Stored content failed integrity validation.");
   }
-  return value;
+  return { doc: value, etag: object.etag };
+}
+
+async function readContentDocument(
+  bucket: PrivateBucket,
+  profileId: ContentProfileId,
+): Promise<ContentDocument> {
+  return (await readContentDocumentVersioned(bucket, profileId)).doc;
 }
 
 async function handleContentApi(request: Request, env: unknown): Promise<Response | null> {
@@ -2549,8 +2590,9 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
   if (!isContentProfileId(profileId)) return jsonResponse({ error: "Choose a profile." }, 400);
 
   let doc: ContentDocument;
+  let docEtag: string | undefined;
   try {
-    doc = await readContentDocument(bucket, profileId);
+    ({ doc, etag: docEtag } = await readContentDocumentVersioned(bucket, profileId));
   } catch (error) {
     return storageFailure(error, "read content");
   }
@@ -2604,10 +2646,11 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     );
   }
   try {
-    await bucket.put(contentKey(profileId), JSON.stringify(next), {
-      httpMetadata: { contentType: "application/json; charset=utf-8" },
-    });
+    await putIfUnchanged(bucket, contentKey(profileId), JSON.stringify(next), docEtag);
   } catch (error) {
+    if (error instanceof ConcurrentModificationError) {
+      return jsonResponse({ error: error.message, code: "CONCURRENT_MODIFICATION" }, 409);
+    }
     return storageFailure(error, `content ${action}`);
   }
   // Audit trail without content text.

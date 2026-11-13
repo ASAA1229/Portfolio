@@ -63,6 +63,12 @@ export interface ContentOverrides {
     location?: string;
   };
   certifications?: { title: string; issuer: string }[];
+  /** Person-profile "strengths" cards. Replaces the curated list when provided. */
+  strengths?: { title: string; text: string }[];
+  /** Person-profile leadership roles. Replaces the curated list when provided. */
+  leadership?: { title: string; period: string; description: string }[];
+  /** Person-profile training entries. Replaces the curated list when provided. */
+  training?: { title: string; provider: string; status: string; topics?: string[] }[];
   seo?: Partial<Record<ContentPage, { title?: string; description?: string }>>;
   /** Navigation label per page id, e.g. { projects: "Originals" }. */
   navigation?: Partial<Record<ContentPage, string>>;
@@ -233,6 +239,9 @@ export function validateContentOverrides(
       "experience",
       "education",
       "certifications",
+      "strengths",
+      "leadership",
+      "training",
       "seo",
       "navigation",
       "appearance",
@@ -414,6 +423,59 @@ export function validateContentOverrides(
     },
   );
   if (certifications) content.certifications = certifications;
+
+  const strengths = list(
+    input["strengths"],
+    "strengths",
+    errors,
+    CONTENT_LIMITS.listItems,
+    (entry, label) => {
+      unknownKeys(entry, ["title", "text"], label, errors);
+      const title = text(entry["title"], `${label}.title`, errors, { required: true, max: 80 });
+      const body = text(entry["text"], `${label}.text`, errors, {
+        required: true,
+        max: CONTENT_LIMITS.text,
+      });
+      return title && body ? { title, text: body } : undefined;
+    },
+  );
+  if (strengths) content.strengths = strengths;
+
+  const leadership = list(
+    input["leadership"],
+    "leadership",
+    errors,
+    CONTENT_LIMITS.listItems,
+    (entry, label) => {
+      unknownKeys(entry, ["title", "period", "description"], label, errors);
+      const title = text(entry["title"], `${label}.title`, errors, { required: true });
+      const period = text(entry["period"], `${label}.period`, errors, { required: true, max: 60 });
+      const description = text(entry["description"], `${label}.description`, errors, {
+        required: true,
+        max: CONTENT_LIMITS.text,
+      });
+      return title && period && description ? { title, period, description } : undefined;
+    },
+  );
+  if (leadership) content.leadership = leadership;
+
+  const training = list(
+    input["training"],
+    "training",
+    errors,
+    CONTENT_LIMITS.listItems,
+    (entry, label) => {
+      unknownKeys(entry, ["title", "provider", "status", "topics"], label, errors);
+      const title = text(entry["title"], `${label}.title`, errors, { required: true });
+      const provider = text(entry["provider"], `${label}.provider`, errors, { required: true });
+      const status = text(entry["status"], `${label}.status`, errors, { required: true, max: 60 });
+      const topics = strings(entry["topics"], `${label}.topics`, errors, CONTENT_LIMITS.tags);
+      return title && provider && status
+        ? { title, provider, status, ...(topics ? { topics } : {}) }
+        : undefined;
+    },
+  );
+  if (training) content.training = training;
 
   for (const key of ["seo", "navigation"] as const) {
     const raw = input[key];
@@ -688,6 +750,16 @@ export function mergePersonPortfolio(
   }
   if (overrides.certifications)
     merged.certifications = overrides.certifications.map((item) => ({ ...item }));
+  if (overrides.strengths) merged.strengths = overrides.strengths.map((item) => ({ ...item }));
+  if (overrides.leadership) merged.leadership = overrides.leadership.map((item) => ({ ...item }));
+  if (overrides.training) {
+    merged.training = overrides.training.map((item) => ({
+      title: item.title,
+      provider: item.provider,
+      status: item.status,
+      topics: [...(item.topics ?? [])],
+    }));
+  }
   return merged;
 }
 
@@ -699,3 +771,39 @@ export function navigationLabel(
 ): string {
   return overrides?.navigation?.[page] || fallback;
 }
+
+/**
+ * Field-to-Admin coverage for every public PersonPortfolio field (PORT-US-043).
+ * "cms"            editable through the content manager (draft/publish/history/rollback).
+ * "image-manager"  managed through the image lifecycle (private original, approved copy).
+ * "resume"         derived from the approved published resume when one exists.
+ * "curated"        intentionally immutable identity data owned by source control.
+ * A test asserts this map matches the PersonPortfolio shape so new fields cannot ship unmanaged.
+ */
+export const PERSON_FIELD_COVERAGE: Record<
+  keyof PersonPortfolio,
+  "cms" | "image-manager" | "resume" | "curated"
+> = {
+  id: "curated",
+  name: "curated",
+  displayName: "curated",
+  nickname: "curated",
+  initials: "curated",
+  portrait: "image-manager",
+  gallery: "image-manager",
+  headline: "cms",
+  story: "cms",
+  summary: "cms",
+  email: "cms",
+  phone: "cms",
+  location: "cms",
+  socialLabels: "cms",
+  strengths: "cms",
+  skills: "cms",
+  experience: "cms",
+  projects: "cms",
+  certifications: "cms",
+  education: "cms",
+  leadership: "cms",
+  training: "cms",
+};

@@ -81,13 +81,24 @@ const LIST_TEMPLATE = {
     score: "8.5 CGPA",
   },
   certifications: [{ title: "Certification", issuer: "Issuer" }],
+  strengths: [{ title: "Strength", text: "Short description shown on the profile." }],
+  leadership: [{ title: "Role", period: "2024 – 2025", description: "What you led." }],
+  training: [{ title: "Course", provider: "Provider", status: "Completed", topics: ["Topic"] }],
   socials: [{ platform: "LinkedIn", handle: "https://linkedin.com/in/…" }],
   seo: { home: { title: "Page title", description: "Search description" } },
 };
 
 type ListPart = Pick<
   ContentOverrides,
-  "projects" | "skills" | "experience" | "education" | "certifications" | "seo"
+  | "projects"
+  | "skills"
+  | "experience"
+  | "education"
+  | "certifications"
+  | "strengths"
+  | "leadership"
+  | "training"
+  | "seo"
 > & {
   socials?: Basics["socials"];
 };
@@ -100,6 +111,9 @@ function splitContent(content: ContentOverrides | undefined) {
     ...(content?.experience ? { experience: content.experience } : {}),
     ...(content?.education ? { education: content.education } : {}),
     ...(content?.certifications ? { certifications: content.certifications } : {}),
+    ...(content?.strengths ? { strengths: content.strengths } : {}),
+    ...(content?.leadership ? { leadership: content.leadership } : {}),
+    ...(content?.training ? { training: content.training } : {}),
     ...(content?.seo ? { seo: content.seo } : {}),
     ...(socials ? { socials } : {}),
   };
