@@ -51,4 +51,4 @@ Release remains blocked until all items in [Release Readiness](RELEASE_READINESS
 - Artifact provenance, SBOM, checksums, policy authenticity, package verification and rollback instructions are recorded.
 - Owner completes four-profile content/asset sign-off and separately approves release.
 
-Validation is currently paused. This document update does not run or authorize any of these checks.
+Validation is authorized on `new` for this maturity initiative. This does not authorize production probing, deployment, Nexus publication or release. Latest exact-head run #617 failed typecheck; see [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
