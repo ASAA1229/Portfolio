@@ -3,9 +3,12 @@
 **Updated:** 2026-11-13  
 **Repository:** `ASAA1229/Portfolio`  
 **Active branch:** `new`  
-**Observed source baseline before this documentation update:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`
+**Current status:** [PROJECT_STATUS.md](PROJECT_STATUS.md)  
+**Observed source-code baseline:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`
 
 ## Current decision
+
+Latest evidence: [GitHub Actions run #617](https://github.com/ASAA1229/Portfolio/actions/runs/43417280389) failed TypeScript typecheck with 89 diagnostics across 10 files. Dependency installation, SBOM generation and build passed; lint, tests and artifact verification were skipped. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 <badge>NOT READY — RELEASE BLOCKED</badge>
 
@@ -16,7 +19,7 @@ The earlier conversational estimate of 7.5/10 and 75% completion was qualitative
 ## Execution constraints
 
 - Work on `new` only.
-- Validation is paused by owner direction. Do not run tests, builds, typechecks, lint, security scans, image audits, browser/device/accessibility checks, CI/Jenkins or release validation until explicitly resumed.
+- Validation is authorized on `new` for this maturity initiative. Run checks against exact candidate SHAs and record results. Production probing, deployment, Nexus publication, branch protection changes and release require separate approval.
 - Do not merge to `dev`/`main`, provision production resources/secrets, deploy, publish artifacts or enable Nexus without separate explicit approval.
 - Documentation updates do not satisfy runtime acceptance criteria.
 
@@ -57,7 +60,7 @@ The earlier conversational estimate of 7.5/10 and 75% completion was qualitative
 
 ### Gate 3 — Resume and complete quality validation
 
-Only after explicit owner instruction to resume validation:
+Validation is authorized for this initiative on `new`; this checklist does not authorize production changes:
 
 - [ ] Record exact candidate SHA, toolchain versions and environment.
 - [ ] Install locked dependencies from the lockfile.
