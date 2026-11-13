@@ -3,8 +3,8 @@
 **Date:** 2026-11-13  
 **Repository:** ASAA1229/Portfolio  
 **Working branch:** new  
-**Current HEAD before this baseline increment:** 3eed0529535221f328bae8f99bcf48bcd4be9289  
-**Source baseline:** 14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6  
+**Documentation baseline:** 3eed0529535221f328bae8f99bcf48bcd4be9289  
+**Latest observed candidate:** b30436b3a8f4595b7d9780b849867c353f328b53  
 **Release:** NO-GO
 
 This is the single authoritative current status source. Historical requirements, story, POC and roadmap records remain in REQUIREMENTS.md and do not override this document.
@@ -24,14 +24,14 @@ This is not an approved multi-tenant client SaaS product.
 
 ## Engineering maturity baseline
 
-**4.7/10**, arithmetic mean of the 11 dimensions. This measures engineering and operational maturity, not visual quality or ambition.
+**4.7/10 baseline**, arithmetic mean of the 11 dimensions. Documentation and a partial typecheck repair have advanced, but no verified full pipeline or production acceptance exists; do not increase the maturity score yet. This measures engineering and operational maturity, not visual quality or ambition.
 
 | Dimension | Score | Evidence-based rationale |
 |---|---:|---|
-| Architecture and maintainability | 6.5 | Layered React/TanStack routes and reusable domain modules exist; server orchestration is concentrated in a very large src/server.ts and adapter contracts have compile-time drift. |
+| Architecture and maintainability | 6.5 | Layered React/TanStack routes and reusable domain modules exist; server orchestration is concentrated in a very large src/server.ts and storage/recovery/test adapter contracts still have compile-time drift. |
 | Requirements and documentation | 4.5 | POC, stories, epics and roadmap histories are combined in a 2,457-line requirements file; standalone current status, POC, roadmap and QA docs were missing. |
 | Implementation completeness | 7.0 | Public profiles, Admin, CMS, media/resume, AI, SEO and artifact tooling exist; end-to-end acceptance is incomplete. |
-| Testing and QA | 4.0 | 34 test files exist; latest CI fails typecheck before lint/tests/artifact stages. No dedicated browser E2E runner is configured in package scripts. |
+| Testing and QA | 4.0 | 34 test files exist; latest CI build passes but typecheck fails with 15 diagnostics in 5 files; lint/tests/artifact stages are skipped. No dedicated browser E2E runner is configured in package scripts. |
 | Security and privacy | 5.5 | HMAC sessions, same-origin controls and security headers exist; failed-login throttling is process-local and production acceptance is missing. |
 | Performance and scalability | 4.0 | No measured LCP/INP/CLS budgets; hosted object-store concurrency is not accepted. |
 | Accessibility and compatibility | 4.5 | Semantic/responsive foundations exist; WCAG 2.2 AA and device/screen-reader evidence are absent. |
@@ -56,7 +56,11 @@ GitHub compare reports new 926 commits ahead of main and 654 ahead of dev, with 
 
 ## Exact CI evidence
 
-[GitHub Actions run #617](https://github.com/ASAA1229/Portfolio/actions/runs/43417280389), commit 3eed0529535221f328bae8f99bcf48bcd4be9289, workflow Portfolio CI and Artifact Integrity, automatic push event: **FAILURE**.
+Latest candidate run [#43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), candidate `b30436b3a8f4595b7d9780b849867c353f328b53`: dependency installation, SBOM generation and production build passed; typecheck failed with 15 diagnostics across 5 files (`AdminNavigation.tsx`, `admin-backup.test.ts`, `admin-backup.ts`, `admin.index.tsx`, `storage-recovery.test.ts`). Lint, tests, manifest verification and artifact publication were skipped. This is an improvement from the prior 89 diagnostics / 10 files, but the candidate remains failing.
+
+
+
+[Earlier baseline run #617](https://github.com/ASAA1229/Portfolio/actions/runs/43417280389), commit `3eed0529535221f328bae8f99bcf48bcd4be9289`, failed with 89 diagnostics. The latest run above is the current evidence and still fails.
 
 | Stage | Result |
 |---|---|
@@ -96,7 +100,7 @@ Statuses must use only: PLANNED, NOT STARTED, IN DEVELOPMENT, IMPLEMENTED, NEEDS
 
 ## Delivery order
 
-1. GAP-001 strict typecheck/CI recovery.
+1. GAP-001 strict typecheck/CI recovery: latest diagnostics reduced from 89 to 15; 5 affected files remain.
 2. GAP-002 storage contracts and recovery.
 3. GAP-003 Admin security.
 4. GAP-004/005 CMS and resume/image workflows.
