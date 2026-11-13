@@ -32,6 +32,9 @@ import {
 import type { PutOptions, StoredObject } from "@/lib/storage-adapter";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import { getPersonProject } from "@/lib/person-portfolios";
+import { getProject } from "@/lib/project-pages";
+import { buildRobots, buildSitemap, type PublishedByProfile } from "@/lib/seo";
+import { configuredSiteUrl } from "@/lib/seo-head";
 import { inspectResourceLifecycle } from "@/lib/resource-lifecycle";
 import {
   appendHistory,
@@ -2854,9 +2857,11 @@ async function handleStorageMigration(request: Request, env: unknown): Promise<R
  * returns a real 404 for crawlers and direct loads.
  */
 async function personProjectExists(path: string, env: unknown): Promise<boolean | null> {
-  const match = /^\/people\/([a-z]+)\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
-  if (!match) return null;
-  const [, person, slug] = match as unknown as [string, string, string];
+  const personMatch = /^\/people\/([a-z]+)\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
+  const rootMatch = /^\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
+  if (!personMatch && !rootMatch) return null;
+  const person = personMatch ? personMatch[1]! : "abhishek";
+  const slug = personMatch ? personMatch[2]! : rootMatch![1]!;
   let archived = false;
   const bucket = resolvePrivateBucket(env);
   if (bucket && isContentProfileId(person)) {
@@ -2872,6 +2877,8 @@ async function personProjectExists(path: string, env: unknown): Promise<boolean 
     }
   }
   if (archived) return false;
+  // Abhishek's root project pages use their own curated catalogue.
+  if (!personMatch) return Boolean(getProject(slug));
   return Boolean(getPersonProject(person, slug));
 }
 
@@ -2986,9 +2993,43 @@ export default {
   },
 };
 
+/**
+ * /sitemap.xml and /robots.txt are served here (not by the SSR routes) so the sitemap can use the
+ * published CMS state: archived or unpublished projects are omitted, published additions listed.
+ */
+async function handleSeoRoutes(request: Request, env: unknown): Promise<Response | null> {
+  if (request.method !== "GET") return null;
+  const path = normalizedPath(request);
+  if (path !== "/sitemap.xml" && path !== "/robots.txt") return null;
+  const siteUrl = configuredSiteUrl();
+  const origin = siteUrl ?? new URL(request.url).origin;
+  const cache = "public, max-age=300, must-revalidate";
+  if (path === "/robots.txt") {
+    return new Response(buildRobots(origin), {
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": cache },
+    });
+  }
+  const published: PublishedByProfile = {};
+  const bucket = resolvePrivateBucket(env);
+  if (bucket) {
+    for (const profileId of ["abhishek", "ammu", "bava", "sai"] as const) {
+      try {
+        published[profileId] = publishedContent(await readContentDocument(bucket, profileId));
+      } catch {
+        // Unreadable CMS state: that profile falls back to its curated routes.
+      }
+    }
+  }
+  return new Response(buildSitemap(origin, published), {
+    headers: { "content-type": "application/xml; charset=utf-8", "cache-control": cache },
+  });
+}
+
 async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
   {
     const path = normalizedPath(request);
+    const seoResponse = await handleSeoRoutes(request, env);
+    if (seoResponse) return seoResponse;
     const isAdmin = isAdminPath(path);
     // Central CSRF guard (defence in depth over the per-handler checks): every state-changing
     // request to an admin page or API must carry an Origin equal to the request origin and
