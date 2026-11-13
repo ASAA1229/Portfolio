@@ -3,6 +3,16 @@
 ## Product objective
 Deliver **ABHISHEK: THE SERIES**, a polished, accessible, cinematic portfolio platform for four people. Each profile must be factually accurate, individually complete, visually coherent, independently manageable and isolated. The owner manages content, images, resumes and personas through Admin and publishes changes without editing application code.
 
+## Authoritative status refresh — 2026-11-13
+
+- **Active branch:** `new` only. Observed source head before this documentation update: `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`.
+- **Release disposition:** NOT READY / NOT APPROVED for production.
+- **Validation:** PAUSED by owner direction. No tests, builds, typecheck, lint, security scans, browser/device/accessibility checks, CI/Jenkins or release validation may be run until explicitly resumed.
+- **Scope:** the four-profile personal portfolio platform, not an actively launched multi-tenant SaaS.
+- **Evidence rule:** source implementation, test source, executed checks, manual acceptance and owner sign-off are separate states. Do not claim completion without exact-candidate evidence.
+- **Branch/release boundary:** no merge to `dev`/`main`, deployment, production provisioning, artifact publication or Nexus activation without separate explicit approval.
+- **Current completion estimate:** no verified percentage is assigned. The earlier 7.5/10 and 75% estimate was a planning-level qualitative assessment, not a repository-wide measured audit. See [USER_STORIES.md](USER_STORIES.md) and [RELEASE_READINESS.md](RELEASE_READINESS.md).
+
 ## Current execution constraints — 2026-11-12
 
 - Active development branch: `new` only.
@@ -2418,3 +2428,29 @@ Testing and validation work is paused by user request. Continue feature implemen
 - [x] Corrected resume section entry parsing to use actual newline normalization, splitting, list-marker matching and entry joining (commit `7fd49d6`). Source-only correction; behavior remains unverified while testing is paused.
 - [x] Fix resume section parsing so CR/LF normalization, line splitting, list-marker detection and editable-entry joining use actual newline/whitespace characters rather than literal backslash sequences (commit `b4b3cd5`). Source inspection only; behavior remains unverified while testing is paused.
 
+
+
+## Current remaining-work baseline — 2026-11-13
+
+The authoritative actionable backlog is now maintained in [USER_STORIES.md](USER_STORIES.md). Release blockers and required evidence are maintained in [RELEASE_READINESS.md](RELEASE_READINESS.md). The detailed historical story/roadmap appendix below is retained for traceability; dated historical statements about active testing, old repository names, branch names, commits and CI results do not override the current execution constraints above.
+
+### Remaining P0 work
+
+1. **PORT-US-045 — Storage recovery and data integrity:** complete and accept durable storage semantics, recovery reconciliation, backup/restore, failure handling and hosted multi-instance behavior.
+2. **PORT-US-046 — Admin authentication and security:** complete production-like authentication/session/authorization validation, shared rate limiting, secret handling and security headers.
+3. **PORT-US-043 — Complete CMS coverage:** prove every intended profile field, image, resume, project, section, persona, theme and navigation setting can be safely managed and published without source edits.
+4. **PORT-US-051 — Resource lifecycle integrity:** validate the existing inspector against actual storage and verify image/resume originals, public copies, versions, indexes and histories.
+5. **PORT-US-052 — Exact-candidate engineering and end-to-end acceptance:** resume authorized validation and produce green CI plus full critical workflow evidence.
+
+### Remaining P1 work
+
+6. **PORT-US-034 / PORT-US-037 — JARVIS integration boundaries:** verify gateway configuration, privacy boundaries, selected-profile grounding, auth, timeout/cancellation, monitoring/agent boundaries and honest offline fallback.
+7. **PORT-US-044 — SEO and discoverability:** verify canonical metadata, social cards, sitemap, robots, published-only metadata and real 404 behavior.
+8. **PORT-US-047 / PORT-US-048 — Visual customization and profile completeness:** finish customization acceptance and obtain owner content/asset sign-off for all four profiles.
+9. **PORT-US-053 — Accessibility, responsive behavior and performance:** complete WCAG 2.2 AA manual/automated acceptance, representative-device coverage and measured performance budgets.
+10. **PORT-US-054 — CI/CD and artifact assurance:** prove exact-SHA pipeline, SBOM, provenance, checksum/signature verification and artifact read-back; keep Nexus publication disabled unless separately approved.
+11. **PORT-US-055 — Production operations and rollback:** prove monitoring, backup/restore, incident/recovery instructions, deployment controls and rollback rehearsal.
+
+### Release decision
+
+The product is **not ready for production release** until every P0 gate is closed, P1 acceptance is complete, all four profiles are signed off, the exact candidate has green engineering/security/quality evidence, and the owner explicitly approves release. This backlog update is documentation-only and does not resume validation or authorize deployment.
