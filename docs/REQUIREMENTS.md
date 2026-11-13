@@ -1601,7 +1601,7 @@ Remaining: execute the new tests after validation is resumed; verify every route
 - Production builds cannot use the runtime development auth bypass.
 - Same-origin authenticated session renewal endpoint and Admin navigation control.
 - Regression test source covers weak secrets, route protection, CSRF rejection, renewal and malformed epoch handling.
-- Distributed login throttling, production secret rotation/configuration and production-like acceptance remain open.
+- Admin responses now receive consistent browser-security headers; route tests assert these headers but remain unrun. Distributed login throttling, production secret rotation/configuration and production-like acceptance remain open.
 
 No tests/build/typecheck/lint/security scan/browser/CI/R2 validation was run. These increments do not close PORT-US-045, PORT-US-046 or PORT-E04.
 
@@ -2173,7 +2173,8 @@ Implementation and test source only. No tests, builds, typechecks, lint, browser
 - Runtime bypass is rejected in production builds.
 - Added an authenticated same-origin session renewal endpoint and admin navigation control.
 - Added test source for secret strength, route protection, CSRF rejection, renewal and invalid epoch behavior.
-- Remaining: distributed login throttling, production secret rotation/configuration verification, full route/mutation inventory and production-like session acceptance.
+- Applied consistent security headers to every admin page/API response: no-store/noindex, nosniff, no-referrer, restrictive Permissions-Policy, same-origin opener isolation, frame denial, CSP `frame-ancestors 'none'`, and HTTPS-only HSTS. Regression assertions were authored but not run.
+- Remaining: distributed login throttling (the current throttle remains isolate-local), production secret rotation/configuration verification, full route/mutation inventory and production-like session acceptance.
 
 **Validation boundary:** no tests, build, typecheck, lint, audit, browser, accessibility, CI or R2 checks were run. Source implementation and authored tests are not verified behavior. No merge or deployment.
 
