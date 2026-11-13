@@ -3,7 +3,8 @@
 **Updated:** 2026-11-13  
 **Repository:** `ASAA1229/Portfolio`  
 **Working branch:** `new` only  
-**Observed source baseline before this documentation update:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`  
+**Observed source baseline:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`  
+**Current status source:** [PROJECT_STATUS.md](PROJECT_STATUS.md)  
 **Release disposition:** NOT READY / NOT APPROVED  
 **Validation disposition:** PAUSED by owner direction
 
@@ -11,28 +12,28 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 ## Status vocabulary
 
-- **IMPLEMENTED — VALIDATION PENDING:** source exists; required runtime/automated/manual evidence is missing.
-- **PARTIAL — DEVELOPMENT + VALIDATION OPEN:** some behavior exists; explicit requirements remain to implement and verify.
-- **OWNER REVIEW PENDING:** workflow exists; owner content, asset or policy sign-off is outstanding.
-- **NOT STARTED:** no accepted implementation/evidence has been established.
-- **DONE — VERIFIED:** all acceptance criteria have evidence for the exact candidate and required owner approval. No story below is currently marked fully done.
+Use only: PLANNED, NOT STARTED, IN DEVELOPMENT, IMPLEMENTED, NEEDS TESTING, TEST FAILED, TEST PASSED, CI VERIFIED, DEVICE VERIFIED, OWNER ACCEPTANCE PENDING, ACCEPTED.
+
+Implementation is not acceptance. ACCEPTED requires evidence for every criterion and required owner approval. Current status source: [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## Priority summary
 
-| Priority | Story | Current status |
+| Priority | Story | Status |
 |---|---|---|
-| P0 | PORT-US-045 Storage recovery and data integrity | PARTIAL — hosted acceptance pending |
-| P0 | PORT-US-046 Admin authentication and security | PARTIAL — production-like validation pending |
-| P0 | PORT-US-043 Complete CMS coverage | PARTIAL — full field coverage acceptance pending |
-| P0 | PORT-US-051 Resource lifecycle integrity | IMPLEMENTED — real-storage validation pending |
-| P0 | PORT-US-052 Exact-candidate engineering and E2E acceptance | NOT STARTED — validation paused |
-| P1 | PORT-US-034 / PORT-US-037 JARVIS integration | IMPLEMENTED/PARTIAL — acceptance pending |
-| P1 | PORT-US-044 SEO and discoverability | PARTIAL — route and production validation pending |
-| P1 | PORT-US-047 Visual customization | PARTIAL — full customization acceptance pending |
-| P1 | PORT-US-048 Four-profile content and asset sign-off | OWNER REVIEW PENDING |
-| P1 | PORT-US-053 Accessibility, responsiveness and performance | PARTIAL — acceptance evidence pending |
-| P1 | PORT-US-054 CI/CD and artifact assurance | IMPLEMENTED — exact-head pipeline evidence pending |
-| P1 | PORT-US-055 Production operations and rollback | PARTIAL — rehearsal and approval pending |
+| P0 | PORT-US-045 Storage recovery and data integrity | NEEDS TESTING |
+| P0 | PORT-US-046 Admin authentication and security | IN DEVELOPMENT |
+| P0 | PORT-US-043 Complete CMS coverage | NEEDS TESTING |
+| P0 | PORT-US-049 Admin control room and unified navigation | NEEDS TESTING |
+| P0 | PORT-US-050 Admin-managed resources drive public profiles | NEEDS TESTING |
+| P0 | PORT-US-051 Resource lifecycle integrity | NEEDS TESTING |
+| P0 | PORT-US-052 Exact-candidate engineering and E2E acceptance | TEST FAILED |
+| P1 | PORT-US-034 / PORT-US-037 JARVIS integration | NEEDS TESTING |
+| P1 | PORT-US-044 SEO and discoverability | NEEDS TESTING |
+| P1 | PORT-US-047 Visual customization | NEEDS TESTING |
+| P1 | PORT-US-048 Four-profile content and asset sign-off | OWNER ACCEPTANCE PENDING |
+| P1 | PORT-US-053 Accessibility, responsiveness and performance | NEEDS TESTING |
+| P1 | PORT-US-054 CI/CD and artifact assurance | TEST FAILED |
+| P1 | PORT-US-055 Production operations and rollback | PLANNED |
 
 ---
 
@@ -42,7 +43,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the portfolio owner,** I want every intended public profile field and managed resource to be editable through Admin, so that normal content updates do not require source-code changes.
 
-**Current status:** PARTIAL — Admin routes and CMS/resource managers exist; complete field-by-field coverage and end-to-end acceptance are not established.
+**Current status:** NEEDS TESTING — Admin routes and CMS/resource managers exist; complete field-by-field coverage and end-to-end acceptance are not established.
 
 **Acceptance criteria**
 - Inventory every public field and collection across Abhishek, Amulya/Ammu, Anjini/Bava and Sai/Darling: profile basics, biography, skills, projects/details, experience, education, certifications, contact/social links, navigation/section visibility, profile imagery, resumes, persona/AI context and approved theme settings.
@@ -89,7 +90,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the portfolio owner,** I want an authenticated, read-only integrity inspector for resume and image resources, so that missing, orphaned, stale or inconsistent resources are visible before remediation.
 
-**Current status:** IMPLEMENTED — inspector and test source exist; tests and real-storage validation have not been executed.
+**Current status:** NEEDS TESTING — inspector and test source exist; current CI fails before test execution.
 
 **Acceptance criteria**
 - Compare private originals, indexes, public approved copies, published feeds, histories and immutable image versions.
@@ -103,7 +104,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the product owner,** I want repeatable engineering and end-to-end evidence for one exact release candidate, so that release decisions are based on verified behavior rather than source inspection or historical test results.
 
-**Current status:** NOT STARTED for current-candidate acceptance; validation is paused.
+**Current status:** TEST FAILED — exact-head run #617 failed typecheck; 89 diagnostics across 10 files. See [TESTING.md](TESTING.md).
 
 **Acceptance criteria**
 - After explicit validation resumption, record the exact candidate SHA and environment.
@@ -122,7 +123,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As a visitor and portfolio owner,** I want the portfolio AI experience to use only approved, profile-scoped context through a controlled optional JARVIS gateway, so that answers are useful without exposing private data or requiring the full JARVIS platform.
 
-**Current status:** PORT-US-034 has source integration; remaining integration-boundary and runtime acceptance is open. PORT-US-037 remains partially accepted pending its precise integration and operational checks.
+**Current status:** NEEDS TESTING — source integration exists; gateway/runtime/privacy acceptance is outstanding.
 
 **Acceptance criteria**
 - JARVIS is an optional server-side provider; public pages remain functional when it is unavailable.
@@ -152,7 +153,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the portfolio owner,** I want supported visual settings configurable per profile, so that each profile can be personalized without unsafe markup or inconsistent accessibility.
 
-**Current status:** PARTIAL — theme preview and profile-scoped styling foundations exist; full setting coverage and validation remain open.
+**Current status:** NEEDS TESTING — theme preview and profile-scoped styling foundations exist; full setting coverage and validation remain open.
 
 **Acceptance criteria**
 - Configure only approved themes/tokens, typography, accent, section visibility/order and supported layout modules.
@@ -167,7 +168,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the portfolio owner,** I want to review and sign off each profile's facts, links and imagery against its exact published version, so that the public experience is accurate and complete.
 
-**Current status:** OWNER REVIEW PENDING — a version-bound sign-off workflow exists; actual owner review remains open.
+**Current status:** OWNER ACCEPTANCE PENDING — a version-bound sign-off workflow exists; actual owner review remains open.
 
 **Acceptance criteria**
 - Review biography, skills, projects, experience, education, certifications, contact/social links and resume highlights for each profile.
@@ -182,7 +183,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As a visitor using different devices and assistive technologies,** I want the portfolio to remain usable, readable and performant, so that the experience is inclusive and reliable.
 
-**Current status:** PARTIAL — accessibility and responsive implementation exists; complete manual and measured acceptance is missing.
+**Current status:** NEEDS TESTING — accessibility and responsive implementation exists; complete manual and measured acceptance is missing.
 
 **Acceptance criteria**
 - Meet WCAG 2.2 AA for public and Admin experiences.
@@ -196,7 +197,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the product owner,** I want each candidate artifact traceable and independently verifiable, so that a release can be tied to its source and checked for tampering.
 
-**Current status:** IMPLEMENTED — workflow/Jenkins and integrity tooling exist; exact-head green pipeline and operational acceptance remain pending.
+**Current status:** TEST FAILED — GitHub Actions run #617 fails typecheck; Jenkins execution is not evidenced.
 
 **Acceptance criteria**
 - Run CI from an approved exact source SHA and record repository, branch, workflow/run ID and environment.
@@ -212,7 +213,7 @@ This file is the current actionable story index. The historical story/roadmap ap
 
 **As the product owner,** I want a controlled operational plan for deployment, monitoring, recovery and rollback, so that production incidents can be detected and handled safely.
 
-**Current status:** PARTIAL — operational documentation and quarantine/recovery tooling exist; production rehearsal and acceptance are outstanding.
+**Current status:** PLANNED — operational documentation and quarantine/recovery tooling exist; production rehearsal and acceptance are outstanding.
 
 **Acceptance criteria**
 - Define supported production environment, required variables/secrets, storage bindings, AI gateway configuration and health checks.
@@ -242,3 +243,52 @@ The order is a planning sequence, not authorization to run validation. During th
 ## Definition of done
 
 A story closes only when every acceptance criterion has exact-candidate evidence and any required owner sign-off. A source change, authored test, historical CI result or documentation statement alone is insufficient. Production release additionally requires every release gate in [RELEASE_READINESS.md](RELEASE_READINESS.md) and separate explicit owner approval.
+
+
+### PORT-US-049 — Admin control room and unified workspace navigation
+
+**As the portfolio owner,** I want one authenticated Admin control room with clear navigation and accurate operational summaries, so that I can manage all four profiles and resources from one workspace.
+
+**Current status:** NEEDS TESTING — dashboard and navigation source exists; complete workflow and direct-route authorization acceptance remain outstanding.
+
+**Acceptance criteria**
+- Provide authenticated navigation to content, resumes, images, personas, backup/restore and audit.
+- Display accurate per-profile content/persona versions, pending/approved resources, storage availability and recent audit outcomes.
+- Handle partial API failures and unavailable storage without displaying a false healthy state.
+- Enforce authorization on every dashboard data API, not only the UI route.
+- Verify navigation and workflow state for all four profiles and supported viewports.
+
+### PORT-US-050 — Admin-managed resources drive public profiles
+
+**As the portfolio owner,** I want approved Admin-managed images and resumes to flow into the correct public profile and project placements, so that updates do not require manual source edits.
+
+**Current status:** NEEDS TESTING — public resource feeds, profile/project placement and resume/image managers exist; end-to-end acceptance remains outstanding.
+
+**Acceptance criteria**
+- Bind each resource to the correct profile and exact project slug/placement slot where applicable.
+- Pending resources remain private; only approved/published resources appear publicly.
+- Publish, unpublish, replace and restore update the correct public feed without cross-profile leakage.
+- Preserve curated fallback when no override exists and intentional removal when a placement is cleared.
+- Verify original download/privacy policy, alt text, version history and rollback.
+- Demonstrate all four profile journeys using Admin-managed resources.
+
+## Evidence and dependency register
+
+| Story | Priority | Evidence / required outcome | Dependencies | Verification | Status |
+|---|---|---|---|---|---|
+| PORT-US-043 | P0 | CMS schema/Admin route exist; complete field coverage unproven | PORT-GAP-001/003 | Four-profile CRUD/publish matrix | NEEDS TESTING |
+| PORT-US-045 | P0 | Storage/recovery source exists; adapter typing fails and R2 unverified | PORT-GAP-001; R2 access | Failure injection, concurrency, backup/restore | NEEDS TESTING |
+| PORT-US-046 | P0 | HMAC sessions/tests exist; throttle process-local | PORT-GAP-001; shared limiter | API bypass, CSRF, expiry, revocation, multi-instance throttle | IN DEVELOPMENT |
+| PORT-US-049 | P0 | Dashboard/navigation source exists | PORT-GAP-001/003 | API/UI workflow tests for all profiles | NEEDS TESTING |
+| PORT-US-050 | P0 | Public feeds and image/resume manager source exist | PORT-GAP-001/002/003 | Publish/unpublish/restore matrix | NEEDS TESTING |
+| PORT-US-051 | P0 | Read-only inspector/test source exists | PORT-GAP-001/002 | Isolated storage audit and privacy review | NEEDS TESTING |
+| PORT-US-052 | P0 | Run #617 build passed; typecheck failed; tests skipped | PORT-GAP-001 | Exact-SHA CI and E2E acceptance | TEST FAILED |
+| PORT-US-034/037 | P1 | Provider resolver/chat integration exists | PORT-GAP-001/003 | Gateway/auth/privacy/timeout/cancellation tests | NEEDS TESTING |
+| PORT-US-044 | P1 | SEO helpers/routes/tests exist | PORT-GAP-001/004 | HTTP/metadata/sitemap/robots matrix | NEEDS TESTING |
+| PORT-US-047 | P1 | Theme/preview foundations exist | PORT-GAP-001/004 | Draft/publish/rollback and viewport tests | NEEDS TESTING |
+| PORT-US-048 | P1 | Version-bound sign-off workflow exists | PORT-US-043/047/050 | Owner review bound to published version | OWNER ACCEPTANCE PENDING |
+| PORT-US-053 | P1 | Responsive/accessibility foundations exist | Stable UI | Automated and manual WCAG/device/performance tests | NEEDS TESTING |
+| PORT-US-054 | P1 | Actions/Jenkins/artifact tooling exist; run #617 fails | PORT-GAP-001; Jenkins agent | Exact GitHub run and actual Jenkins/read-back | TEST FAILED |
+| PORT-US-055 | P1 | Ops and recovery docs/tooling exist | PORT-GAP-002/010/011 | Staging and DR/rollback rehearsal | PLANNED |
+
+Current statuses and maturity scores are authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md). Historical dated implementation records remain in [REQUIREMENTS.md](REQUIREMENTS.md).
