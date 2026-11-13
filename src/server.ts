@@ -64,6 +64,7 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
+import { resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
 import {
   adminAuthConfigured,
   adminCookieHeader,
@@ -123,11 +124,6 @@ function isAdminPath(pathname: string): boolean {
     pathname.startsWith("/api/admin/")
   );
 }
-
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const MAX_LOGIN_ATTEMPTS = 5;
-const MAX_TRACKED_LOGIN_CLIENTS = 4096;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 // Private admin pages must never be indexed, even when a crawler reaches them.
 function withNoindex(response: Response): Response {
@@ -299,14 +295,22 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     // accepting it here would let clients rotate spoofed identities to bypass
     // the per-client login throttle.
     const clientKey = (request.headers.get("cf-connecting-ip") ?? "unknown").slice(0, 128);
-    const now = Date.now();
-    for (const [key, attempt] of loginAttempts) {
-      if (attempt.resetAt <= now) loginAttempts.delete(key);
+    // Shared limiter (KV, else the private R2 bucket, else per-process): a second isolate
+    // or region sees the same failed-attempt count.
+    const limiterBucket = resolvePrivateBucket(env);
+    const limiter = resolveLoginLimiter(env, limiterBucket);
+    let decision: LimitDecision;
+    try {
+      decision = await limiter.check(clientKey);
+    } catch {
+      // A throttle that cannot be consulted must not become a bypass.
+      return jsonResponse({ error: "Login is temporarily unavailable." }, 503, {
+        "retry-after": "30",
+      });
     }
-    const current = loginAttempts.get(clientKey);
-    if (current && current.resetAt > now && current.count >= MAX_LOGIN_ATTEMPTS) {
+    if (!decision.allowed) {
       return jsonResponse({ error: "Too many attempts. Try again in 15 minutes." }, 429, {
-        "retry-after": String(Math.ceil((current.resetAt - now) / 1000)),
+        "retry-after": String(decision.retryAfterSeconds),
       });
     }
 
@@ -315,21 +319,20 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     const valid =
       password.length > 0 && password.length <= 1024 && (await verifyAdminPassword(password, env));
     if (!valid) {
-      if (!current && loginAttempts.size >= MAX_TRACKED_LOGIN_CLIENTS) {
-        return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
-          "retry-after": "60",
-        });
+      try {
+        const after = await limiter.recordFailure(clientKey);
+        if (!after.allowed && after.saturated) {
+          return jsonResponse({ error: "Too many login attempts. Try again shortly." }, 429, {
+            "retry-after": String(after.retryAfterSeconds),
+          });
+        }
+      } catch (error) {
+        console.error("Login throttle could not record a failed attempt.", error);
       }
-      loginAttempts.set(
-        clientKey,
-        current && current.resetAt > now
-          ? { count: current.count + 1, resetAt: current.resetAt }
-          : { count: 1, resetAt: now + LOGIN_WINDOW_MS },
-      );
       return jsonResponse({ error: "Invalid credentials." }, 401);
     }
 
-    loginAttempts.delete(clientKey);
+    await limiter.reset(clientKey).catch(() => undefined);
     const authBucket = resolvePrivateBucket(env);
     if (!authBucket) return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
     let epoch: string;
@@ -479,19 +482,21 @@ let localDevelopmentBucket: PrivateBucket | undefined;
  * survive dev-server restarts: PORTFOLIO_LOCAL_STORAGE_DIR, default `.local-storage/`
  * (git-ignored). Deployed environments must bind the RESUME_BUCKET R2 bucket.
  */
+function localDiskAllowed(): boolean {
+  return (
+    import.meta.env.DEV === true &&
+    typeof __PORTFOLIO_VITE_DEV_SERVER__ !== "undefined" &&
+    __PORTFOLIO_VITE_DEV_SERVER__ === true
+  );
+}
+
 function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
   const configured = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (configured) return configured;
   // The disk-backed bucket exists only for the local `vite dev` server. Builds,
   // previews and test runners (where import.meta.env.DEV is also true) must bind
   // storage explicitly so missing storage fails closed instead of writing to disk.
-  if (
-    import.meta.env.DEV !== true ||
-    typeof __PORTFOLIO_VITE_DEV_SERVER__ === "undefined" ||
-    __PORTFOLIO_VITE_DEV_SERVER__ !== true
-  ) {
-    return undefined;
-  }
+  if (!localDiskAllowed()) return undefined;
   localDevelopmentBucket ??= createLocalDiskBucket(
     process.env["PORTFOLIO_LOCAL_STORAGE_DIR"] || ".local-storage",
   );
@@ -2740,7 +2745,7 @@ function availableStorageAdapters(
   const adapters: Partial<Record<"r2" | "local-disk", PrivateBucket>> = {};
   const r2 = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (r2) adapters.r2 = r2;
-  if (import.meta.env.DEV === true) {
+  if (localDiskAllowed()) {
     localDevelopmentBucket ??= createLocalDiskBucket(
       process.env["PORTFOLIO_LOCAL_STORAGE_DIR"] || ".local-storage",
     );
@@ -2940,6 +2945,16 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
   {
     const path = normalizedPath(request);
     const isAdmin = isAdminPath(path);
+    // Central CSRF guard (defence in depth over the per-handler checks): every state-changing
+    // request to an admin page or API must carry an Origin equal to the request origin and
+    // must not be flagged cross-site by the browser.
+    if (isAdmin && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+      const origin = request.headers.get("origin");
+      const site = request.headers.get("sec-fetch-site");
+      if (!origin || origin !== new URL(request.url).origin || site === "cross-site") {
+        return privateNotFound();
+      }
+    }
     const authResponse = await handleAdminAuth(request, env);
     if (authResponse) return authResponse;
     const resumeResponse = await handleResumeApi(request, env);
