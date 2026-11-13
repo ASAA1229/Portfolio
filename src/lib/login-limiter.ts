@@ -239,3 +239,23 @@ export function resolveLoginLimiter(env: unknown, bucket: ObjectBucket | undefin
   fallback ??= new MemoryLoginLimiter();
   return fallback;
 }
+
+let chatFallback: MemoryLoginLimiter | undefined;
+
+/**
+ * Public chat is abuse-prone and each request costs a gateway call, so it is throttled per
+ * client: 20 requests per 5 minutes. Uses KV when bound (shared across regions); otherwise
+ * the per-isolate memory limiter. The R2 limiter is deliberately not used here: one write
+ * per chat message would be costly.
+ */
+export const CHAT_MAX_REQUESTS = 20;
+export const CHAT_WINDOW_MS = 5 * 60 * 1000;
+export function resolveChatLimiter(env: unknown): LoginLimiter {
+  const kv = (env as { LOGIN_RATE_LIMIT_KV?: KvNamespaceLike } | undefined)?.LOGIN_RATE_LIMIT_KV;
+  const options = { maxAttempts: CHAT_MAX_REQUESTS, windowMs: CHAT_WINDOW_MS };
+  if (kv && typeof kv.get === "function" && typeof kv.put === "function") {
+    return new KvLoginLimiter(kv, options);
+  }
+  chatFallback ??= new MemoryLoginLimiter(options);
+  return chatFallback;
+}

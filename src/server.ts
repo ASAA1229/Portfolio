@@ -65,7 +65,7 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
-import { resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
+import { resolveChatLimiter, resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
 import {
   adminAuthConfigured,
   adminCookieHeader,
@@ -196,7 +196,7 @@ export async function limitRequestBody(
   // Node, used by `vite dev`/preview) build the underlying Request lazily on the
   // first access to properties such as `redirect`; doing that after the stream
   // was read throws "Response body object should not be disturbed or locked".
-  const { url, method, redirect } = request;
+  const { url, method, redirect, signal } = request;
   const headers = new Headers(request.headers);
   headers.delete("content-length");
   const rawLength = request.headers.get("content-length");
@@ -233,7 +233,8 @@ export async function limitRequestBody(
     body.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new Request(url, { method, headers, body, redirect });
+  // Carry the abort signal over so a visitor disconnect still cancels upstream work.
+  return new Request(url, { method, headers, body, redirect, signal });
 }
 
 function adminAuthBypassed(env: unknown): boolean {
@@ -2380,6 +2381,7 @@ async function attachPublishedResumeContext(
     headers,
     body,
     redirect: boundedRequest.redirect,
+    signal: boundedRequest.signal,
   });
 }
 
@@ -3035,6 +3037,29 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
     }
 
     if (path === "/api/chat" && request.method === "POST") {
+      // Per-client throttle so the public chat cannot be used to drain the owner's gateway.
+      // Cloudflare always supplies cf-connecting-ip; local development does not, and is exempt.
+      const clientIp = request.headers.get("cf-connecting-ip");
+      if (clientIp) {
+        const limiter = resolveChatLimiter(env);
+        const key = `chat:${clientIp.slice(0, 128)}`;
+        try {
+          const state = await limiter.check(key);
+          if (!state.allowed) {
+            return jsonResponse(
+              { error: "Too many chat requests. Please wait a few minutes." },
+              429,
+              {
+                "retry-after": String(state.retryAfterSeconds),
+              },
+            );
+          }
+          await limiter.recordFailure(key);
+        } catch (error) {
+          // Never block chat because the throttle store failed; chat falls back to per-isolate state.
+          console.error("Chat throttle unavailable.", error);
+        }
+      }
       const contextualRequest = await attachPublishedResumeContext(request, env);
       if (contextualRequest instanceof Response) return contextualRequest;
       request = contextualRequest;
