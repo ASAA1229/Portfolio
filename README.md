@@ -41,6 +41,8 @@ Configure `JARVIS_AI_URL` and `JARVIS_AI_KEY` as server-side environment variabl
 - [Development](docs/DEVELOPMENT.md) — setup, routing, contribution and validation rules.
 - [Operations](docs/OPERATIONS.md) — CI/CD, artifact integrity, backup/recovery and releases.
 - [Security](docs/SECURITY.md) — authentication, privacy, secrets, signing and asset governance.
+- [User stories](docs/USER_STORIES.md) — authoritative story status, priorities and acceptance criteria.
+- [Release readiness](docs/RELEASE_READINESS.md) — blockers, evidence requirements and release gates.
 
-## Delivery status
-Implementation continues on `new`. Source implementation, tests authored, tests executed and owner acceptance are separate states. Validation is paused by owner direction: do not run tests, builds, typechecks, lint, security scans, browser/device/accessibility checks, CI/Jenkins or release validation until explicitly resumed. Do not merge to `dev`/`main`, deploy or release without explicit approval.
+## Delivery status — 2026-11-13
+The active documentation/source branch is `new` (observed head: `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`). Implementation is substantial, but production release is **not approved or verified**. Source implementation, tests authored, tests executed and owner acceptance are separate states. Validation remains paused by owner direction: do not run tests, builds, typechecks, lint, security scans, browser/device/accessibility checks, CI/Jenkins or release validation until explicitly resumed. Do not merge to `dev`/`main`, deploy or release without explicit approval. See [User Stories](docs/USER_STORIES.md) and [Release Readiness](docs/RELEASE_READINESS.md) for the authoritative remaining-work baseline.
