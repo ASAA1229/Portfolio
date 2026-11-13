@@ -4,11 +4,11 @@
 **Repository:** `ASAA1229/Portfolio`  
 **Active branch:** `new`  
 **Current status:** [PROJECT_STATUS.md](PROJECT_STATUS.md)  
-**Observed source-code baseline:** `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`
+**Latest observed candidate:** `b30436b3a8f4595b7d9780b849867c353f328b53`
 
 ## Current decision
 
-Latest evidence: [GitHub Actions run #617](https://github.com/ASAA1229/Portfolio/actions/runs/43417280389) failed TypeScript typecheck with 89 diagnostics across 10 files. Dependency installation, SBOM generation and build passed; lint, tests and artifact verification were skipped. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
+Latest evidence: [GitHub Actions run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), candidate `b30436b3a8f4595b7d9780b849867c353f328b53`, failed TypeScript typecheck with 15 diagnostics across 5 files. Dependency installation, SBOM generation and build passed; lint, tests and artifact verification were skipped. This is improved from the earlier 89-diagnostic baseline, but remains a release blocker. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 <badge>NOT READY — RELEASE BLOCKED</badge>
 
