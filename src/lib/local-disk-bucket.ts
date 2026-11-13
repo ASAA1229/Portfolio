@@ -64,15 +64,18 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
       }
 
       let current = base;
-      const segments = relativeTarget.split(path.sep).filter(Boolean);
-      for (const [index, segment] of ["", ...segments].entries()) {
-        if (index > 0) current = path.join(current, segment);
+      const pathsToCheck = [base];
+      for (const segment of relativeTarget.split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        pathsToCheck.push(current);
+      }
+      for (const candidate of pathsToCheck) {
         try {
-          const stat = await fs.lstat(current);
+          const stat = await fs.lstat(candidate);
           if (stat.isSymbolicLink()) {
             throw new Error("Storage path must not traverse symbolic links.");
           }
-          const canonicalCurrent = await fs.realpath(current);
+          const canonicalCurrent = await fs.realpath(candidate);
           const relativeCanonical = path.relative(canonicalBase, canonicalCurrent);
           if (
             relativeCanonical === ".." ||
