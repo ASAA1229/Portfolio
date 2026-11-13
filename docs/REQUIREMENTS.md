@@ -1,9 +1,13 @@
-# Product Requirements and Delivery Baseline
+# Product Requirements and Historical Delivery Record
+
+> **Current status:** [PROJECT_STATUS.md](PROJECT_STATUS.md). **Product scope:** [POC.md](POC.md). **Current stories:** [USER_STORIES.md](USER_STORIES.md). **Roadmap:** [ROADMAP.md](ROADMAP.md). **QA:** [TESTING.md](TESTING.md). **Release:** [RELEASE_READINESS.md](RELEASE_READINESS.md).
+>
+> This file retains dated historical requirements, POC, story, epic and roadmap records for traceability. It is not the current status source. Historical status statements and duplicate summaries must not override the linked current records.
 
 ## Product objective
 Deliver **ABHISHEK: THE SERIES**, a polished, accessible, cinematic portfolio platform for four people. Each profile must be factually accurate, individually complete, visually coherent, independently manageable and isolated. The owner manages content, images, resumes and personas through Admin and publishes changes without editing application code.
 
-## Authoritative status refresh — 2026-11-13
+## Historical status snapshot — 2026-11-13 (superseded by PROJECT_STATUS.md)
 
 - **Active branch:** `new` only. Observed source head before this documentation update: `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`.
 - **Release disposition:** NOT READY / NOT APPROVED for production.
@@ -2430,7 +2434,7 @@ Testing and validation work is paused by user request. Continue feature implemen
 
 
 
-## Current remaining-work baseline — 2026-11-13
+## Historical remaining-work baseline — 2026-11-13 (superseded by PROJECT_STATUS.md and USER_STORIES.md)
 
 The authoritative actionable backlog is now maintained in [USER_STORIES.md](USER_STORIES.md). Release blockers and required evidence are maintained in [RELEASE_READINESS.md](RELEASE_READINESS.md). The detailed historical story/roadmap appendix below is retained for traceability; dated historical statements about active testing, old repository names, branch names, commits and CI results do not override the current execution constraints above.
 
