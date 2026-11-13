@@ -16,7 +16,7 @@ export type LifecycleFinding = {
 };
 
 export interface ResourceLifecycleInput {
-  resumes: { id: string; status: "pending" | "approved"; profileId?: string }[];
+  resumes: { id: string; status: "pending" | "approved"; profileId?: string | undefined }[];
   resumeFeedIds: string[] | null;
   resumePrivateFileIds: string[];
   images: { id: string; status: "pending" | "approved" }[];

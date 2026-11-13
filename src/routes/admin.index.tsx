@@ -281,7 +281,7 @@ function AdminHome() {
               <article key={profile.id} className="rounded-md border border-border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-semibold">{profile.label}</h3>
-                  <Link to={profile.route} className="text-xs text-primary underline underline-offset-4">View public profile</Link>
+                  <a href={profile.route} className="text-xs text-primary underline underline-offset-4">View public profile</a>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <Status label="Content" value={contentDoc?.publishedVersion ? `v${contentDoc.publishedVersion} published` : "Curated default"} pending={Boolean(contentDoc?.draft)} />

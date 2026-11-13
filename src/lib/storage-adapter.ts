@@ -13,6 +13,7 @@ export interface StoredObject {
   json<T>(): Promise<T>;
   arrayBuffer(): Promise<ArrayBuffer>;
   httpMetadata?: { contentType?: string | undefined };
+  size?: number;
 }
 
 export interface StorageAdapter {
@@ -80,6 +81,7 @@ export function memoryAdapter(): StorageAdapter {
       const bytes = stored.bytes.slice();
       return {
         httpMetadata: { contentType: stored.contentType },
+        size: bytes.byteLength,
         json: async <T>() => JSON.parse(new TextDecoder().decode(bytes)) as T,
         arrayBuffer: async () => bytes.slice().buffer,
       };

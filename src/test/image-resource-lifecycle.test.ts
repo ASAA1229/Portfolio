@@ -53,7 +53,7 @@ async function uploadImage(
   form.set("publishOnUpload", String(options.publish ?? false));
   form.set(
     "file",
-    new File([options.bytes ?? ORIGINAL], options.filename ?? `${profileId}.png`, { type: PNG }),
+    new File([Uint8Array.from(options.bytes ?? ORIGINAL).buffer], options.filename ?? `${profileId}.png`, { type: PNG }),
   );
   const response = await call(env, "/api/admin/images", { method: "POST", body: form });
   expect(response.status).toBe(201);

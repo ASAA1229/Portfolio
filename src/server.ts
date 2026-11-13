@@ -27,6 +27,7 @@ import {
   validateContentOverrides,
   type ContentDocument,
   type ContentProfileId,
+  type ProfileReviewItem,
 } from "@/lib/cms-content";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import { getPersonProject } from "@/lib/person-portfolios";
@@ -453,6 +454,7 @@ type PrivateBucket = {
     json<T>(): Promise<T>;
     arrayBuffer(): Promise<ArrayBuffer>;
     httpMetadata?: { contentType?: string | undefined };
+    size?: number;
   } | null>;
   put(
     key: string,
@@ -1873,18 +1875,18 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) continue;
       const value = metadata as Record<string, unknown>;
       if (
-        typeof value.filename !== "string" || value.filename.length < 1 || value.filename.length > 120 ||
-        typeof value.contentType !== "string" || !IMAGE_TYPES.has(value.contentType) ||
-        !Number.isSafeInteger(value.size) || Number(value.size) <= 0 || Number(value.size) > MAX_IMAGE_BYTES ||
-        typeof value.uploadedAt !== "string" || !Number.isFinite(Date.parse(value.uploadedAt))
+        typeof value["filename"] !== "string" || value["filename"].length < 1 || value["filename"].length > 120 ||
+        typeof value["contentType"] !== "string" || !IMAGE_TYPES.has(value["contentType"]) ||
+        !Number.isSafeInteger(value["size"]) || Number(value["size"]) <= 0 || Number(value["size"]) > MAX_IMAGE_BYTES ||
+        typeof value["uploadedAt"] !== "string" || !Number.isFinite(Date.parse(value["uploadedAt"]))
       ) continue;
-      if (imageObject.size !== undefined && imageObject.size !== Number(value.size)) continue;
+      if (imageObject.size !== undefined && imageObject.size !== Number(value["size"])) continue;
       versions.push({
         version,
-        filename: value.filename,
-        contentType: value.contentType,
-        size: Number(value.size),
-        uploadedAt: value.uploadedAt,
+        filename: value["filename"],
+        contentType: value["contentType"],
+        size: Number(value["size"]),
+        uploadedAt: value["uploadedAt"],
       });
     }
     return jsonResponse({ versions }, 200);
@@ -1919,27 +1921,27 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     }
     const value = metadata as Record<string, unknown>;
     if (
-      typeof value.filename !== "string" || value.filename.length < 1 || value.filename.length > 120 ||
-      typeof value.contentType !== "string" || !IMAGE_TYPES.has(value.contentType) ||
-      !Number.isSafeInteger(value.size) || Number(value.size) <= 0 || Number(value.size) > MAX_IMAGE_BYTES ||
-      typeof value.uploadedAt !== "string" || !Number.isFinite(Date.parse(value.uploadedAt))
+      typeof value["filename"] !== "string" || value["filename"].length < 1 || value["filename"].length > 120 ||
+      typeof value["contentType"] !== "string" || !IMAGE_TYPES.has(value["contentType"]) ||
+      !Number.isSafeInteger(value["size"]) || Number(value["size"]) <= 0 || Number(value["size"]) > MAX_IMAGE_BYTES ||
+      typeof value["uploadedAt"] !== "string" || !Number.isFinite(Date.parse(value["uploadedAt"]))
     ) {
       return jsonResponse({ error: "The saved image version metadata failed validation." }, 409);
     }
     const targetBytes = await target.arrayBuffer();
-    if (targetBytes.byteLength !== Number(value.size)) {
+    if (targetBytes.byteLength !== Number(value["size"])) {
       return jsonResponse({ error: "The saved image version failed its size-integrity check." }, 409);
     }
     const signature = new Uint8Array(targetBytes, 0, Math.min(16, targetBytes.byteLength));
     const signatureValid =
-      value.contentType === "image/jpeg"
+      value["contentType"] === "image/jpeg"
         ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
-        : value.contentType === "image/png"
+        : value["contentType"] === "image/png"
           ? signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4e && signature[3] === 0x47
-          : value.contentType === "image/webp"
+          : value["contentType"] === "image/webp"
             ? String.fromCharCode(...signature.slice(0, 4)) === "RIFF" &&
               String.fromCharCode(...signature.slice(8, 12)) === "WEBP"
-            : value.contentType === "image/avif"
+            : value["contentType"] === "image/avif"
               ? String.fromCharCode(...signature.slice(4, 12)).includes("ftypavif") ||
                 String.fromCharCode(...signature.slice(4, 12)).includes("ftypavis")
               : false;
@@ -1954,9 +1956,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const currentPrefix = `${prefix}${currentVersion}`;
     const restoredRecord: PortfolioImageRecord = {
       ...record,
-      filename: value.filename,
-      contentType: value.contentType,
-      size: Number(value.size),
+      filename: value["filename"],
+      contentType: value["contentType"],
+      size: Number(value["size"]),
       uploadedAt: new Date().toISOString(),
     };
     records[index] = restoredRecord;
@@ -1979,9 +1981,9 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
           }),
           contentType: "application/json; charset=utf-8",
         },
-        { key: privateKey, operation: "put", value: targetBytes, contentType: value.contentType },
+        { key: privateKey, operation: "put", value: targetBytes, contentType: value["contentType"] },
         ...(record.status === "approved"
-          ? [{ key: `public/profile-images/${id}`, operation: "put" as const, value: targetBytes, contentType: value.contentType }]
+          ? [{ key: `public/profile-images/${id}`, operation: "put" as const, value: targetBytes, contentType: value["contentType"] }]
           : []),
         {
           key: IMAGE_INDEX_KEY,
@@ -2493,8 +2495,10 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
       }
       next = signOffProfile(doc, {
         reviewer: payload.reviewer,
-        checks: payload.checks as Record<string, unknown>,
-        exceptions: (payload.exceptions as unknown[] | undefined)?.filter((item): item is string => typeof item === "string"),
+        checks: payload.checks as Partial<Record<ProfileReviewItem, unknown>>,
+        ...(Array.isArray(payload.exceptions)
+          ? { exceptions: payload.exceptions.filter((item): item is string => typeof item === "string") }
+          : {}),
       }, now);
     } else {
       next = unpublishContent(doc);

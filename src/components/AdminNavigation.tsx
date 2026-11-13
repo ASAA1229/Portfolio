@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 const ITEMS = [
-  { to: "/admin/", label: "Overview" },
+  { to: "/admin", label: "Overview" },
   { to: "/admin/content", label: "Content" },
   { to: "/admin/personas", label: "AI personas" },
   { to: "/admin/resumes", label: "Resumes" },

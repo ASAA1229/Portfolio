@@ -8,7 +8,7 @@
 export interface RecoveryBucket {
   get(key: string): Promise<{
     arrayBuffer(): Promise<ArrayBuffer>;
-    httpMetadata?: { contentType?: string };
+    httpMetadata?: { contentType?: string | undefined };
   } | null>;
   put(
     key: string,
@@ -61,36 +61,36 @@ function isJournal(value: unknown): value is Journal {
   const journal = value as Record<string, unknown>;
 
   if (
-    journal.version !== 1 ||
-    typeof journal.id !== "string" ||
-    !/^[0-9a-f-]{36}$/i.test(journal.id) ||
-    !["preparing", "applying", "recovered", "committed"].includes(String(journal.state)) ||
-    typeof journal.createdAt !== "string" ||
-    !Number.isFinite(Date.parse(journal.createdAt)) ||
-    !Array.isArray(journal.snapshots)
+    journal["version"] !== 1 ||
+    typeof journal["id"] !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(journal["id"]) ||
+    !["preparing", "applying", "recovered", "committed"].includes(String(journal["state"])) ||
+    typeof journal["createdAt"] !== "string" ||
+    !Number.isFinite(Date.parse(journal["createdAt"])) ||
+    !Array.isArray(journal["snapshots"])
   ) {
     return false;
   }
 
-  return journal.snapshots.every((entry, index) => {
+  return journal["snapshots"].every((entry, index) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
     const snapshot = entry as Record<string, unknown>;
 
     if (
-      typeof snapshot.key !== "string" ||
-      !snapshot.key ||
-      snapshot.key.startsWith(ROOT) ||
-      typeof snapshot.existed !== "boolean"
+      typeof snapshot["key"] !== "string" ||
+      !snapshot["key"] ||
+      snapshot["key"].startsWith(ROOT) ||
+      typeof snapshot["existed"] !== "boolean"
     ) {
       return false;
     }
-    if (snapshot.contentType !== undefined && typeof snapshot.contentType !== "string") {
+    if (snapshot["contentType"] !== undefined && typeof snapshot["contentType"] !== "string") {
       return false;
     }
 
-    return snapshot.existed
-      ? snapshot.snapshotKey === `${ROOT}${journal.id}/snapshot-${index}`
-      : snapshot.snapshotKey === undefined;
+    return snapshot["existed"]
+      ? snapshot["snapshotKey"] === `${ROOT}${journal["id"]}/snapshot-${index}`
+      : snapshot["snapshotKey"] === undefined;
   });
 }
 
@@ -110,8 +110,8 @@ async function writeJournal(bucket: RecoveryBucket, journal: Journal): Promise<v
 }
 
 async function cleanup(bucket: RecoveryBucket, journal: Journal): Promise<void> {
-  for (const snapshot of journal.snapshots) {
-    if (snapshot.snapshotKey) await bucket.delete(snapshot.snapshotKey);
+  for (const snapshot of journal["snapshots"]) {
+    if (snapshot["snapshotKey"]) await bucket.delete(snapshot["snapshotKey"]);
   }
   await bucket.delete(JOURNAL);
 }
@@ -123,33 +123,33 @@ async function recoverUnsafe(bucket: RecoveryBucket): Promise<{
   const journal = await readJournal(bucket);
   if (!journal) return { recovered: false, state: null };
 
-  if (journal.state === "preparing") {
+  if (journal["state"] === "preparing") {
     // Target writes cannot begin until state=applying is durable.
     await cleanup(bucket, journal);
     return { recovered: true, state: "preparing" };
   }
 
-  if (journal.state === "applying") {
-    for (const snapshot of [...journal.snapshots].reverse()) {
-      if (snapshot.existed) {
-        const saved = await bucket.get(snapshot.snapshotKey!);
-        if (!saved) throw new Error(`Recovery snapshot missing for ${snapshot.key}.`);
-        await bucket.put(snapshot.key, await saved.arrayBuffer(), {
-          ...(snapshot.contentType
-            ? { httpMetadata: { contentType: snapshot.contentType } }
+  if (journal["state"] === "applying") {
+    for (const snapshot of [...journal["snapshots"]].reverse()) {
+      if (snapshot["existed"]) {
+        const saved = await bucket.get(snapshot["snapshotKey"]!);
+        if (!saved) throw new Error(`Recovery snapshot missing for ${snapshot["key"]}.`);
+        await bucket.put(snapshot["key"], await saved.arrayBuffer(), {
+          ...(snapshot["contentType"]
+            ? { httpMetadata: { contentType: snapshot["contentType"] } }
             : {}),
         });
       } else {
-        await bucket.delete(snapshot.key);
+        await bucket.delete(snapshot["key"]);
       }
     }
 
-    journal.state = "recovered";
+    journal["state"] = "recovered";
     await writeJournal(bucket, journal);
   }
 
   // Committed and recovered journals are cleanup-only and safe to replay.
-  const state = journal.state;
+  const state = journal["state"];
   await cleanup(bucket, journal);
   return { recovered: true, state };
 }
@@ -226,8 +226,8 @@ export async function runStorageTransaction(
         const existing = await bucket.get(key);
 
         if (existing) {
-          const snapshotKey = `${ROOT}${journal.id}/snapshot-${index}`;
-          journal.snapshots.push({
+          const snapshotKey = `${ROOT}${journal["id"]}/snapshot-${index}`;
+          journal["snapshots"].push({
             key,
             existed: true,
             snapshotKey,
@@ -242,12 +242,12 @@ export async function runStorageTransaction(
               : {}),
           });
         } else {
-          journal.snapshots.push({ key, existed: false });
+          journal["snapshots"].push({ key, existed: false });
           await writeJournal(bucket, journal);
         }
       }
 
-      journal.state = "applying";
+      journal["state"] = "applying";
       await writeJournal(bucket, journal);
     } catch (error) {
       // Target objects are not mutated until the applying marker is persisted.
@@ -273,7 +273,7 @@ export async function runStorageTransaction(
         }
       }
 
-      journal.state = "committed";
+      journal["state"] = "committed";
       await writeJournal(bucket, journal);
     } catch (error) {
       let restored = false;

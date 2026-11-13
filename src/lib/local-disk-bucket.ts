@@ -12,6 +12,8 @@ export interface LocalStoredObject {
   json<T>(): Promise<T>;
   arrayBuffer(): Promise<ArrayBuffer>;
   httpMetadata?: { contentType?: string | undefined };
+  size?: number;
+  text(): Promise<string>;
 }
 
 export interface LocalDiskBucket {
@@ -113,6 +115,8 @@ export function createLocalDiskBucket(root: string): LocalDiskBucket {
         .catch(() => ({}) as { contentType?: string });
       return {
         httpMetadata: { contentType: meta.contentType },
+        size: bytes.byteLength,
+        async text() { return new TextDecoder().decode(bytes); },
         async json<T>() {
           return JSON.parse(new TextDecoder().decode(bytes)) as T;
         },

@@ -44,10 +44,8 @@ export const Route = createFileRoute("/admin/images")({
   component: ImageManager,
 });
 
-async function readApiResponse<T extends { error?: string; detail?: string }>(
-  response: Response,
-): Promise<T> {
-  const payload = (await response.json().catch(() => null)) as T | null;
+async function readApiResponse<T>(response: Response): Promise<T> {
+  const payload = (await response.json().catch(() => null)) as (T & { error?: string; detail?: string }) | null;
   if (!response.ok) {
     throw new Error(
       [payload?.error, payload?.detail].filter(Boolean).join(" — ") ||
@@ -649,7 +647,7 @@ function ImageManager() {
                         No restorable versions found. Versions created before version metadata was added cannot be safely restored.
                       </p>
                     ) : (
-                      versionsByImage[image.id].map((version) => (
+                      (versionsByImage[image.id] ?? []).map((version) => (
                         <div key={version.version} className="flex flex-wrap items-center justify-between gap-3 rounded border border-border p-3">
                           <div className="min-w-0">
                             <p className="break-all text-sm font-medium">{version.filename}</p>
