@@ -43,3 +43,17 @@ The shared Series visual language uses profile-scoped theme tokens, responsive s
 
 ## Asset inventory
 Active image directories are `public/images/profiles/{abhishek,amulya,anjini,sai}`. The image manager uploads private/pending resources; publication serves approved assets through profile-scoped endpoints. Keep licensing/attribution details in [Security](SECURITY.md).
+
+
+## Release acceptance gaps — 2026-11-13
+
+The architecture is implemented in substantial part, but these operational properties are not yet accepted as production-safe:
+
+- Hosted R2/object-storage behavior, cross-instance concurrency, conditional writes/distributed locking and multi-object transaction compensation require real-environment validation.
+- Storage recovery must be exercised against interrupted writes, missing/orphaned originals, stale public copies, corrupted indexes, incomplete backups and restore conflicts.
+- Admin identity/session enforcement, production secrets, session expiry/revocation and shared rate limiting require production-like verification.
+- CMS field coverage and publication precedence must be demonstrated end-to-end for every supported field and all four profile IDs.
+- JARVIS remains an optional server-side gateway integration; production gateway reachability, authentication, timeout, cancellation, privacy filtering and fallback behavior require acceptance.
+- SEO, accessibility, performance, profile isolation and release artifacts require exact-candidate evidence.
+
+These are acceptance gaps, not a request to replace the existing architecture or introduce a multi-tenant SaaS scope.
