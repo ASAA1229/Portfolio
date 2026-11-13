@@ -2754,12 +2754,15 @@ function checkRuntimeConfig(env: unknown): void {
       ? value.trim().length > 0
       : value !== undefined && value !== null;
   };
-  const missing: string[] = [];
+  const optionalFeaturesUnavailable: string[] = [];
+  const requiredDeploymentConfigMissing: string[] = [];
   if (!has("JARVIS_AI_URL") || !has("JARVIS_AI_KEY"))
-    missing.push("JARVIS_AI_URL/JARVIS_AI_KEY (live AI chat)");
-  if (!import.meta.env["VITE_SITE_URL"]) missing.push("VITE_SITE_URL (canonical URLs, sitemap)");
+    optionalFeaturesUnavailable.push("JARVIS_AI_URL/JARVIS_AI_KEY (live AI chat)");
+  if (!import.meta.env["VITE_SITE_URL"])
+    optionalFeaturesUnavailable.push("VITE_SITE_URL (canonical URLs, sitemap)");
   if (import.meta.env.PROD) {
-    if (!has("RESUME_BUCKET")) missing.push("RESUME_BUCKET R2 binding (admin storage)");
+    if (!has("RESUME_BUCKET"))
+      requiredDeploymentConfigMissing.push("RESUME_BUCKET R2 binding (admin storage)");
     const sessionSecret =
       typeof bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] === "string"
         ? (bindings["PORTFOLIO_ADMIN_SESSION_SECRET"] as string)
@@ -2775,15 +2778,20 @@ function checkRuntimeConfig(env: unknown): void {
           : 0) < 12 ||
       new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
     ) {
-      missing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)");
+      requiredDeploymentConfigMissing.push("PORTFOLIO_ADMIN_PASSWORD/PORTFOLIO_ADMIN_SESSION_SECRET (admin login; signing secret must be at least 32 bytes)");
     }
   }
   if (has("OPENAI_API_KEY") && !has("PORTFOLIO_AI_ALLOW_PAID_FALLBACK")) {
     console.info("OPENAI_API_KEY is set but unused: paid fallback is not enabled.");
   }
-  if (missing.length) {
-    console.warn("Portfolio configuration incomplete; affected features fall back safely.", {
-      missing,
+  if (optionalFeaturesUnavailable.length) {
+    console.info("Optional portfolio features are not configured; core pages and local admin remain available.", {
+      unavailable: optionalFeaturesUnavailable,
+    });
+  }
+  if (requiredDeploymentConfigMissing.length) {
+    console.warn("Required production configuration is incomplete.", {
+      missing: requiredDeploymentConfigMissing,
     });
   }
 }
