@@ -34,3 +34,21 @@ Quarantine/recovery commands create evidence records only. They do not move/dele
 
 ## Evidence
 A commit/PR does not prove deployment readiness. Record exact SHA, CI/Jenkins run, build/test/typecheck/lint results, artifact identity, environment, storage checks, backup/restore evidence and owner approval. Validation is currently paused; historical reports are traceability only.
+
+
+## Current release disposition — 2026-11-13
+
+**Disposition: NOT READY FOR PRODUCTION RELEASE.** No production deployment or release is authorized by this status update.
+
+Release remains blocked until all items in [Release Readiness](RELEASE_READINESS.md) are evidenced against one exact candidate SHA. At minimum:
+
+- Exact-head dependency install, typecheck, lint, production build, unit/integration/API/UI/E2E and security checks pass in authorized CI.
+- Four-profile public journeys, CMS administration, image/resume publication, unpublish, rollback and recovery pass browser acceptance.
+- Hosted storage backup/restore, data-integrity reconciliation and failure-injection rehearsals pass.
+- Production-like Admin authentication, authorization, session expiry/revocation, rate limiting and secret configuration pass.
+- JARVIS gateway and paid-fallback policy are verified without exposing credentials or private profile context.
+- SEO, sitemap/robots, 404 behavior, WCAG 2.2 AA, responsive behavior and performance budgets are accepted.
+- Artifact provenance, SBOM, checksums, policy authenticity, package verification and rollback instructions are recorded.
+- Owner completes four-profile content/asset sign-off and separately approves release.
+
+Validation is currently paused. This document update does not run or authorize any of these checks.
