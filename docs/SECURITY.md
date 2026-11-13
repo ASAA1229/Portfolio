@@ -6,7 +6,8 @@
 - Mutations enforce same-origin/CSRF protections; sessions use secure HttpOnly cookies, strict same-site behavior and bounded lifetime.
 - Production cannot use development auth bypasses.
 - Enforce strong passwords/signing secrets; missing or malformed session epoch storage fails closed.
-- Distributed login throttling, production secret rotation/configuration and production-like session acceptance remain required.
+- Apply no-store, noindex, nosniff, no-referrer, restrictive Permissions-Policy, same-origin opener isolation, frame denial and an HTTPS-only HSTS policy to every admin page/API response.
+- The current failed-login throttle is process-local; it is not distributed protection. Add and verify a platform-backed shared limiter before production exposure, and retain production secret rotation/configuration and production-like session acceptance as release requirements.
 
 ## Privacy and profile isolation
 - Public routes expose only published content and approved resources.
