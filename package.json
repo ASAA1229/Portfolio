@@ -106,13 +106,15 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
+    "miniflare": "^4.20260730.0",
     "nitro": "3.0.260603-beta",
     "playwright-core": "^1.65.0",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "8.3.8",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "web-vitals": "^6.2.3"
   },
   "version": "0.1.0"
 }
