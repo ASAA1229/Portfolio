@@ -29,6 +29,10 @@ const budget = JSON.parse(
   readFileSync(path.join(root, "scripts", "performance-budget.json"), "utf8"),
 ).runtime;
 const axeSource = readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+const webVitalsSource = readFileSync(
+  path.join(root, "node_modules", "web-vitals", "dist", "web-vitals.attribution.iife.js"),
+  "utf8",
+);
 
 const PAGES = [
   "/",
@@ -134,6 +138,43 @@ for (const viewport of VIEWPORTS) {
       }),
     );
     const vitals = await page.evaluate(() => window.__vitals);
+    // INP: web-vitals observes the Event Timing entries produced by real input. Drive typical
+    // interactions (pointer, keyboard, opening and closing the AI dialog, client-side navigation).
+    await page.addScriptTag({ content: webVitalsSource });
+    await page.evaluate(() => {
+      window.__inp = 0;
+
+      webVitals.onINP(
+        (metric) => {
+          window.__inp = metric.value;
+          const a = metric.attribution || {};
+          window.__inpWhy = {
+            target: a.interactionTarget,
+            type: a.interactionType,
+            inputDelay: Math.round(a.inputDelay || 0),
+            processing: Math.round(a.processingDuration || 0),
+            presentation: Math.round(a.presentationDelay || 0),
+          };
+        },
+        { reportAllChanges: true },
+      );
+    });
+    await page.mouse.click(8, 200);
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press("Tab");
+    const aiButton = page.locator(".site-nav-ai").first();
+    if (await aiButton.isVisible().catch(() => false)) {
+      await aiButton.click();
+      await page.waitForTimeout(400);
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+    }
+    const navLink = page.locator("a.site-nav-link").nth(1);
+    if (await navLink.isVisible().catch(() => false)) {
+      await navLink.click();
+      await page.waitForTimeout(600);
+    }
+    const inpMs = await page.evaluate(() => Math.round(window.__inp));
+    const inpWhy = await page.evaluate(() => window.__inpWhy);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
@@ -145,6 +186,8 @@ for (const viewport of VIEWPORTS) {
       cls: Math.round(vitals.cls * 1000) / 1000,
       shifts: vitals.cls > budget.clsMax ? vitals.shifts : undefined,
       longTaskMs: Math.round(vitals.longTasks),
+      inpMs,
+      inpAttribution: inpMs > budget.inpMsMax ? inpWhy : undefined,
       jsKb: Math.round(jsBytes / 1024),
       cssKb: Math.round(cssBytes / 1024),
       imageKb: Math.round(imageBytes / 1024),
@@ -173,6 +216,8 @@ for (const viewport of VIEWPORTS) {
       findings.push(`${viewport.name} ${route}: JS ${entry.jsKb}KB > ${budget.jsDecodedKbMax}KB`);
     if (entry.longTaskMs > budget.totalBlockingLikeLongTaskMsMax)
       findings.push(`${viewport.name} ${route}: long tasks ${entry.longTaskMs}ms`);
+    if (entry.inpMs > budget.inpMsMax)
+      findings.push(`${viewport.name} ${route}: INP ${entry.inpMs}ms > ${budget.inpMsMax}ms`);
     await page.close();
   }
   await context.close();
@@ -185,12 +230,12 @@ for (const viewport of VIEWPORTS) {
   await page.goto(baseUrl + "/about", { waitUntil: "networkidle" });
   await page.keyboard.press("Tab");
   const first = await page.evaluate(() => document.activeElement?.textContent?.trim());
-  if (!/skip to main content/i.test(first ?? ""))
+  if (!/skip to content/i.test(first ?? ""))
     findings.push(`keyboard: first Tab stop is "${first}", expected the skip link`);
   await page.keyboard.press("Enter");
   const target = await page.evaluate(() => document.activeElement?.id);
-  if (target !== "main-content")
-    findings.push(`keyboard: skip link focused "${target}", expected main-content`);
+  if (target !== "page-content")
+    findings.push(`keyboard: skip link focused "${target}", expected page-content`);
   // 320px reflow (WCAG 1.4.10)
   await page.setViewportSize({ width: 320, height: 640 });
   const overflow = await page.evaluate(
@@ -218,6 +263,8 @@ const summary = {
   axeViolationTotal: pageReports.reduce((n, p) => n + p.axeViolations.length, 0),
   worstLcpMs: Math.max(...pageReports.map((p) => p.lcpMs)),
   worstCls: Math.max(...pageReports.map((p) => p.cls)),
+  worstInpMs: Math.max(...pageReports.map((p) => p.inpMs)),
+  pagesWithInp: pageReports.filter((p) => p.inpMs > 0).length,
   worstJsKb: Math.max(...pageReports.map((p) => p.jsKb)),
   worstImageKb: Math.max(...pageReports.map((p) => p.imageKb)),
   statusResults,

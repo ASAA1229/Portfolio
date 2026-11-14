@@ -9,6 +9,7 @@
   "runtime": {
     "lcpMsMax": 4000,
     "clsMax": 0.1,
+    "inpMsMax": 200,
     "jsDecodedKbMax": 1200,
     "totalBlockingLikeLongTaskMsMax": 1500
   }
