@@ -22,7 +22,7 @@ This is not an approved multi-tenant client SaaS product.
 
 ## Engineering maturity
 
-**Re-scored 6.0/10** (arithmetic mean 6.05) from the 4.7/10 baseline. The score measures engineering and operational maturity, not visual quality, and is capped by the absence of any hosted environment evidence.
+**Re-scored 6.1/10** (arithmetic mean 6.14) from the 4.7/10 baseline. The score measures engineering and operational maturity, not visual quality, and is capped by the absence of any hosted environment evidence.
 
 | Dimension | Baseline | Now | Evidence-based rationale |
 |---|---:|---:|---|
@@ -31,7 +31,7 @@ This is not an approved multi-tenant client SaaS product.
 | Implementation completeness | 7.0 | 7.5 | Strengths/leadership/training now CMS-managed; published-only sitemap; root-project 404s; chat throttle; skip link. Owner sign-off and hosted behaviour still missing. |
 | Testing and QA | 4.0 | 7.5 | 41 Vitest files / 461 tests plus 4 Node tests pass; failure-injection, concurrency, security-matrix, contract, SEO and axe suites; real-browser audit. No committed E2E suite for authenticated Admin journeys in a browser. |
 | Security and privacy | 5.5 | 7.0 | Shared limiter (KV/R2 CAS), central CSRF guard, 150+ route/session/CSRF assertions, abort propagation. Production-like verification and secret rotation drill absent. |
-| Performance and scalability | 4.0 | 5.5 | Budgets defined and measured (below); mobile home CLS 0.128 fails the 0.1 budget; 10.8 MB of unreferenced images shipped; no field Web Vitals; no hosted load test. |
+| Performance and scalability | 4.0 | 6.5 | Budgets measured (below); fonts self-hosted so CLS fell from 0.128 to 0.005; 10.9 MB of unreferenced originals moved out of public/; INP measured, worst 216 ms against a 200 ms target; no field Web Vitals; no hosted load test. |
 | Accessibility and compatibility | 4.5 | 6.5 | Zero axe violations in jsdom (49 routes/screens) and in real Chrome with contrast (34 page loads at 2 viewports); skip link and reflow fixed. No screen-reader or device review. |
 | CI/CD and DevOps | 5.0 | 6.0 | Stage order, npm audit gate, budget step, package-manager guard, advisory browser job; local manifest verification passes (198 files). No observed GitHub/Jenkins run. |
 | Deployment and infrastructure | 3.5 | 3.5 | Unchanged: no staging deployment, no wrangler deploy, no hosted R2. |
@@ -45,28 +45,31 @@ This is not an approved multi-tenant client SaaS product.
 | Install | `npm ci` pass | `npm ci` / `npm i` pass |
 | Typecheck (`npm run typecheck`) | 15 diagnostics in 5 files | 0 diagnostics, no suppressions |
 | Lint (`npm run lint`) | 637 problems (631 errors, 6 warnings) | 0 problems |
-| Vitest (`vitest run`) | 34 files; 40 failed / 185 passed / 1 skipped | 41 files; 461 passed / 1 skipped / 0 failed |
+| Vitest (`vitest run`) | 34 files; 40 failed / 185 passed / 1 skipped | 42 files; 472 passed / 1 skipped / 0 failed |
 | Node test runner (`scripts/on-site-change-detection.test.mjs`) | 4 pass | 4 pass |
 | Build (`npm run build`) | pass | pass |
 | Bundle budget (`npm run check:budget`) | none | pass (4/4 budgets) |
 | Package manager guard (`npm run check:pm`) | none | pass |
 | Dependency audit (`npm audit --audit-level=high`) | 2 high + 1 moderate in production dependencies | 0 high; production dependencies 0 vulnerabilities; 10 moderate dev-tooling advisories remain |
 | Artifact manifest verification (scripts/artifact-integrity.mjs, customer-release-verifier.mjs) | not run | pass: 198 files, stages 1-3 of the customer verifier (run with simulated GitHub provenance variables) |
+| Playwright browser E2E (`npm run test:e2e`) | none | 17 passed (Admin login, throttle, CSRF, edit/publish/public view, image upload, backup, logout-everywhere; keyboard, reflow, target size) |
+| Real R2 emulator suite (Miniflare, run by Vitest) | none | 11 passed |
 | Real-browser audit (`scripts/browser-audit.mjs`) | none | 34 page loads, 0 axe violations (contrast included); 1 budget finding |
 
 ## Measured performance (production build, local, no network throttling)
 
 | Metric | Value | Budget |
 |---|---:|---:|
-| Client JS, gzip total (26 chunks) | 314.2 KB | 450 KB |
-| Largest client JS chunk, gzip | 120.3 KB | 180 KB |
-| Client CSS, gzip | 25.1 KB | 40 KB |
-| Server bundle, gzip (cloudflare preset) | about 577 KB | 900 KB |
+| Client JS, gzip total (26 chunks) | 314.6 KB | 450 KB |
+| Largest client JS chunk, gzip | 120.4 KB | 180 KB |
+| Client CSS, gzip | 25.6 KB | 40 KB |
+| Server bundle, gzip (cloudflare preset) | about 603 KB | 900 KB |
 | Worst page JS, decoded | 777 KB | 1,200 KB |
-| Worst LCP (34 loads, headless Chrome) | 1,064 ms (mobile median 416 ms) | 4,000 ms |
-| Worst CLS | **0.128 (mobile home)** | 0.1 — failing |
+| Worst LCP (34 loads, headless Chrome) | 1,064 to 1,504 ms across three runs (mobile median roughly 160 to 420 ms) | 4,000 ms |
+| Worst CLS | 0.005 (was 0.128 on mobile home before fonts were self-hosted) | 0.1 |
+| Worst INP (web-vitals, scripted interactions) | 216 ms on the last full run (mobile /people/sai/skills, keyboard, 190 ms presentation delay); earlier runs reached 344 ms on /contact | 200 ms — not met on every run |
 | Largest per-page image payload | 470 KB | n/a |
-| Static media in public/ and src/assets | about 14 MB; largest file anjini_main.jpg 4.3 MB | n/a |
+| Static media in public/ and src/assets | public/ 1.6 MB after archiving 8 unreferenced originals (10.9 MB) to assets-archive/; src/assets about 1.1 MB | n/a |
 
 CLS finding: the mobile home hero shifts after the web font swap (fonts come from Google Fonts with `display=swap`). Self-hosting the fonts with size-adjusted fallbacks is the recommended fix; it was not done. INP was not measured (no scripted interaction). These are regression guards, not field data.
 
