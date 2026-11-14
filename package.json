@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "audit:images": "node scripts/audit-public-images.mjs",
     "audit:deps": "npm audit --audit-level=high",
+    "test:e2e": "node scripts/build-e2e.mjs && playwright test",
     "check:pm": "node scripts/check-package-manager.mjs",
     "check:budget": "node scripts/bundle-budget.mjs",
     "check:browser": "node scripts/browser-audit.mjs",
@@ -28,6 +29,9 @@
     "rolldown": "1.2.1"
   },
   "dependencies": {
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/sora": "^5.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -83,8 +87,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@capsizecss/metrics": "^4.4.0",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.26.5",
+    "@playwright/test": "^1.65.1",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
     "@types/node": "^22.16.5",

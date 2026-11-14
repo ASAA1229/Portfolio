@@ -129,6 +129,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  e2e:
+    # Playwright journeys against the production build served under Node with in-memory storage.
+    # Credentials are generated per run inside playwright.config.ts; no secret is stored.
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Admin browser E2E
+        env:
+          BROWSER_CHANNEL: chrome
+        run: npm run test:e2e
+
   browser-audit:
     # Advisory: real-browser axe (with contrast), reflow, Web Vitals and HTTP status audit of the
     # production build served locally. Findings are uploaded; they do not block the integrity job.

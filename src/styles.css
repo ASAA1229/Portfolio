@@ -1,5 +1,15 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+/* Self-hosted fonts (latin subset, SIL OFL): no third-party font requests. */
+@import "@fontsource/barlow-condensed/latin-500.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+@import "@fontsource/barlow-condensed/latin-800.css";
+@import "@fontsource/sora/latin-300.css";
+@import "@fontsource/sora/latin-400.css";
+@import "@fontsource/sora/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
 @import "./styles/profiles.css";
 @source "../src";
 
@@ -55,9 +65,9 @@
   --color-overlay: var(--overlay);
   --color-magenta: var(--magenta);
   --color-ember: var(--ember);
-  --font-display: "Barlow Condensed", sans-serif;
-  --font-sans: "Sora", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", sans-serif;
+  --font-sans: "Sora", "Sora Fallback", sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
   --color-ring-offset-background: var(--background);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -1876,4 +1886,33 @@ section {
   .skip-link {
     transition: none;
   }
+}
+
+/*
+ * Metric-matched fallbacks (computed from @capsizecss/metrics against Arial / Courier New) so the
+ * swap to the web font does not move text: this removed the 0.128 mobile-home layout shift.
+ */
+@font-face {
+  font-family: "Barlow Condensed Fallback";
+  src: local("Arial");
+  size-adjust: 76.49%;
+  ascent-override: 130.73%;
+  descent-override: 26.15%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Sora Fallback";
+  src: local("Arial");
+  size-adjust: 113.73%;
+  ascent-override: 85.29%;
+  descent-override: 25.5%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Courier New");
+  size-adjust: 99.98%;
+  ascent-override: 102.02%;
+  descent-override: 30%;
+  line-gap-override: 0%;
 }

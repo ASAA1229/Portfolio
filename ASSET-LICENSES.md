@@ -19,4 +19,4 @@ Restored from the historical copy on `main` (`git show origin/main:ASSET-LICENSE
 ## Reconciliation notes (2026-11-14)
 
 - The historical `public/images/profiles/README.md` listed `abhishek_2.jpg`, "Anjini Coming Soon" and three-file sets; the committed files are `abhishek_2.jpeg`, additional `.webp` renditions for Anjini and Sai, and extra Amulya files. The inventory in docs/ASSET_PROVENANCE.md replaces it. The README is intentionally not restored under `public/` because everything in `public/` is served publicly.
-- `npm run audit:images` reports one referenced-but-missing file (`public/images/profiles/priya/main.webp`, used only by the generic `src/lib/profile-template.ts`) and nine committed-but-unreferenced files; see the inventory for details.
+- `npm run audit:images` reports one referenced-but-missing file (`public/images/profiles/priya/main.webp`, used only by the generic `src/lib/profile-template.ts`) and no unreferenced files in `public/` after eight confirmed-unreferenced originals were moved (not deleted) to `assets-archive/profile-originals/`; see the inventory for details.

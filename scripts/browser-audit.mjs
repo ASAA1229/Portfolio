@@ -94,13 +94,28 @@ for (const viewport of VIEWPORTS) {
       }
     });
     await page.addInitScript(() => {
-      window.__vitals = { lcp: 0, cls: 0, longTasks: 0 };
+      window.__vitals = { lcp: 0, cls: 0, longTasks: 0, shifts: [] };
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) window.__vitals.lcp = entry.startTime;
       }).observe({ type: "largest-contentful-paint", buffered: true });
       new PerformanceObserver((list) => {
-        for (const entry of list.getEntries())
-          if (!entry.hadRecentInput) window.__vitals.cls += entry.value;
+        for (const entry of list.getEntries()) {
+          if (entry.hadRecentInput) continue;
+          window.__vitals.cls += entry.value;
+          // Keep each shift's sources so a failing budget can be attributed to an element.
+          window.__vitals.shifts.push({
+            value: Math.round(entry.value * 1000) / 1000,
+            at: Math.round(entry.startTime),
+            sources: (entry.sources || [])
+              .slice(0, 3)
+              .map((source) =>
+                String(
+                  (source.node && (source.node.className || source.node.tagName)) || "?",
+                ).slice(0, 60),
+              ),
+            fontsStatus: document.fonts ? document.fonts.status : "n/a",
+          });
+        }
       }).observe({ type: "layout-shift", buffered: true });
       new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) window.__vitals.longTasks += entry.duration;
@@ -128,6 +143,7 @@ for (const viewport of VIEWPORTS) {
       status: response?.status() ?? 0,
       lcpMs: Math.round(vitals.lcp),
       cls: Math.round(vitals.cls * 1000) / 1000,
+      shifts: vitals.cls > budget.clsMax ? vitals.shifts : undefined,
       longTaskMs: Math.round(vitals.longTasks),
       jsKb: Math.round(jsBytes / 1024),
       cssKb: Math.round(cssBytes / 1024),

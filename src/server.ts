@@ -29,7 +29,7 @@ import {
   type ContentProfileId,
   type ProfileReviewItem,
 } from "@/lib/cms-content";
-import type { PutOptions, StoredObject } from "@/lib/storage-adapter";
+import { memoryAdapter, type PutOptions, type StoredObject } from "@/lib/storage-adapter";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
 import { getPersonProject } from "@/lib/person-portfolios";
 import { getProject } from "@/lib/project-pages";
@@ -501,6 +501,7 @@ type AdminEnv = {
  * It is intentionally process-memory-only; deployed environments must bind R2.
  */
 let localDevelopmentBucket: PrivateBucket | undefined;
+let e2eMemoryBucket: PrivateBucket | undefined;
 
 /**
  * In `vite dev` (no R2 binding) admin uploads are stored on the local disk so they
@@ -518,6 +519,18 @@ function localDiskAllowed(): boolean {
 function resolvePrivateBucket(env: unknown): PrivateBucket | undefined {
   const configured = (env as AdminEnv | undefined)?.RESUME_BUCKET;
   if (configured) return configured;
+  // Browser E2E runs (e2e/, `npm run test:e2e`) serve the production build under Node, where no R2
+  // binding exists. Both flags must be set explicitly, so a deployment (which never sets
+  // ENVIRONMENT=test) cannot fall into non-durable storage by accident. Admin authentication stays
+  // fully enforced; only the storage backend differs.
+  if (
+    typeof process !== "undefined" &&
+    process.env["ENVIRONMENT"] === "test" &&
+    process.env["PORTFOLIO_E2E_STORAGE"] === "memory"
+  ) {
+    e2eMemoryBucket ??= memoryAdapter();
+    return e2eMemoryBucket;
+  }
   // The disk-backed bucket exists only for the local `vite dev` server. Builds,
   // previews and test runners (where import.meta.env.DEV is also true) must bind
   // storage explicitly so missing storage fails closed instead of writing to disk.

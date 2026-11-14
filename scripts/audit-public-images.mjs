@@ -48,6 +48,7 @@ for (const file of sourceFiles) {
   const text = await readFile(file, "utf8");
   const patterns = [
     /(?:src|href|poster)\s*=\s*["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi,
+    /(?:src|href|poster)\s*:\s*["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi,
     /\b(?:from\s*|import\s*)["\x27]([^"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp)(?:\?[^"\x27]*)?)["\x27]/gi,
     /["\x27](\/images\/[^"\x27]+)["\x27]/gi,
     /url\(\s*["\x27]?([^)"\x27]+\.(?:avif|gif|heic|jpe?g|png|svg|webp))["\x27]?\s*\)/gi,
