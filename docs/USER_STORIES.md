@@ -5,7 +5,8 @@
 **Working branch:** `new` only  
 **Latest observed candidate:** `b30436b3a8f4595b7d9780b849867c353f328b53`  
 **Current status source:** [PROJECT_STATUS.md](PROJECT_STATUS.md)  
-**Release disposition:** NOT READY / NOT APPROVED  
+**Release disposition:** NOT READY / NOT APPROVED
+**Note (2026-11-14):** per-story statuses and the CI sentences below predate the local validation recorded in the final reconciliation section of this file; where they differ, the reconciliation section and PROJECT_STATUS.md win.  
 **Validation disposition:** ACTIVE on `new` under the ASAA maturity initiative
 
 This file is the current actionable story index. The historical story/roadmap appendix in [REQUIREMENTS.md](REQUIREMENTS.md) is retained for traceability; historical status statements do not override this file's current status. Validation is authorized on `new`; merges, production deployment, Nexus publication and release remain separately gated.
@@ -292,3 +293,32 @@ A story closes only when every acceptance criterion has exact-candidate evidence
 | PORT-US-055 | P1 | Ops and recovery docs/tooling exist | PORT-GAP-002/010/011 | Staging and DR/rollback rehearsal | PLANNED |
 
 Latest candidate CI: [run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), 15 TypeScript diagnostics in 5 files; build and SBOM pass, tests/lint/artifact checks skipped. Fix the remaining Admin route literal and backup/recovery test contracts before accepting PORT-US-052. Current statuses and maturity scores are authoritative in [PROJECT_STATUS.md](PROJECT_STATUS.md). Historical dated implementation records remain in [REQUIREMENTS.md](REQUIREMENTS.md).
+
+
+## Status reconciliation — 2026-11-14
+
+Local validation on branch new (see PROJECT_STATUS.md for commands and counts). Story statuses use this file's vocabulary; none is CI VERIFIED because no hosted CI run was observed.
+
+| Story | Status | Evidence |
+|---|---|---|
+| PORT-US-043 Complete CMS coverage | TEST PASSED (local) | Strengths, leadership and training added; PERSON_FIELD_COVERAGE; four-profile lifecycle matrix; concurrency 409. Owner field sign-off pending |
+| PORT-US-045 Storage recovery | NEEDS TESTING (hosted) | Failure injection at every operation, lease, CAS, crashed-isolate recovery, backup round trip all pass against an R2 model |
+| PORT-US-046 Admin security | NEEDS TESTING (production-like) | Shared limiter, central CSRF, 104-case route/session matrix pass locally |
+| PORT-US-049 Admin control room | TEST PASSED (local) | All admin pages and APIs covered by the unauthenticated/CSRF matrix and axe; nested main landmarks and unlabeled file input fixed |
+| PORT-US-050 Resources drive public profiles | TEST PASSED (local) | Four-profile resume/image lifecycle suites |
+| PORT-US-051 Resource lifecycle integrity | NEEDS TESTING (hosted) | Inspector suites pass locally; real storage not exercised |
+| PORT-US-052 Engineering acceptance | TEST PASSED (local) | 0 typecheck errors, 0 lint problems, 461 tests; no browser Admin E2E suite |
+| PORT-US-034/037 JARVIS | NEEDS TESTING (gateway) | 29 contract tests, cancellation bug fixed, chat throttle added |
+| PORT-US-044 SEO | TEST PASSED (local) | Published-only sitemap, real 404 for root and person project pages |
+| PORT-US-047 Visual customization | NEEDS TESTING | Theme validation and merge covered; no new visual regression suite |
+| PORT-US-048 Owner sign-off | OWNER ACCEPTANCE PENDING | Unchanged |
+| PORT-US-053 Accessibility/performance | NEEDS TESTING | axe clean; skip link added; CLS 0.128 on mobile home; manual review absent |
+| PORT-US-054 CI/CD | IMPLEMENTED | Stage order, audit gate, budget, package-manager guard; runs unobserved |
+| PORT-US-055 Operations and rollback | PLANNED | External configuration list in OPERATIONS.md |
+
+### Stories newly implemented from the scan of this file and REQUIREMENTS.md
+
+- Complete CMS coverage of person strengths, leadership and training (PORT-US-043 acceptance: every public field mapped to Admin or declared curated).
+- Real 404 for unknown/archived root project pages and a published-only sitemap (PORT-US-044).
+- Skip link and landmark repair (PORT-US-053 keyboard and structure criteria).
+- Public chat rate limiting (PORT-US-034/037 acceptance names rate limiting).

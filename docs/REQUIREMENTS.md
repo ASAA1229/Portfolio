@@ -4,6 +4,10 @@
 >
 > This file retains dated historical requirements, POC, story, epic and roadmap records for traceability. It is not the current status source. Historical status statements and duplicate summaries must not override the linked current records.
 
+## Addendum — 2026-11-14 implementation reconciliation
+
+Requirements below are unchanged; this note records what implementation added so the historical text stays traceable. Added since the 2026-11-13 snapshot: shared login limiter and central CSRF guard (PORT-US-046); storage lease, etag-conditional document writes and R2-model failure/backup tests (PORT-US-045); CMS strengths/leadership/training and field-coverage map (PORT-US-043); chat throttle, abort propagation and gateway contract tests (PORT-US-034/037); published-only sitemap and root 404s (PORT-US-044); axe suite, browser audit, skip link, bundle budget (PORT-US-053); npm authority, audit gate and budget in CI (PORT-US-054). Current statuses: PROJECT_STATUS.md and USER_STORIES.md.
+
 ## Product objective
 Deliver **ABHISHEK: THE SERIES**, a polished, accessible, cinematic portfolio platform for four people. Each profile must be factually accurate, individually complete, visually coherent, independently manageable and isolated. The owner manages content, images, resumes and personas through Admin and publishes changes without editing application code.
 

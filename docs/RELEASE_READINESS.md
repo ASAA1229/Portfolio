@@ -8,7 +8,7 @@
 
 ## Current decision
 
-Latest evidence: [GitHub Actions run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), candidate `b30436b3a8f4595b7d9780b849867c353f328b53`, failed TypeScript typecheck with 15 diagnostics across 5 files. Dependency installation, SBOM generation and build passed; lint, tests and artifact verification were skipped. This is improved from the earlier 89-diagnostic baseline, but remains a release blocker. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
+Historical evidence (2026-11-13): GitHub Actions run #43420111801 failed typecheck with 15 diagnostics. That blocker is cleared locally; see the 2026-11-14 evidence update at the end of this file and PROJECT_STATUS.md.
 
 <badge>NOT READY — RELEASE BLOCKED</badge>
 
@@ -114,3 +114,24 @@ For every release candidate, record:
 Release is **GO** only when every mandatory gate is complete, evidence refers to the same exact candidate SHA, no unresolved critical/high risk blocks release, all four profiles have current owner sign-off, and the owner explicitly approves the release. Otherwise the decision remains **NO-GO**.
 
 A successful CI run alone does not authorize deployment. A documentation update, branch commit or conversational completion estimate does not constitute release evidence.
+
+
+## Evidence update — 2026-11-14 (branch new, local validation)
+
+Decision remains <badge>NOT READY — RELEASE BLOCKED</badge>. The engineering gate now passes locally; hosted and owner gates are open.
+
+| Gate | Disposition | Evidence |
+|---|---|---|
+| Engineering CI | Passes locally; GitHub/Jenkins run unobserved | Typecheck 0 errors, lint 0 problems, 461 Vitest + 4 Node tests, build, bundle budget, manifest verification (198 files) |
+| Storage/data integrity | Open (hosted) | Failure injection, lease, CAS and backup round trip pass against an R2 model; hosted R2 not exercised |
+| Admin security | Open (production-like) | 104-case admin matrix, session, CSRF and shared throttle tests pass locally; no production-like run or secret-rotation drill |
+| CMS completeness | Closed locally | Every public person field has an Admin disposition; four-profile lifecycle matrix passes |
+| Resource lifecycle | Open (hosted) | Four-profile resume and image suites pass on local disk and failure proxies |
+| JARVIS | Open (gateway) | 29 contract tests with stubbed gateway; real gateway untested |
+| SEO | Closed locally | Published-only sitemap, real 404s verified over HTTP against the built server; production origin not configured |
+| Accessibility/performance | Open | Automated axe clean (jsdom and Chrome with contrast); mobile home CLS 0.128 above budget; no manual screen-reader/device review; no field data |
+| Artifact assurance | Passes locally | Manifest, checksum and customer-verifier stages 1-3 pass; signing keys and Jenkins run absent |
+| Operations/rollback | Open | No staging, restore drill, monitoring or rollback rehearsal |
+| Four-profile sign-off, owner authorization | Open | Owner actions |
+
+Newly checked in Gate 3: locked install, typecheck, lint, build, unit/integration/API/UI tests, dependency audit (0 high; production 0), SEO/robots/404 checks, image audit (1 missing reference, 9 unreferenced files), four-profile isolation tests. Still unchecked: screen-reader acceptance, device review, field Web Vitals, hosted checks of Gates 1 and 4, Gate 5.

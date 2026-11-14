@@ -52,3 +52,8 @@ Multi-tenant SaaS, public self-service registration, billing, unapproved paid AI
 ## POC success criteria
 
 All four profiles are accurate and isolated; Admin securely manages approved content/resources; storage/recovery is reliable; AI/SEO is safe; quality/security/accessibility/performance pass; and deployment, backup and rollback are demonstrated in an approved staging environment. Current release is NO-GO.
+
+
+## POC status — 2026-11-14
+
+The POC scope is unchanged. Success criteria met locally: four profiles isolated in content, resume, image, persona and AI context (tested); Admin manages all public person fields except curated identity; storage recovery and backup/restore proven against an R2 model; AI and SEO behave safely under tested failure modes. Not yet met: hosted storage acceptance, manual accessibility and performance acceptance on devices, and an approved staging deployment with backup and rollback rehearsal. Release remains NO-GO (see PROJECT_STATUS.md).

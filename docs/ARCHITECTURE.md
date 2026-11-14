@@ -26,7 +26,7 @@ Stable profile IDs scope public content, resumes, images, projects, personas and
 Omitted CMS collections mean no override and permit curated fallback. Explicit empty arrays mean the owner intentionally cleared a collection. Root basics prefer explicit CMS basics; structured resume sections prefer approved resume, then CMS, then curated fallback. Person basics prefer CMS, then approved resume, then curated fallback; structured person sections prefer approved resume, then CMS, then curated fallback.
 
 ## Storage and media
-One storage adapter contract supports R2, local disk and in-memory development/test providers. Private originals, published copies, indexes, histories and backup artifacts have separate trust boundaries. Backups must include all referenced binaries. Multi-object writes use compensation and a durable recovery journal where implemented; per-isolate serialization is not distributed locking/CAS. Distributed concurrency and hosted R2 semantics remain acceptance gaps.
+One storage adapter contract supports R2, local disk and in-memory development/test providers. Private originals, published copies, indexes, histories and backup artifacts have separate trust boundaries. Backups must include all referenced binaries. Multi-object writes use compensation and a durable recovery journal where implemented; an in-process queue serializes one isolate and a conditional-write lease object (src/lib/storage-lock.ts, R2 `onlyIf` create-only and etag-matched steal, 120 s TTL) serializes isolates when the provider enforces preconditions; providers that ignore them (local disk, memory) degrade to the in-process queue. Content and persona documents are read-modify-write with etag-conditional puts (409 on conflict). Hosted R2 semantics remain unverified; tests use an in-memory model (src/test/helpers/memory-r2.ts).
 
 Profile portraits/galleries are profile-scoped; project media is scoped by profile ID and exact project slug. Public pages use approved published feeds with curated assets as deliberate fallback. Static series artwork and logos are brand assets, not personal profile images.
 
@@ -57,3 +57,14 @@ The architecture is implemented in substantial part, but these operational prope
 - SEO, accessibility, performance, profile isolation and release artifacts require exact-candidate evidence.
 
 These are acceptance gaps, not a request to replace the existing architecture or introduce a multi-tenant SaaS scope.
+
+
+## Changes recorded 2026-11-14
+
+- **Storage contracts:** `ObjectBucket`, `StoredObjectBody`, `StoredObject` and `PutOptions` (src/lib/storage-adapter.ts) are the single shape shared by `RecoveryBucket`, `BackupStorage`, the adapters and the server's private bucket type.
+- **Login throttling:** `LoginLimiter` (src/lib/login-limiter.ts) with memory, R2 compare-and-set and KV implementations; selection order KV binding `LOGIN_RATE_LIMIT_KV`, private R2 bucket, per-process fallback. A separate per-client chat limiter protects the AI gateway.
+- **Request guards:** a central same-origin and Sec-Fetch-Site guard precedes every admin handler; request-body wrappers preserve the abort signal so visitor disconnects cancel upstream AI calls.
+- **SEO routes:** /sitemap.xml and /robots.txt are served by the Worker from published CMS state; root and person project pages return real 404 statuses for unknown or archived slugs.
+- **CMS model:** strengths, leadership and training join basics, projects, skills, experience, education, certifications, seo, navigation and appearance. `PERSON_FIELD_COVERAGE` documents every public person field as cms, image-manager, resume or curated identity.
+- **Local development:** the disk-backed bucket is only available under the Vite dev server (`__PORTFOLIO_VITE_DEV_SERVER__`).
+- **Delivery:** npm is the authoritative package manager; `npm run verify` composes the local gate; performance budgets live in scripts/performance-budget.json.

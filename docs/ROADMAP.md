@@ -35,3 +35,20 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md) · Stories: [USER_STORIES
 8. Validate approved staging deployment, monitoring, backup/restore and rollback.
 
 Statuses are maintained only in PROJECT_STATUS.md and USER_STORIES.md. Historical implementation notes remain dated in REQUIREMENTS.md.
+
+
+## Status update — 2026-11-14
+
+| Epic | Status |
+|---|---|
+| E00 Engineering baseline | Done locally: 0 typecheck errors, 0 lint problems, 461 tests green; GitHub run not yet observed |
+| E01 Storage integrity | Lease, CAS, failure injection and backup round trip done against an R2 model; hosted R2 rehearsal outstanding |
+| E02 Admin security | Shared limiter, central CSRF guard and route matrix done; production-like acceptance outstanding |
+| E03 CMS and resources | CMS field coverage complete (strengths, leadership, training added); resource suites pass locally |
+| E04 AI and SEO | Contract tests and published-only sitemap done; real gateway and production origin outstanding |
+| E05 Accessibility and performance | Automated axe and browser audit clean; CLS 0.128 on mobile home, manual screen-reader review and field data outstanding |
+| E06 CI/CD | Stage order, audit gate, budget and package-manager guard in workflows and Jenkinsfile; runs unobserved |
+| E07 Deployment, DR | Blocked on owner environments |
+| E08 Governance | Docs reconciled and asset licence restored; branch protection blocked on owner |
+
+Next increments: self-host fonts to fix CLS and the external font dependency; move unreferenced original-resolution images out of public/; observe a GitHub Actions run and fix anything it finds; stage deployment; hosted R2 conditional-write and restore rehearsal; manual WCAG review; delete bun.lock once unused.

@@ -8,7 +8,7 @@ Keep local development, CI, staging and production separate. Configure public or
 - Incomplete backups fail closed; restore/migration must not write destination keys from incomplete payloads.
 - Recovery journals preserve pre-mutation snapshots and support replay of interrupted operations where implemented.
 - Admin recovery requires authenticated owner confirmation.
-- Per-isolate serialization is not distributed locking; multi-instance concurrency and hosted R2 semantics remain open.
+- Multi-object writes take a conditional-write storage lease (private-admin/recovery/lease.json). If an isolate dies mid-operation its lease expires after 120 seconds; until then writes fail with a retryable "another storage operation is in progress" error. Hosted R2 conditional-write behaviour has not been rehearsed.
 - Rehearse backup → restore → integrity comparison before production acceptance.
 
 ## CI/CD and artifact integrity
@@ -52,3 +52,23 @@ Release remains blocked until all items in [Release Readiness](RELEASE_READINESS
 - Owner completes four-profile content/asset sign-off and separately approves release.
 
 Validation is authorized on `new` for this maturity initiative. This does not authorize production probing, deployment, Nexus publication or release. Latest observed candidate run [#43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801) failed typecheck with 15 diagnostics in 5 files; build and SBOM passed, lint/tests/artifact verification skipped. See [TESTING.md](TESTING.md) and [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+
+## External configuration still required before staging or production (2026-11-14)
+
+None of the following has been created, bound or verified; they require the owner and a Cloudflare environment. This initiative did not deploy, provision or probe any hosted resource.
+
+| Item | Needed value |
+|---|---|
+| Worker deployment | Owner-approved Cloudflare account, route/domain and a staging Worker (wrangler.jsonc currently names `pixel-perfect-pixel` with an R2 binding only) |
+| R2 bucket | `RESUME_BUCKET` bound to a private bucket (`portfolio-private-resumes` in wrangler.jsonc); separate staging and production buckets |
+| Secrets | `PORTFOLIO_ADMIN_PASSWORD` (12+ characters), `PORTFOLIO_ADMIN_SESSION_SECRET` (32+ bytes); rotation procedure and owner custody |
+| Shared throttle (optional, recommended) | Workers KV namespace bound as `LOGIN_RATE_LIMIT_KV` for cross-region login and chat throttling; R2 is used when absent |
+| AI gateway (optional) | `JARVIS_AI_URL` (HTTPS) and `JARVIS_AI_KEY` as secrets; `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true` with `OPENAI_API_KEY` only with explicit owner opt-in |
+| Public origin | `VITE_SITE_URL` at build time for canonical URLs and sitemap |
+| Runtime flag | Worker compatibility date with `nodejs_compat` so `process.env` carries the AI secrets (current date 2026-10-31 qualifies) |
+| CI | Observed GitHub Actions run of the pushed SHA; a Jenkins Windows agent run; Nexus only with approval |
+| DR | Restore drill into an isolated bucket with measured RPO/RTO; monitoring and alert destinations |
+| Branch governance | Branch protection and required checks (owner action) |
+
+Local rehearsal commands: `npm run verify`; `NITRO_PRESET=node-server npm run build` then `PORT=4173 node .output/server/index.mjs` and `npm run check:browser -- http://localhost:4173`.

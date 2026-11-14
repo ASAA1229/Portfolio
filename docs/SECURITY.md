@@ -7,7 +7,9 @@
 - Production cannot use development auth bypasses.
 - Enforce strong passwords/signing secrets; missing or malformed session epoch storage fails closed.
 - Apply no-store, noindex, nosniff, no-referrer, restrictive Permissions-Policy, same-origin opener isolation, frame denial and an HTTPS-only HSTS policy to every admin page/API response.
-- The current failed-login throttle is process-local; it is not distributed protection. Add and verify a platform-backed shared limiter before production exposure, and retain production secret rotation/configuration and production-like session acceptance as release requirements.
+- Failed-login throttling uses the pluggable LoginLimiter (src/lib/login-limiter.ts): Workers KV when `LOGIN_RATE_LIMIT_KV` is bound (eventually consistent, best effort across regions), otherwise the private R2 bucket with etag compare-and-set (shared across isolates), otherwise a per-process fallback. If the throttle store cannot be consulted, login returns 503 rather than bypassing the limit. Counters store only a SHA-256 of the client address. Verified against in-memory models of R2 and KV; production multi-instance acceptance and secret rotation drills remain release requirements.
+- Every state-changing admin request must carry an Origin equal to the request origin and must not be marked Sec-Fetch-Site cross-site (central guard in src/server.ts, in addition to per-handler checks). Content and persona writes are etag-conditional; a stale writer receives 409 CONCURRENT_MODIFICATION.
+- Public chat is throttled per client address (20 requests per 5 minutes; shared when KV is bound, per isolate otherwise). Client disconnects cancel the upstream gateway call.
 
 ## Privacy and profile isolation
 - Public routes expose only published content and approved resources.
@@ -44,3 +46,8 @@ The presence of authentication, validation and security-control source code is n
 - Dependency vulnerability triage, SBOM review, signing-key custody and independent trust of release signatures/digests.
 
 Record test evidence, environment and exact commit SHA. Do not run security scans or production probes while the owner-directed validation pause remains active.
+
+
+## Verification evidence — 2026-11-14
+
+Automated, local, against in-memory storage models: all 45 admin API routes and 8 admin pages reject unauthenticated callers with a private 404 plus the full security header set; encoded, mixed-case, dot-segment and null-byte paths do not bypass the boundary; forged, truncated, expired, revoked (logout-all epoch) and secret-rotated sessions are rejected; missing or weak secrets, absent storage and malformed epoch storage fail closed; the development bypass is ignored unless explicitly in a development environment; every mutating route refuses missing, foreign, null and cross-site origins even with a valid session; login cookies are HttpOnly, SameSite=Strict, Secure on HTTPS with a bounded Max-Age; the shared throttle blocks across isolates and fails closed. Findings fixed are listed in PROJECT_STATUS.md. Not performed: penetration testing, production configuration review, dependency review of dev-only advisories (10 moderate remain), signing-key custody review.

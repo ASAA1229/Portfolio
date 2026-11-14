@@ -4,7 +4,7 @@ A cinematic, Netflix-inspired, multi-profile portfolio and owner-managed content
 
 ## Project health
 
-**Current release status: NO-GO.** The latest CI build succeeds, but strict TypeScript validation still fails (15 diagnostics across 5 files); tests, lint and artifact verification have not run on that candidate. See [authoritative project status](docs/PROJECT_STATUS.md), [remaining stories](docs/USER_STORIES.md) and [release gates](docs/RELEASE_READINESS.md).
+**Current release status: NO-GO.** On branch `new` typecheck (0 errors), lint (0 problems), 461 unit/integration tests, production build, bundle budget and manifest verification pass locally (2026-11-14); no hosted CI run, staging deployment, hosted R2 acceptance, manual accessibility review or owner sign-off exists yet. See [authoritative project status](docs/PROJECT_STATUS.md), [remaining stories](docs/USER_STORIES.md) and [release gates](docs/RELEASE_READINESS.md).
 
 ## What it does
 - Presents four profile-specific public experiences with shared navigation, design language and reusable sections.
@@ -49,5 +49,5 @@ Configure `JARVIS_AI_URL` and `JARVIS_AI_KEY` as server-side environment variabl
 - [Release readiness](docs/RELEASE_READINESS.md) — blockers, evidence requirements and release gates.
 
 ## Delivery status — 2026-11-13
-See [authoritative project status](docs/PROJECT_STATUS.md). Latest GitHub Actions run #617 passed dependency installation, SBOM generation and production build but failed TypeScript typecheck (89 diagnostics); lint, tests and artifact verification were skipped. Release remains NO-GO.
+See [authoritative project status](docs/PROJECT_STATUS.md) for exact commands, counts and the gap register. Run `npm run verify` for the local gate; earlier GitHub run numbers (#617, #43420111801) are superseded history. Release remains NO-GO.
 The active documentation/source branch is `new` (observed head: `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`). Implementation is substantial, but production release is **not approved or verified**. Source implementation, tests authored, tests executed and owner acceptance are separate states. Validation remains paused by owner direction: do not run tests, builds, typechecks, lint, security scans, browser/device/accessibility checks, CI/Jenkins or release validation until explicitly resumed. Do not merge to `dev`/`main`, deploy or release without explicit approval. See [User Stories](docs/USER_STORIES.md) and [Release Readiness](docs/RELEASE_READINESS.md) for the authoritative remaining-work baseline.

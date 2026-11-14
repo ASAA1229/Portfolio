@@ -2,32 +2,35 @@
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md) · Release gate: [RELEASE_READINESS.md](RELEASE_READINESS.md)
 
-## Test architecture observed
+## Test architecture (2026-11-14)
 
-- Vitest + jsdom configured in vitest.config.ts.
-- Test files use src/**/*.test.ts and src/**/*.test.tsx.
-- npm test runs Vitest and Node's built-in test runner for scripts/on-site-change-detection.test.mjs.
-- 34 test files are present on new.
-- @vitest/coverage-v8 is installed, but package scripts define no coverage command or threshold.
-- No dedicated Playwright/Cypress browser E2E dependency or script is configured in package.json.
-- Existing tests cover authentication, CMS, AI provider, routing, SEO, image/resume failure paths, resource lifecycle, backup and storage recovery.
+- Vitest 4 with jsdom (default) or node (per-file `// @vitest-environment node`), configured in vitest.config.ts with a 30 s test timeout for filesystem-heavy suites.
+- `npm test` runs Vitest and the Node test runner for scripts/on-site-change-detection.test.mjs.
+- 41 Vitest files and 4 Node tests; 461 Vitest tests pass, 1 is skipped (pre-existing).
+- src/test/helpers/memory-r2.ts models the documented Cloudflare R2 behaviours (etags, `onlyIf` conditional puts, paged listing) with failure injection and forced interleaving. It models the API; it is not evidence about the hosted service.
+- Suites added or extended in this initiative: storage-r2-contract (failure injection at every operation, crashed-isolate recovery, multi-isolate lease, backup/restore round trip and rollback), login-limiter, admin-security-matrix (every admin route and page, encoded paths, sessions, CSRF, distributed throttle), cms-profile-matrix (four-profile lifecycle, field groups, concurrency), chat-gateway-contract (Worker plus route, four-profile isolation, timeout, cancellation), seo-http (published-only sitemap, 404 statuses), a11y-pages (axe over all public routes, three profiles and Admin).
+- Coverage tooling (@vitest/coverage-v8) is installed but no threshold is configured.
+- Real-browser checks are scripts, not Vitest: `npm run check:browser -- <url>` (scripts/browser-audit.mjs) and `npm run check:budget`. No committed browser E2E suite exists for authenticated Admin journeys.
 
-## Latest exact-head CI evidence
-
-[Latest run #43420111801](https://github.com/ASAA1229/Portfolio/actions/runs/43420111801), candidate `b30436b3a8f4595b7d9780b849867c353f328b53`:
+## Latest local evidence (branch new, 2026-11-14)
 
 | Check | Result |
 |---|---|
 | npm ci | PASS |
-| CycloneDX SBOM | PASS |
+| Typecheck | PASS, 0 diagnostics (baseline 15) |
+| ESLint | PASS, 0 problems (baseline 637) |
+| Vitest | PASS, 41 files, 461 passed, 1 skipped (baseline 185 passed, 40 failed) |
+| Node tests | PASS, 4 of 4 |
 | Production build | PASS |
-| Typecheck | FAIL — 15 diagnostics / 5 files |
-| ESLint | SKIPPED |
-| Vitest + Node tests | SKIPPED |
-| Artifact verification | SKIPPED |
-| Artifact upload | SKIPPED |
+| Bundle budget | PASS, client JS 314.2 KB gzip, CSS 25.1 KB gzip |
+| npm audit --audit-level=high | PASS, 0 high; production dependencies 0 advisories |
+| Artifact manifest and customer verifier | PASS, 198 files (simulated provenance variables) |
+| Real-browser audit | 34 loads (17 pages x mobile and desktop): 0 axe violations including contrast; 1 finding, mobile home CLS 0.128 above the 0.1 budget |
+| GitHub Actions / Jenkins | Not observed for these commits |
 
-Previous baseline run #617 had 89 diagnostics across 10 files. The latest candidate has reduced the reported errors to 15 across 5 files, but still fails. Remaining error groups: Admin route literals (`/admin/` vs `/admin`), backup test mock shape, backup `StorageMutation` content type, and `RecoveryBucket.get` mock return type (repeated call-site incompatibilities). Lint, unit/integration tests and artifact verification remain skipped. No successful exact-head full pipeline is evidenced.
+Run `npm run verify` to repeat the first block (package-manager guard, typecheck, lint, test, build, budget). The browser audit needs a locally served build: `NITRO_PRESET=node-server npm run build`, then `PORT=4173 node .output/server/index.mjs`, then `npm run check:browser -- http://localhost:4173 report.json` (uses an installed Chrome or Edge via BROWSER_CHANNEL; downloads nothing).
+
+Known limits: jsdom cannot evaluate contrast, reflow or focus visibility (covered only by the browser script); the R2 model proves application logic, not hosted R2 consistency; no screen-reader or physical-device testing was performed.
 
 ## Required test layers
 
@@ -47,6 +50,10 @@ npm run lint
 npm test
 npm run build
 npm run audit:images
+npm run check:budget
+npm run audit:deps
+npm run check:pm
+npm run verify
 ```
 
 Do not claim a command passed without exact output and candidate SHA. CI runs automatically on pushes to new; concurrency may cancel close-spaced runs. Cancelled is not passed.
