@@ -102,9 +102,13 @@ describe("structural accessibility requirements", () => {
       const { container, unmount } = await renderRoute(path);
       expect(container.querySelectorAll("main"), path).toHaveLength(1);
       expect(container.querySelectorAll("h1").length, path).toBeGreaterThanOrEqual(1);
-      const skip = screen.getByRole("link", { name: /skip to main content/i });
-      expect(skip.getAttribute("href")).toBe("#main-content");
-      expect(container.querySelector("#main-content"), path).not.toBeNull();
+      // Pages inside the shared shell repeat the navigation, so they must offer a bypass link.
+      // The profile picker and the single-form login have no repeated blocks (WCAG 2.4.1 n/a).
+      if (!["/profiles", "/admin/login"].includes(path)) {
+        const skip = screen.getAllByRole("link", { name: /skip to content/i })[0]!;
+        expect(skip.getAttribute("href")).toMatch(/^#(page|person)-content$/);
+        expect(container.querySelector(skip.getAttribute("href")!), path).not.toBeNull();
+      }
       unmount();
     }
   });
@@ -125,6 +129,5 @@ describe("structural accessibility requirements", () => {
     const css = readFileSync("src/styles.css", "utf8");
     expect(css).toMatch(/prefers-reduced-motion:\s*reduce/);
     expect(css).toMatch(/:focus-visible/);
-    expect(css).toContain(".skip-link");
   });
 });

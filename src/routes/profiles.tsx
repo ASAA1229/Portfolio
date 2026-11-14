@@ -147,7 +147,7 @@ function ProfileSelect() {
         <span>GUDA ABHISHEK · SOFTWARE ENGINEER & AI DEVELOPER</span>
         <Link
           to="/privacy"
-          className="underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="inline-flex min-h-6 items-center underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           Privacy
         </Link>

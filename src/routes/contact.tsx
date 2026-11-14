@@ -51,7 +51,7 @@ function Contact() {
             <p className="chapter-kicker">A GOOD STORY STARTS SOMEWHERE</p>
             <h2>Have a project in mind?</h2>
             <p>Send a note and I’ll get back to you through email.</p>
-            <a href={`mailto:${email}`} className="contact-email">
+            <a href={`mailto:${email}`} className="contact-email inline-flex min-h-6 items-center">
               {email}
             </a>
           </div>

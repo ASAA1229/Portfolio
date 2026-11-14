@@ -85,7 +85,7 @@ export function ResumeEntryCard({
           href={entry.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-4 inline-block break-all text-xs text-primary underline underline-offset-4"
+          className="mt-4 inline-flex min-h-6 items-center break-all text-xs text-primary underline underline-offset-4"
         >
           {section === "certifications" ? "Verify credential" : "Open project"}
         </a>

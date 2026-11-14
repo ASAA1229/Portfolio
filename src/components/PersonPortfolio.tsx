@@ -81,7 +81,9 @@ export function PersonShell({
         Skip to content
       </a>
       <PortfolioNavbar person={profile} />
-      <div id="person-content">{children}</div>
+      <div id="person-content" tabIndex={-1} className="focus:outline-none">
+        {children}
+      </div>
       <PersonPortfolioAssistant key={profile.id} profile={profile} />
       <PersonFooter profile={profile} />
     </div>
@@ -156,7 +158,7 @@ function PersonFooter({ profile }: { profile: PersonPortfolio }) {
             {email && (
               <a
                 href={`mailto:${email}`}
-                className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
+                className="mt-4 inline-flex min-h-6 items-center break-all text-sm text-muted-foreground hover:text-foreground"
               >
                 {email} <ArrowUpRight className="inline size-4" />
               </a>
@@ -174,8 +176,14 @@ function PersonFooter({ profile }: { profile: PersonPortfolio }) {
         <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
           <p>© 2026 {profile.name}. All rights reserved. Netflix-inspired portfolio concept.</p>
           <span className="flex gap-4">
-            <Link to="/privacy">Privacy</Link>
-            <PersonLink person={profile.id} section="projects">
+            <Link to="/privacy" className="inline-flex min-h-6 items-center">
+              Privacy
+            </Link>
+            <PersonLink
+              person={profile.id}
+              section="projects"
+              className="inline-flex min-h-6 items-center"
+            >
               Explore The Series <ArrowUpRight className="inline size-3" />
             </PersonLink>
           </span>
@@ -384,7 +392,11 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
             <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{story}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild className="min-h-11">
-                <PersonLink person={profile.id} section="projects">
+                <PersonLink
+                  person={profile.id}
+                  section="projects"
+                  className="inline-flex min-h-6 items-center"
+                >
                   Explore my work <ArrowUpRight />
                 </PersonLink>
               </Button>
@@ -442,7 +454,11 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
             <h2 className="mt-3 text-4xl">Ideas in action.</h2>
           </div>
           <Button asChild variant="bare">
-            <PersonLink person={profile.id} section="projects">
+            <PersonLink
+              person={profile.id}
+              section="projects"
+              className="inline-flex min-h-6 items-center"
+            >
               All projects <ArrowRight />
             </PersonLink>
           </Button>
@@ -957,7 +973,10 @@ export function PersonContent({
                   : "Contact details will be added after the profile information is confirmed."}
               </p>
               {contact.email && (
-                <a href={`mailto:${contact.email}`} className="contact-email">
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="contact-email inline-flex min-h-6 items-center"
+                >
                   {contact.email}
                 </a>
               )}
@@ -1004,7 +1023,11 @@ export function PersonProjectDetail({
   return (
     <article className="site-container py-12 sm:py-16">
       <Button asChild variant="bare" className="mb-8 px-0">
-        <PersonLink person={profile.id} section="projects">
+        <PersonLink
+          person={profile.id}
+          section="projects"
+          className="inline-flex min-h-6 items-center"
+        >
           <ArrowLeft /> All projects
         </PersonLink>
       </Button>

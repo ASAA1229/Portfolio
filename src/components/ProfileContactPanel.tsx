@@ -91,7 +91,10 @@ export function ProfileContactPanel({ contact }: { contact: ProfileContactDetail
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="min-w-0 break-all">
                     <span className="text-muted-foreground">email:</span>{" "}
-                    <a href={`mailto:${email}`} className="transition-colors hover:text-accent">
+                    <a
+                      href={`mailto:${email}`}
+                      className="inline-flex min-h-6 items-center transition-colors hover:text-accent"
+                    >
                       {email}
                     </a>
                   </span>
@@ -112,7 +115,7 @@ export function ProfileContactPanel({ contact }: { contact: ProfileContactDetail
                   <span className="text-muted-foreground">phone:</span>{" "}
                   <a
                     href={`tel:${phone.replace(/[^+0-9]/g, "")}`}
-                    className="transition-colors hover:text-accent"
+                    className="inline-flex min-h-6 items-center transition-colors hover:text-accent"
                   >
                     {phone}
                   </a>

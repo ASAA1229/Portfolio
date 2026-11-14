@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Bot, Pause, Play, RotateCcw, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -224,6 +224,15 @@ export function AiIntro({
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
+  // The dialog can be opened from elsewhere (navbar button, custom event) rather than its own trigger;
+  // remember whatever had focus so closing returns it there (WCAG 2.4.3). A layout effect runs before
+  // Radix moves focus into the dialog.
+  const returnFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (open && document.activeElement instanceof HTMLElement) {
+      returnFocus.current = document.activeElement;
+    }
+  }, [open]);
 
   const handleOpenChange = (next: boolean) => {
     if (!isControlled) setInternalOpen(next);
@@ -238,7 +247,16 @@ export function AiIntro({
           <Bot /> Meet my AI intro
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90svh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg p-5 sm:p-7">
+      <DialogContent
+        className="max-h-[90svh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg p-5 sm:p-7"
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus.current;
+          if (target && target.isConnected && target !== document.body) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <DialogTitle className="pr-9 font-display text-3xl leading-tight">
           Meet Abhishek
         </DialogTitle>

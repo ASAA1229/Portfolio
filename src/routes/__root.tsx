@@ -137,10 +137,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <MotionConfig reducedMotion="user">
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
-        <main id="main-content" tabIndex={-1}>
+        <main id="main-content">
           <SiteShell>
             <Outlet />
           </SiteShell>

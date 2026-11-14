@@ -30,7 +30,9 @@ export function SiteShell({ children }: { children: ReactNode }) {
 
       <PortfolioNavbar />
 
-      <div id="page-content">{children}</div>
+      <div id="page-content" tabIndex={-1} className="focus:outline-none">
+        {children}
+      </div>
 
       <footer className="site-footer">
         <div className="site-container">
@@ -42,7 +44,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               </h2>
               <a
                 href={`mailto:${contact.email}`}
-                className="mt-4 inline-block break-all text-sm text-muted-foreground hover:text-foreground"
+                className="mt-4 inline-flex min-h-6 items-center break-all text-sm text-muted-foreground hover:text-foreground"
               >
                 {contact.email} <ArrowUpRight className="inline size-4" />
               </a>
@@ -55,8 +57,10 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-border pt-6 text-[10px] leading-5 text-muted-foreground">
             <p>© 2026 Guda Abhishek. All rights reserved. Netflix-inspired portfolio concept.</p>
             <span className="flex gap-4">
-              <Link to="/privacy">Privacy</Link>
-              <Link to="/projects">
+              <Link to="/privacy" className="inline-flex min-h-6 items-center">
+                Privacy
+              </Link>
+              <Link to="/projects" className="inline-flex min-h-6 items-center">
                 Explore The Series <ArrowUpRight className="inline size-3" />
               </Link>
             </span>
