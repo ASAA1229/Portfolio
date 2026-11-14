@@ -1,28 +1,18 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import server from "@/server";
-import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import { MemoryR2 } from "./helpers/memory-r2";
 
 const ORIGIN = "http://localhost";
 const PNG = "image/png";
 const ORIGINAL = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const REPLACEMENT = new Uint8Array([...ORIGINAL, 0x01]);
 const PROFILES = ["abhishek", "ammu", "bava", "sai"] as const;
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const directory of tempDirs.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 function createEnv() {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portfolio-four-profile-images-"));
-  tempDirs.push(directory);
-  const bucket = createLocalDiskBucket(directory);
+  // These suites verify the Admin/lifecycle logic, not filesystem behaviour. An in-memory R2 model keeps
+  // them deterministic and independent of disk speed; the disk adapter is covered by
+  // local-disk-bucket*.test.ts and the *-failure-paths suites, which stay on real disk.
+  const bucket = new MemoryR2();
   return {
     bucket,
     env: {
@@ -140,7 +130,7 @@ describe("four-profile public image resource lifecycle", () => {
       const cleanup = await call(env, "/api/admin/images/cleanup", { method: "POST" });
       expect(cleanup.status).toBe(200);
       expect(((await cleanup.json()) as { removed: number }).removed).toBeGreaterThan(0);
-      expect(await bucket.list(`private-admin/images/superseded/${image.id}/`)).toEqual([]);
+      expect(bucket.keys(`private-admin/images/superseded/${image.id}/`)).toEqual([]);
     },
   );
 

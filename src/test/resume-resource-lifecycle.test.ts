@@ -1,27 +1,17 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import server from "@/server";
-import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import { MemoryR2 } from "./helpers/memory-r2";
 
 const ORIGIN = "http://localhost";
 const PDF = "application/pdf";
 const PDF_BYTES = new TextEncoder().encode("%PDF-1.4\nPortfolio resume fixture\n%%EOF");
 const PROFILES = ["abhishek", "ammu", "bava", "sai"] as const;
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const directory of tempDirs.splice(0)) {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 function createEnv() {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "portfolio-four-profile-resumes-"));
-  tempDirs.push(directory);
-  const bucket = createLocalDiskBucket(directory);
+  // These suites verify the Admin/lifecycle logic, not filesystem behaviour. An in-memory R2 model keeps
+  // them deterministic and independent of disk speed; the disk adapter is covered by
+  // local-disk-bucket*.test.ts and the *-failure-paths suites, which stay on real disk.
+  const bucket = new MemoryR2();
   return {
     bucket,
     env: {

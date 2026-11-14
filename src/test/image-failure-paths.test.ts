@@ -1,25 +1,16 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import server from "@/server";
-import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import { MemoryR2 } from "./helpers/memory-r2";
 
 const PNG = "image/png";
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const origin = "http://localhost";
-const temps: string[] = [];
-
-afterEach(() => {
-  for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
 
 /** Storage proxy that persists an index write and then reports an ambiguous failure. */
 function failingImageBucket() {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "portfolio-image-failure-"));
-  temps.push(dir);
-  const disk = createLocalDiskBucket(dir);
+  // In-memory R2 model: the partial-persistence logic under test does not depend on disk speed.
+  const disk = new MemoryR2();
   const state = { failIndexAfterWrite: false };
   const bucket = new Proxy(disk, {
     get(target, property) {
@@ -155,8 +146,8 @@ describe("image lifecycle compensation", () => {
       restored: true,
     });
     expect(await bucket.get("private-admin/images/index.json")).toBeNull();
-    expect(await bucket.list("private-admin/images/files/")).toEqual([]);
-    expect(await bucket.list("public/profile-images/")).toEqual([]);
+    expect(bucket.keys("private-admin/images/files/")).toEqual([]);
+    expect(bucket.keys("public/profile-images/")).toEqual([]);
   });
 
   it("restores previous image binaries and metadata when replacement index persistence fails", async () => {
@@ -196,7 +187,7 @@ describe("image lifecycle compensation", () => {
     );
     expect([...privateAfter]).toEqual([...originalPrivate]);
     expect([...publicAfter]).toEqual([...originalPublic]);
-    expect(await bucket.list(`private-admin/images/superseded/${id}/`)).toEqual([]);
+    expect(bucket.keys(`private-admin/images/superseded/${id}/`)).toEqual([]);
     const index = await (await bucket.get("private-admin/images/index.json"))!.json<
       Array<{ id: string; filename: string }>
     >();

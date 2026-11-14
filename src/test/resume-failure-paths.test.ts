@@ -1,10 +1,7 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import server from "@/server";
-import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
+import { MemoryR2 } from "./helpers/memory-r2";
 import { extractResumeText } from "@/lib/resume-extraction";
 
 const PDF = "application/pdf";
@@ -26,16 +23,10 @@ describe("resume parser failures", () => {
   });
 });
 
-const temps: string[] = [];
-afterEach(() => {
-  for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
-
 /** Disk bucket whose public feed writes can be made to fail. */
 function failingBucket() {
-  const dir = mkdtempSync(path.join(os.tmpdir(), "portfolio-failure-"));
-  temps.push(dir);
-  const disk = createLocalDiskBucket(dir);
+  // In-memory R2 model: the partial-persistence logic under test does not depend on disk speed.
+  const disk = new MemoryR2();
   const state = {
     failFeed: false,
     failFeedAfterWrite: false,
@@ -237,7 +228,7 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
     }),
   });
   expect(published.status).toBe(200);
-  const feedBefore = await (await bucket.get("public/approved-resumes.json"))!.text();
+  const feedBefore = bucket.text("public/approved-resumes.json");
 
   await bucket.delete(`private-admin/resumes/files/${resume.id}`);
   const consistency = (await (await call(env, "/api/admin/resumes/consistency")).json()) as {
@@ -256,7 +247,7 @@ it("blocks reconciliation when an indexed resume original is missing", async () 
     reconciled: false,
     missingFiles: [resume.id],
   });
-  const feedAfter = await (await bucket.get("public/approved-resumes.json"))!.text();
+  const feedAfter = bucket.text("public/approved-resumes.json");
   expect(feedAfter).toBe(feedBefore);
 });
 
@@ -328,7 +319,7 @@ it("rolls back a resume upload when the index write persists and then rejects", 
     code: "RESUME_STORAGE_COMMIT_FAILED",
     restored: true,
   });
-  expect(await bucket.list("private-admin/resumes/files/")).toEqual([]);
+  expect(bucket.keys("private-admin/resumes/files/")).toEqual([]);
   expect(await bucket.get("private-admin/recovery/active.json")).toBeNull();
 });
 
