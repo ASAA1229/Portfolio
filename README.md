@@ -1,77 +1,53 @@
-# Pixel Perfect Pixel
+# ABHISHEK: THE SERIES — Portfolio
 
-Implement exactly the screenshot and nothing else
+A cinematic, Netflix-inspired, multi-profile portfolio and owner-managed content platform for **Abhishek**, **Amulya (Ammu)**, **Anjini (Bava)** and **Sai (Darling)**.
 
-This project was built with [Lovable](https://lovable.dev).
+## Project health
 
-## Build with Lovable
+**Current release status: NO-GO.** On branch `new` typecheck (0 errors), lint (0 problems), 461 unit/integration tests, production build, bundle budget and manifest verification pass locally (2026-11-14); no hosted CI run, staging deployment, hosted R2 acceptance, manual accessibility review or owner sign-off exists yet. See [authoritative project status](docs/PROJECT_STATUS.md), [remaining stories](docs/USER_STORIES.md) and [release gates](docs/RELEASE_READINESS.md).
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/e57d50c9-d7ca-4bc6-8c2b-1c145ec53a9b).
+## What it does
+- Presents four profile-specific public experiences with shared navigation, design language and reusable sections.
+- Supports home, about, skills, projects and project details, experience, education, certifications and contact.
+- Provides an owner-only Admin CMS for content, images, resumes, personas, backups, audit and publication history.
+- Publishes approved content/resources to the correct profile without source-code edits; drafts and private originals remain private.
+- Uses the owner's JARVIS gateway for profile-grounded AI; paid OpenAI fallback requires explicit opt-in.
+- Includes SEO, sitemap/robots, release integrity and controlled operational recovery.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## Profile routes
+| Profile | Route |
+|---|---|
+| Abhishek | `/` |
+| Amulya / Ammu | `/people/ammu` |
+| Anjini / Bava | `/people/bava` |
+| Sai / Darling | `/people/sai` (`/people/darling` alias) |
 
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Run locally
+Prerequisites: Node.js 24 (or the version required by the package manifest), npm and Git.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+git clone https://github.com/ASAA1229/Portfolio.git
+cd Portfolio
+git switch new
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-## AI chatbot configuration
+In Windows PowerShell, use `Copy-Item .env.example .env.local`. Open the local URL printed by the dev server. Do not commit `.env.local` or credentials.
 
-The portfolio chatbot API is handled server-side by `src/routes/api/chat.ts` and uses the OpenAI Responses API only. Lovable AI is currently paused and is not used as a fallback.
+## AI configuration
+Configure `JARVIS_AI_URL` and `JARVIS_AI_KEY` as server-side environment variables. Paid OpenAI fallback is disabled by default and requires both `OPENAI_API_KEY` and `PORTFOLIO_AI_ALLOW_PAID_FALLBACK=true`. Without a provider, the API returns a safe unavailable response and the UI may use profile-grounded offline answers. Never expose keys in React code or `VITE_*` variables.
 
-### Local development
+## Documentation
+- [Architecture](docs/ARCHITECTURE.md) — system boundaries, profile model, CMS and storage.
+- [Requirements](docs/REQUIREMENTS.md) — product objective, epics, stories, acceptance and status history.
+- [Development](docs/DEVELOPMENT.md) — setup, routing, contribution and validation rules.
+- [Operations](docs/OPERATIONS.md) — CI/CD, artifact integrity, backup/recovery and releases.
+- [Security](docs/SECURITY.md) — authentication, privacy, secrets, signing and asset governance.
+- [User stories](docs/USER_STORIES.md) — authoritative story status, priorities and acceptance criteria.
+- [Release readiness](docs/RELEASE_READINESS.md) — blockers, evidence requirements and release gates.
 
-1. Copy `.env.example` to `.env.local`.
-2. Put your key in `.env.local` as `OPENAI_API_KEY=your_real_key`.
-3. Restart the development server.
-
-`.env`, `.env.local`, and other real environment files are ignored by Git. Never put an API key in React components, client-side variables such as `VITE_OPENAI_API_KEY`, source files, screenshots, issues, or public repositories.
-
-### Deployment
-
-Add `OPENAI_API_KEY` as a **server-side environment secret** in the hosting provider's dashboard, then redeploy. Do not put the secret into frontend build variables. No Lovable AI key is needed while Lovable AI is paused. OpenAI API access and usage billing are managed separately from ChatGPT subscriptions.
-
-## CI/CD artifact integrity and Nexus publication
-
-The Jenkins pipeline builds the project, creates a packaged release artifact, generates a SHA-256 file inventory manifest, and verifies both the manifest and the package checksum before archiving the release outputs.
-
-### Required build provenance
-
-The pipeline sets `REQUIRE_BUILD_PROVENANCE=true`. Manifest creation and verification therefore require a full Git commit SHA and build number. Verification also compares those values with the current Jenkins build environment; a manifest copied from a different build is rejected.
-
-### Optional Nexus Raw publication
-
-Nexus publication runs only when `NEXUS_RAW_REPOSITORY_URL` is configured in Jenkins. Configure it as an HTTPS URL for the target Raw repository **without** embedded credentials, query parameters, or fragments. Store the Nexus username/password in Jenkins Credentials under the ID `nexus-credentials` (Username with password); do not add credentials to source control or the URL.
-
-The release path uses the lower-case project name, Jenkins build number, and short Git commit; this aligns the Nexus coordinate with the manifest's project/build/commit identity. `verify-release` rejects a manifest whose project differs from `PROJECT_NAME`, and its successful verification output records the project, build number, full source commit, artifact name, size, and SHA-256. Jenkins also emits a concise release-traceability line naming the artifact, manifest, and checksum sidecar. Before upload, the pipeline checks each expected release asset using authenticated `HEAD` requests. It refuses to overwrite existing assets and stops if it cannot establish that an asset is absent. After upload, it downloads the files and compares SHA-256 digests with the local copies.
-
-**Repository compatibility note:** the configured Nexus Raw repository and its access policy must support authenticated `HEAD` requests and return HTTP 404 for absent paths. Validate this behavior with your Nexus administrator before enabling publication. The HEAD preflight is a guard against accidental overwrite, not an atomic immutability guarantee; use repository-side permissions or immutable storage controls where available.
-
-### Verify a downloaded release before extraction
-
-Before unpacking a downloaded release archive, verify its checksum sidecar and confirm the manifest's packaged-artifact name, size, and SHA-256 agree with the archive:
-
-```sh
-node scripts/artifact-integrity.mjs verify-release <artifact.tar.gz> <manifest.json> <artifact.tar.gz.sha256>
-```
-
-When `REQUIRE_BUILD_PROVENANCE=true`, set `GIT_COMMIT` (or `GIT_COMMIT_SHA`) and `BUILD_NUMBER` (or `GITHUB_RUN_NUMBER`) to the expected approved release values; the command rejects a manifest whose provenance differs. This pre-extraction check validates the archive against its sidecar and manifest metadata. After extraction, also run the existing `verify` command against the extracted directory and manifest to validate every packaged file.
-
-### Published build outputs
-
-- Packaged application archive
-- JSON manifest listing packaged files, sizes, and SHA-256 digests, with build provenance
-- SHA-256 checksum sidecar for the archive
-
-### Operational status
-
-Changes to the pipeline and integrity scripts must be validated in Jenkins before being treated as release-ready. A successful local commit or PR update alone does not prove that the configured Jenkins agent, Nexus permissions, or repository behavior works end to end.
-
+## Delivery status — 2026-11-13
+See [authoritative project status](docs/PROJECT_STATUS.md) for exact commands, counts and the gap register. Run `npm run verify` for the local gate; earlier GitHub run numbers (#617, #43420111801) are superseded history. Release remains NO-GO.
+The active documentation/source branch is `new` (observed head: `14f94a194c6bfcba9ed3f5e5dd1e036b8d82ebc6`). Implementation is substantial, but production release is **not approved or verified**. Source implementation, tests authored, tests executed and owner acceptance are separate states. Validation remains paused by owner direction: do not run tests, builds, typechecks, lint, security scans, browser/device/accessibility checks, CI/Jenkins or release validation until explicitly resumed. Do not merge to `dev`/`main`, deploy or release without explicit approval. See [User Stories](docs/USER_STORIES.md) and [Release Readiness](docs/RELEASE_READINESS.md) for the authoritative remaining-work baseline.

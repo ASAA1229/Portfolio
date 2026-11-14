@@ -46,25 +46,31 @@ describe("Portfolio content acceptance", () => {
 
   it("has complete experience, skills and certification content", () => {
     expect(MISSIONS.length).toBeGreaterThan(0);
-    expect(MISSIONS.every((mission) =>
-      mission.company.trim().length > 0 &&
-      mission.role.trim().length > 0 &&
-      mission.projects.length > 0 &&
-      mission.projects.every((project) =>
-        project.name.trim().length > 0 && project.points.length > 0
-      )
-    )).toBe(true);
+    expect(
+      MISSIONS.every(
+        (mission) =>
+          mission.company.trim().length > 0 &&
+          mission.role.trim().length > 0 &&
+          mission.projects.length > 0 &&
+          mission.projects.every(
+            (project) => project.name.trim().length > 0 && project.points.length > 0,
+          ),
+      ),
+    ).toBe(true);
 
     expect(SKILLS.length).toBeGreaterThan(0);
-    expect(SKILLS.every((group) =>
-      group.cat.trim().length > 0 &&
-      group.items.length > 0 &&
-      group.items.every((skill) => skill.trim().length > 0)
-    )).toBe(true);
+    expect(
+      SKILLS.every(
+        (group) =>
+          group.cat.trim().length > 0 &&
+          group.items.length > 0 &&
+          group.items.every((skill) => skill.trim().length > 0),
+      ),
+    ).toBe(true);
 
     expect(CERTS.length).toBeGreaterThan(0);
-    expect(CERTS.every(([name, issuer]) =>
-      name.trim().length > 0 && issuer.trim().length > 0
-    )).toBe(true);
+    expect(
+      CERTS.every(([name, issuer]) => name.trim().length > 0 && issuer.trim().length > 0),
+    ).toBe(true);
   });
 });

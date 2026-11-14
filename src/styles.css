@@ -1,5 +1,15 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+/* Self-hosted fonts (latin subset, SIL OFL): no third-party font requests. */
+@import "@fontsource/barlow-condensed/latin-500.css";
+@import "@fontsource/barlow-condensed/latin-600.css";
+@import "@fontsource/barlow-condensed/latin-700.css";
+@import "@fontsource/barlow-condensed/latin-800.css";
+@import "@fontsource/sora/latin-300.css";
+@import "@fontsource/sora/latin-400.css";
+@import "@fontsource/sora/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
 @import "./styles/profiles.css";
 @source "../src";
 
@@ -55,9 +65,9 @@
   --color-overlay: var(--overlay);
   --color-magenta: var(--magenta);
   --color-ember: var(--ember);
-  --font-display: "Barlow Condensed", sans-serif;
-  --font-sans: "Sora", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Barlow Condensed", "Barlow Condensed Fallback", sans-serif;
+  --font-sans: "Sora", "Sora Fallback", sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
   --color-ring-offset-background: var(--background);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -90,6 +100,8 @@
   --popover: oklch(0.211 0.006 285.9);
   --popover-foreground: oklch(0.96 0.01 260);
   --primary: oklch(0.584 0.233 27.9);
+  /* Brand red lightened for small text: >= 5:1 on every dark surface (WCAG AA). */
+  --primary-text: #ff3b42;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.22 0.02 270);
   --secondary-foreground: oklch(0.96 0.01 260);
@@ -325,7 +337,7 @@ section {
 .chapter-hero h1 span,
 .about-story h2 span,
 .skills-intro h2 span {
-  color: #e50914;
+  color: var(--primary-text);
 }
 .chapter-kicker {
   font: 500 10px/1.5 var(--font-mono);
@@ -365,7 +377,7 @@ section {
 .chapter-scroll svg,
 .chapter-cta svg {
   width: 16px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .about-hero > img {
   object-position: 70% 34%;
@@ -418,7 +430,7 @@ section {
 }
 .about-facts svg {
   width: 16px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .about-illustration {
   display: flex;
@@ -452,7 +464,7 @@ section {
 }
 .chapter-section-heading > svg {
   width: 28px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .chapter-section-heading h2 {
   font-size: clamp(2.6rem, 5vw, 4.5rem);
@@ -467,7 +479,7 @@ section {
 }
 .milestone > span:first-child {
   font: 11px var(--font-mono);
-  color: #e50914;
+  color: var(--primary-text);
 }
 .milestone h3 {
   font-size: 27px;
@@ -480,7 +492,7 @@ section {
 }
 .milestone-number {
   text-align: right;
-  color: #666;
+  color: #8f8f8f;
   font: 11px var(--font-mono);
 }
 .skills-hero > img {
@@ -560,7 +572,7 @@ section {
 .constellation-core svg {
   width: 30px;
   height: 30px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .orbit {
   position: absolute;
@@ -599,7 +611,7 @@ section {
   width: 42px;
   height: 42px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #e50914;
+  color: var(--primary-text);
 }
 .skill-group summary small,
 .skill-group summary strong,
@@ -609,7 +621,7 @@ section {
 .skill-group summary small {
   font: 9px var(--font-mono);
   letter-spacing: 0.14em;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .skill-group summary strong {
   margin-top: 4px;
@@ -623,7 +635,7 @@ section {
 }
 .skill-group-plus {
   font-size: 22px;
-  color: #e50914;
+  color: var(--primary-text);
   transition: transform 0.2s;
 }
 .skill-group[open] .skill-group-plus {
@@ -734,7 +746,7 @@ section {
 .featured-project-copy a svg,
 .cert-recognition a svg {
   width: 16px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .projects-list-heading {
   margin-bottom: 30px;
@@ -828,7 +840,7 @@ section {
   right: 18px;
   top: 18px;
   width: 16px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .experience-hero {
   min-height: 620px;
@@ -882,7 +894,7 @@ section {
 }
 .career-rail {
   position: relative;
-  color: #e50914;
+  color: var(--primary-text);
   font: 10px var(--font-mono);
   letter-spacing: 0.13em;
 }
@@ -924,7 +936,7 @@ section {
 .career-role svg,
 .career-location svg {
   width: 15px;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .career-location {
   white-space: nowrap;
@@ -996,7 +1008,7 @@ section {
 }
 .certs-note svg {
   flex: none;
-  color: #e50914;
+  color: var(--primary-text);
 }
 .certificate-archive {
   display: grid;
@@ -1064,7 +1076,7 @@ section {
 .certificate-copy > span {
   display: block;
   margin-top: 9px;
-  color: #777;
+  color: #8f8f8f;
   font-size: 9px;
 }
 .certificate-award {
@@ -1132,10 +1144,11 @@ section {
 }
 .endcard-mark {
   font: 800 clamp(5rem, 14vw, 12rem)/0.8 var(--font-display);
-  color: #292326;
+  /* Decorative mark; 3:1 against the page background keeps it compliant (WCAG 1.4.11/1.4.3). */
+  color: #6b646a;
 }
 .endcard-mark span {
-  color: #e50914;
+  color: var(--primary-text);
 }
 .cinematic-contact > section {
   border-top: 1px solid rgba(255, 255, 255, 0.14);
@@ -1753,7 +1766,10 @@ section {
   border-color: #303036;
   background: transparent;
   color: #f4f4f5;
-  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
 }
 .site-nav-movie,
 .site-nav-menu {
@@ -1806,6 +1822,16 @@ section {
   .site-nav-inner {
     min-height: 72px;
   }
+  /* 320px reflow: keep the header actions inside the viewport. */
+  .site-nav-actions {
+    min-width: 0;
+  }
+  .site-nav-ai span {
+    display: none;
+  }
+  .site-nav-ai {
+    padding-inline: 0.75rem;
+  }
   .site-shell {
     --space-page: 18px;
   }
@@ -1820,4 +1846,46 @@ section {
   .site-nav-link {
     transition: none;
   }
+}
+
+/* Accessibility: text set in the primary colour uses the AA-compliant text token.
+   Unlayered so it wins over the generated .text-primary utility; backgrounds,
+   borders and buttons keep the original brand red. */
+.text-primary {
+  color: var(--primary-text);
+}
+
+/* Visible keyboard focus for every interactive control, not only links. */
+:where(button, [role="button"], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/*
+ * Metric-matched fallbacks (computed from @capsizecss/metrics against Arial / Courier New) so the
+ * swap to the web font does not move text: this removed the 0.128 mobile-home layout shift.
+ */
+@font-face {
+  font-family: "Barlow Condensed Fallback";
+  src: local("Arial");
+  size-adjust: 76.49%;
+  ascent-override: 130.73%;
+  descent-override: 26.15%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Sora Fallback";
+  src: local("Arial");
+  size-adjust: 113.73%;
+  ascent-override: 85.29%;
+  descent-override: 25.5%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Courier New");
+  size-adjust: 99.98%;
+  ascent-override: 102.02%;
+  descent-override: 30%;
+  line-gap-override: 0%;
 }

@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import logoImage from "../../../logo.png";
+import { monogramFor } from "@/lib/monogram";
+import { NAV_SECTIONS, sectionHref, themeCssVariables, themeForPreset } from "@/config/site-config";
+import { navigationLabel } from "@/lib/cms-content";
+import { usePublishedContent } from "@/lib/published-content";
 
 export interface PortfolioNavbarProps {
   person?: PersonPortfolio | null;
@@ -44,35 +48,33 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
   const isPerson = Boolean(person);
   const personId = person?.id;
+  // Same string-typed route form as the section links below.
+  const projectsTo: string = isPerson && personId ? `/people/${personId}/projects` : "/projects";
 
-  // Exact 8 items in required order: Home, About, Skills, Projects, Experience, Certifications, Education, Contact
-  const links: NavItem[] = isPerson && personId
-    ? [
-        { to: `/people/${personId}`, label: "Home", exact: true },
-        { to: `/people/${personId}/about`, label: "About" },
-        { to: `/people/${personId}/skills`, label: "Skills" },
-        { to: `/people/${personId}/projects`, label: "Projects" },
-        { to: `/people/${personId}/experience`, label: "Experience" },
-        { to: `/people/${personId}/certifications`, label: "Certifications" },
-        { to: `/people/${personId}/education`, label: "Education" },
-        { to: `/people/${personId}/contact`, label: "Contact" },
-      ]
-    : [
-        { to: "/", label: "Home", exact: true },
-        { to: "/about", label: "About" },
-        { to: "/skills", label: "Skills" },
-        { to: "/projects", label: "Projects" },
-        { to: "/experience", label: "Experience" },
-        { to: "/certifications", label: "Certifications" },
-        { to: "/education", label: "Education" },
-        { to: "/contact", label: "Contact" },
-      ];
+  // Exact 8 items in required order, from the shared site configuration (PORT-US-040).
+  // Labels can be overridden per profile through published CMS content (PORT-US-035).
+  const publishedContent = usePublishedContent(isPerson && personId ? personId : "abhishek");
+  const hiddenSections = new Set(publishedContent?.appearance?.hiddenSections ?? []);
+  const links: NavItem[] = NAV_SECTIONS.filter(
+    (section) => section.page === "home" || !hiddenSections.has(section.page),
+  ).map((section) => ({
+    to: sectionHref(isPerson ? personId : undefined, section),
+    label: navigationLabel(publishedContent, section.page, section.label),
+    ...(section.exact ? { exact: true } : {}),
+  }));
+  // Published theme preset: fixed token values only, so the style block cannot carry owner input.
+  const themePreset = publishedContent?.appearance?.theme;
+  const themeStyle =
+    themePreset && themePreset !== "crimson"
+      ? `.site-shell { ${themeCssVariables(themeForPreset(themePreset))} }`
+      : null;
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";
   const contactTo = isPerson && personId ? `/people/${personId}/contact` : "/contact";
-  const brandLabel = isPerson && person?.displayName
-    ? `${person.displayName} portfolio home`
-    : "Guda Abhishek home";
+  // Each person gets their own monogram; the GA. logo image belongs to Abhishek only.
+  const personMonogram = person ? monogramFor(person.name) : null;
+  const brandLabel =
+    isPerson && person?.displayName ? `${person.displayName} portfolio home` : "Guda Abhishek home";
 
   const handleAiIntroClick = () => {
     setMenu(false);
@@ -85,22 +87,30 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
 
   return (
     <header className="site-nav sticky inset-x-0 top-0 z-40">
+      {themeStyle && <style data-profile-theme={themePreset}>{themeStyle}</style>}
       <div className="site-container site-nav-inner flex min-h-[92px] items-center justify-between gap-3 sm:gap-5">
         {/* Left section: Brand logo */}
         <Link
           to={homeTo}
           className="site-nav-brand flex shrink-0 items-center"
-          aria-label={brandLabel}
+          aria-label={personMonogram ? `${personMonogram}. ${brandLabel}` : brandLabel}
         >
-          <img
-            src={logoImage}
-            alt="GA."
-            className="site-nav-logo h-10 w-auto max-w-[88px] object-contain sm:h-11"
-            width={88}
-            height={44}
-            fetchPriority="high"
-            decoding="async"
-          />
+          {personMonogram ? (
+            <span className="brand-monogram site-nav-monogram" aria-hidden="true">
+              {personMonogram}
+              <span className="text-primary">.</span>
+            </span>
+          ) : (
+            <img
+              src={logoImage}
+              alt="GA."
+              className="site-nav-logo h-10 w-auto max-w-[88px] object-contain sm:h-11"
+              width={88}
+              height={44}
+              fetchPriority="high"
+              decoding="async"
+            />
+          )}
         </Link>
 
         {/* Center section: Primary navigation (all 8 items in exact order) */}
@@ -131,13 +141,13 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             variant="outline"
             className="site-nav-ai min-h-11 gap-1.5 px-3 text-xs font-semibold sm:px-3.5 sm:text-sm"
             onClick={handleAiIntroClick}
-            aria-label="Open AI Introduction"
+            aria-label="AI Intro: open the AI introduction"
           >
             <Bot className="size-4 shrink-0" aria-hidden="true" />
             <span>AI Intro</span>
           </Button>
 
-          {/* 2. Movie button (Clapperboard icon button to /portfolio) */}
+          {/* 2. Movie button (Clapperboard icon button to the projects page) */}
           <Button
             asChild
             variant="outline"
@@ -146,7 +156,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             title="Explore projects"
           >
             <Link
-              to={isPerson && personId ? `/people/${personId}/projects` : "/projects"}
+              to={projectsTo}
               aria-label={`Explore ${person?.displayName ?? "Abhishek"} projects`}
             >
               <Clapperboard className="size-4" aria-hidden="true" />
@@ -167,11 +177,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
           </Button>
 
           {/* 4. Let's talk contact button */}
-          <Button
-            asChild
-            variant="outline"
-            className="site-nav-talk hidden xl:inline-flex"
-          >
+          <Button asChild variant="outline" className="site-nav-talk hidden xl:inline-flex">
             <Link to={contactTo}>
               Let&apos;s talk <ArrowUpRight aria-hidden="true" />
             </Link>
@@ -202,12 +208,7 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
           className="site-container site-mobile-nav grid grid-cols-2 gap-2 py-4 lg:hidden"
         >
           {links.map(({ to, label, exact }) => (
-            <Button
-              key={to}
-              asChild
-              variant="ghost"
-              className="min-h-11 justify-start text-sm"
-            >
+            <Button key={to} asChild variant="ghost" className="min-h-11 justify-start text-sm">
               <Link
                 to={to}
                 activeOptions={{ exact: Boolean(exact) }}
@@ -234,25 +235,14 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
             <span>AI Intro</span>
           </Button>
 
-          <Button
-            asChild
-            variant="ghost"
-            className="min-h-11 justify-start gap-2 text-sm"
-          >
-            <Link
-              to={isPerson && personId ? `/people/${personId}/projects` : "/projects"}
-              onClick={() => setMenu(false)}
-            >
+          <Button asChild variant="ghost" className="min-h-11 justify-start gap-2 text-sm">
+            <Link to={projectsTo} onClick={() => setMenu(false)}>
               <Clapperboard className="size-4" aria-hidden="true" />
               <span>Explore projects</span>
             </Link>
           </Button>
 
-          <Button
-            asChild
-            variant="ghost"
-            className="min-h-11 justify-start gap-2 text-sm"
-          >
+          <Button asChild variant="ghost" className="min-h-11 justify-start gap-2 text-sm">
             <Link to="/profiles" onClick={() => setMenu(false)}>
               <UsersRound className="size-4" aria-hidden="true" />
               <span>Choose profile</span>
@@ -288,11 +278,7 @@ function AiIntroModal({
 }) {
   return (
     <div className="sr-only">
-      <AiIntro
-        controlledOpen={open}
-        onControlledOpenChange={onOpenChange}
-      />
+      <AiIntro controlledOpen={open} onControlledOpenChange={onOpenChange} />
     </div>
   );
 }
-

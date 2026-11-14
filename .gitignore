@@ -36,3 +36,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local development uploads (admin resumes/images when no R2 binding)
+.local-storage/
+
+# Playwright
+test-results/
+playwright-report/

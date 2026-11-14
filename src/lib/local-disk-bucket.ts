@@ -1,0 +1,220 @@
+/**
+ * Development-only object storage on the local disk, with the same small API the
+ * admin uses from the Cloudflare R2 binding (get / put / delete).
+ *
+ * Uploads made in `vite dev` survive restarts. Files live under
+ * PORTFOLIO_LOCAL_STORAGE_DIR (default `.local-storage/`, git-ignored), using the
+ * same keys as R2, e.g. `.local-storage/private-admin/images/files/<id>`.
+ * Node's fs is imported lazily so production (Workers + R2) never loads it.
+ */
+
+export interface LocalStoredObject {
+  json<T>(): Promise<T>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+  httpMetadata?: { contentType?: string | undefined };
+  size?: number;
+  text(): Promise<string>;
+}
+
+export interface LocalDiskBucket {
+  readonly root: string;
+  get(key: string): Promise<LocalStoredObject | null>;
+  put(
+    key: string,
+    value: ArrayBuffer | string | Uint8Array,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<void>;
+  delete(key: string): Promise<void>;
+  /** Keys under a prefix (metadata sidecars excluded), sorted. */
+  list(prefix: string): Promise<string[]>;
+}
+
+// Keys are generated server-side; still refuse anything that could leave the root.
+const SAFE_KEY = /^(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
+const META_SUFFIX = ".meta.json";
+
+export function isSafeStorageKey(key: string): boolean {
+  return SAFE_KEY.test(key) && !key.endsWith(META_SUFFIX) && !key.includes("//");
+}
+
+export function createLocalDiskBucket(root: string): LocalDiskBucket {
+  const loadUncached = async () => {
+    const [fs, path, os] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+      import("node:os"),
+    ]);
+    const base = path.resolve(root);
+    const resolve = (key: string) => {
+      if (!isSafeStorageKey(key)) throw new Error("Unsafe storage key.");
+      const target = path.resolve(base, key);
+      if (!target.startsWith(base + path.sep)) throw new Error("Unsafe storage key.");
+      return target;
+    };
+    // Lexical containment alone does not stop a key from traversing a symlink
+    // located inside the storage root. Check the configured root and each
+    // descendant, but do not compare ordinary ancestors (e.g. C:\\Users) with
+    // the storage root: those ancestors must necessarily be outside it.
+    const sameOrInside = (parent: string, child: string) => {
+      const relative = path.relative(parent, child);
+      return (
+        relative === "" ||
+        (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+      );
+    };
+    // A storage root beneath a symlinked/junctioned parent could be redirected
+    // outside the intended tree. Ancestors of the process working directory and
+    // of the OS temp directory are trusted platform locations (they may legitimately
+    // be aliases, e.g. /var on macOS); every directory below those anchors, or every
+    // ancestor when the root is elsewhere, must be a real directory.
+    let ancestorsVerified = false;
+    const assertAncestorsNotLinked = async () => {
+      if (ancestorsVerified) return;
+      let anchor = path.parse(base).root;
+      for (const candidate of [process.cwd(), os.tmpdir()]) {
+        const resolved = path.resolve(candidate);
+        if (sameOrInside(resolved, base) && resolved.length > anchor.length) anchor = resolved;
+      }
+      const relative = path.relative(anchor, base);
+      let current = anchor;
+      for (const segment of relative.split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        try {
+          if ((await fs.lstat(current)).isSymbolicLink()) {
+            throw new Error("Storage path must not traverse symbolic links.");
+          }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+          throw error;
+        }
+      }
+      ancestorsVerified = true;
+    };
+    const assertNoSymlink = async (target: string) => {
+      await assertAncestorsNotLinked();
+      const relativeTarget = path.relative(base, target);
+      if (
+        relativeTarget === ".." ||
+        relativeTarget.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativeTarget)
+      ) {
+        throw new Error("Unsafe storage key.");
+      }
+      // Every component from the root down is lstat-ed; a non-link chain from a
+      // verified, link-free ancestry cannot resolve outside the root, so no
+      // separate realpath round trip is needed.
+      let current = base;
+      const pathsToCheck = [base];
+      for (const segment of relativeTarget.split(path.sep).filter(Boolean)) {
+        current = path.join(current, segment);
+        pathsToCheck.push(current);
+      }
+      for (const candidate of pathsToCheck) {
+        try {
+          if ((await fs.lstat(candidate)).isSymbolicLink()) {
+            throw new Error("Storage path must not traverse symbolic links.");
+          }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+          throw error;
+        }
+      }
+    };
+    return { fs, path, resolve, assertNoSymlink };
+  };
+
+  let cached: ReturnType<typeof loadUncached> | undefined;
+  const load = () => (cached ??= loadUncached());
+
+  return {
+    root,
+    async get(key) {
+      const { fs, resolve, assertNoSymlink } = await load();
+      const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
+      let bytes: Uint8Array;
+      try {
+        bytes = new Uint8Array(await fs.readFile(file));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw error;
+      }
+      const meta = await fs
+        .readFile(file + META_SUFFIX, "utf8")
+        .then((text) => JSON.parse(text) as { contentType?: string })
+        .catch(() => ({}) as { contentType?: string });
+      return {
+        httpMetadata: { contentType: meta.contentType },
+        size: bytes.byteLength,
+        async text() {
+          return new TextDecoder().decode(bytes);
+        },
+        async json<T>() {
+          return JSON.parse(new TextDecoder().decode(bytes)) as T;
+        },
+        async arrayBuffer() {
+          return bytes.slice().buffer;
+        },
+      };
+    },
+    async put(key, value, options) {
+      const { fs, path, resolve, assertNoSymlink } = await load();
+      const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
+      const bytes =
+        typeof value === "string"
+          ? new TextEncoder().encode(value)
+          : value instanceof Uint8Array
+            ? value
+            : new Uint8Array(value);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
+      // Write-then-rename so a crash never leaves a half-written index or file.
+      const temporary = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+      await fs.writeFile(temporary, bytes);
+      await fs.rename(temporary, file);
+      const contentType = options?.httpMetadata?.contentType;
+      if (contentType) await fs.writeFile(file + META_SUFFIX, JSON.stringify({ contentType }));
+      else await fs.rm(file + META_SUFFIX, { force: true });
+    },
+    async list(prefix) {
+      const { fs, path, assertNoSymlink } = await load();
+      const base = path.resolve(root);
+      await assertNoSymlink(base);
+      const keys: string[] = [];
+      const walk = async (dir: string) => {
+        let entries: import("node:fs").Dirent[];
+        try {
+          entries = await fs.readdir(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        for (const entry of entries) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) await walk(full);
+          else if (
+            entry.isFile() &&
+            !entry.name.endsWith(META_SUFFIX) &&
+            !entry.name.endsWith(".tmp")
+          ) {
+            const key = path.relative(base, full).split(path.sep).join("/");
+            if (key.startsWith(prefix) && isSafeStorageKey(key)) keys.push(key);
+          }
+        }
+      };
+      await walk(base);
+      return keys.sort();
+    },
+    async delete(key) {
+      const { fs, resolve, assertNoSymlink } = await load();
+      const file = resolve(key);
+      await assertNoSymlink(file);
+      await assertNoSymlink(file + META_SUFFIX);
+      await fs.rm(file, { force: true });
+      await fs.rm(file + META_SUFFIX, { force: true });
+    },
+  };
+}

@@ -3,9 +3,9 @@ import { ArrowDown, GraduationCap, MapPin, Sparkles } from "lucide-react";
 import { AiIntro } from "@/components/AiIntro";
 import { PageBody, ResumeAction } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
-import { MILESTONES } from "@/lib/portfolio-data";
 import { pageHead } from "@/lib/site-data";
-import hero from "@/assets/hero.jpg";
+import { useAbhishekContent } from "@/lib/abhishek-content";
+import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/about")({
   head: () =>
@@ -18,12 +18,34 @@ export const Route = createFileRoute("/about")({
 });
 
 function About() {
+  // Owner-published CMS basics replace the curated copy; curated text is the fallback.
+  const { headline, summary, story, education, contact, missions } = useAbhishekContent();
+  const publishedResume = usePublishedProfileResume("abhishek");
+  const resumeEducation = publishedResume?.structuredSections?.education?.find(
+    (entry) => typeof entry === "object",
+  );
+  const resumeExperience = publishedResume?.structuredSections?.experience ?? [];
+  const educationTitle =
+    resumeEducation?.title || education?.qualification || "B.Tech Information Technology";
+  const educationPeriod =
+    [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") ||
+    education?.period ||
+    "2022–2026";
+  const educationLocation =
+    resumeEducation?.location || education?.location || contact.location || "Hyderabad, India";
+  const publishedImages = usePublishedProfileImages("abhishek");
+  const publishedGallery = publishedImages.filter((image) => image.slot === "gallery");
+  const publishedHero = [...publishedImages].reverse().find((image) => image.slot === "portrait");
+  const storyParagraphs = story
+    ?.split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
   return (
     <>
       <section className="chapter-hero about-hero">
         <img
-          src={hero}
-          alt="Cinematic portrait artwork from Abhishek's portfolio"
+          src={publishedHero?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
+          alt={publishedHero?.alt ?? "Cinematic portrait artwork from Abhishek's portfolio"}
           width={1536}
           height={1024}
           fetchPriority="high"
@@ -38,8 +60,9 @@ function About() {
               <span>CURIOSITY.</span>
             </h1>
             <p className="chapter-lede">
-              I’m Guda Abhishek — a software engineer drawn to the point where thoughtful interfaces
-              meet intelligent systems.
+              {headline ||
+                summary ||
+                "I’m Guda Abhishek — a software engineer drawn to the point where thoughtful interfaces meet intelligent systems."}
             </p>
             <a className="chapter-scroll" href="#story">
               <ArrowDown /> Read my story
@@ -61,27 +84,37 @@ function About() {
             </div>
           </Reveal>
           <div className="about-story-copy">
-            <p className="story-lead">
-              My work spans responsive React interfaces, MERN platforms, REST API integration, and
-              practical AI experiences.
-            </p>
-            <p>
-              At Paves Technologies, I build enterprise finance and employee workflow interfaces.
-              Before that, at Bilvantis Technologies, I contributed to the NEO AI product interface.
-              Across both, I’ve learned to value clear states, reliable integration, and close
-              collaboration as much as the code itself.
-            </p>
-            <p>
-              I’m completing a B.Tech in Information Technology at TKR College of Engineering &
-              Technology. I’m especially interested in generative AI, RAG, and AI agents when they
-              solve real product problems.
-            </p>
+            {storyParagraphs?.length ? (
+              storyParagraphs.map((paragraph, index) => (
+                <p key={index} className={index === 0 ? "story-lead" : undefined}>
+                  {paragraph}
+                </p>
+              ))
+            ) : (
+              <>
+                <p className="story-lead">
+                  My work spans responsive React interfaces, MERN platforms, REST API integration,
+                  and practical AI experiences.
+                </p>
+                <p>
+                  At Paves Technologies, I build enterprise finance and employee workflow
+                  interfaces. Before that, at Bilvantis Technologies, I contributed to the NEO AI
+                  product interface. Across both, I’ve learned to value clear states, reliable
+                  integration, and close collaboration as much as the code itself.
+                </p>
+                <p>
+                  I’m completing a B.Tech in Information Technology at TKR College of Engineering &
+                  Technology. I’m especially interested in generative AI, RAG, and AI agents when
+                  they solve real product problems.
+                </p>
+              </>
+            )}
             <div className="about-facts">
               <span>
-                <GraduationCap /> B.Tech Information Technology · 2022–2026
+                <GraduationCap /> {educationTitle} · {educationPeriod}
               </span>
               <span>
-                <MapPin /> Hyderabad, India
+                <MapPin /> {educationLocation}
               </span>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -98,22 +131,28 @@ function About() {
             </h2>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5">
-            {[
-              {
-               src:"/images/profiles/abhishek/abhishek_main.jpeg",
-                alt: "Abhishek at his graduation celebration",
-              },
-              {
-                src: "/images/profiles/abhishek/abhishek_1.jpeg",
-                alt: "Abhishek presenting in a classroom",
-              },
-              {
-                src: "/images/profiles/abhishek/abhishek_2.jpeg",
-                alt: "Abhishek standing on the college campus",
-              },
-            ].map((photo) => (
+            {(publishedGallery.length
+              ? publishedGallery
+              : [
+                  {
+                    id: "fallback-1",
+                    src: "/images/profiles/abhishek/abhishek_main.jpeg",
+                    alt: "Abhishek at his graduation celebration",
+                  },
+                  {
+                    id: "fallback-2",
+                    src: "/images/profiles/abhishek/abhishek_1.jpeg",
+                    alt: "Abhishek presenting in a classroom",
+                  },
+                  {
+                    id: "fallback-3",
+                    src: "/images/profiles/abhishek/abhishek_2.jpeg",
+                    alt: "Abhishek standing on the college campus",
+                  },
+                ]
+            ).map((photo) => (
               <img
-                key={photo.src}
+                key={photo.id}
                 src={photo.src}
                 alt={photo.alt}
                 loading="lazy"
@@ -125,18 +164,6 @@ function About() {
             ))}
           </div>
         </section>
-        <Reveal>
-          <figure className="about-illustration">
-            <img
-              src="/images/profiles/abhishek/abhishek_2.jpeg"
-              alt="Illustration of developers collaborating on code"
-              width={836}
-              height={800}
-              loading="lazy"
-            />
-            <figcaption>COLLABORATION / A SHARED ENGINEERING MINDSET</figcaption>
-          </figure>
-        </Reveal>
         <section className="chapter-timeline">
           <div className="chapter-section-heading">
             <div>
@@ -146,18 +173,56 @@ function About() {
             <Sparkles aria-hidden="true" />
           </div>
           <div className="milestone-list">
-            {MILESTONES.map(([period, title, description], i) => (
-              <Reveal key={title} delay={i * 0.04}>
-                <article className="milestone">
-                  <span>{period}</span>
-                  <div>
-                    <h3>{title}</h3>
-                    <p>{description}</p>
-                  </div>
-                  <span className="milestone-number">0{i + 1}</span>
-                </article>
-              </Reveal>
-            ))}
+            {resumeExperience.length > 0 ? (
+              resumeExperience.map((entry, i) => {
+                const title =
+                  typeof entry === "string"
+                    ? entry
+                    : entry.organization || entry.title || entry.role || "Experience";
+                const period =
+                  typeof entry === "string"
+                    ? ""
+                    : [entry.startDate, entry.endDate].filter(Boolean).join(" – ");
+                const description = typeof entry === "string" ? "" : entry.description || "";
+                return (
+                  <Reveal key={i} delay={i * 0.04}>
+                    <article className="milestone">
+                      <span>{period}</span>
+                      <div>
+                        <h3>{title}</h3>
+                        {description && <p>{description}</p>}
+                      </div>
+                      <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
+                    </article>
+                  </Reveal>
+                );
+              })
+            ) : missions.length === 0 ? (
+              <p
+                role="status"
+                className="rounded-lg border border-border p-6 text-sm text-muted-foreground"
+              >
+                No experience milestones have been published yet.
+              </p>
+            ) : (
+              missions.map((item, i) => (
+                <Reveal key={item.id} delay={i * 0.04}>
+                  <article className="milestone">
+                    <span>{item.period}</span>
+                    <div>
+                      <h3>{item.company}</h3>
+                      <p>
+                        {item.role}
+                        {item.projects.length
+                          ? ` · ${item.projects.map((project) => project.name).join(" · ")}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className="milestone-number">{String(i + 1).padStart(2, "0")}</span>
+                  </article>
+                </Reveal>
+              ))
+            )}
           </div>
         </section>
       </PageBody>
