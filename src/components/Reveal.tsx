@@ -1,5 +1,5 @@
-import { motion, useReducedMotion, type HTMLMotionProps } from "framer-motion";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { MOTION_TOKENS } from "@/lib/motion";
 
 function useRevealState(shouldReduceMotion: boolean | null, viewportMargin: string) {
@@ -36,12 +36,7 @@ function useRevealState(shouldReduceMotion: boolean | null, viewportMargin: stri
   };
 }
 
-type RevealMotionProps = Omit<
-  HTMLMotionProps<"div">,
-  "animate" | "initial" | "ref" | "transition" | "viewport" | "whileInView"
->;
-
-interface RevealProps extends RevealMotionProps {
+interface RevealProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   children: ReactNode;
   delay?: number;
   distance?: number;
@@ -51,6 +46,11 @@ interface RevealProps extends RevealMotionProps {
   viewportMargin?: string;
 }
 
+/**
+ * Scroll reveal driven by a CSS transition on opacity/transform (compositor-only). It used to run a
+ * framer-motion animation per element, which put JavaScript animation work into the very frame of the
+ * user's first scroll or keypress and hurt INP. Server HTML and no-JS stay fully visible.
+ */
 export function Reveal({
   children,
   delay = 0,
@@ -59,113 +59,39 @@ export function Reveal({
   duration = MOTION_TOKENS.duration.section,
   className = "",
   viewportMargin = "-60px",
+  style,
   ...props
 }: RevealProps) {
   const shouldReduceMotion = useReducedMotion();
   const { ref, isHidden } = useRevealState(shouldReduceMotion, viewportMargin);
-  const offset = {
-    up: { y: distance, x: 0 },
-    down: { y: -distance, x: 0 },
-    left: { x: distance, y: 0 },
-    right: { x: -distance, y: 0 },
-    none: { x: 0, y: 0 },
-  }[direction];
+  const [x1, y1, x2, y2] = MOTION_TOKENS.ease.entrance;
+  const ease = `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
+  const [dx, dy] = {
+    up: [0, distance],
+    down: [0, -distance],
+    left: [distance, 0],
+    right: [-distance, 0],
+    none: [0, 0],
+  }[direction] as [number, number];
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={false}
-      animate={isHidden ? { opacity: 0, ...offset } : { opacity: 1, x: 0, y: 0 }}
-      {...(!shouldReduceMotion && {
-        transition: {
-          duration,
-          delay,
-          ease: MOTION_TOKENS.ease.entrance,
-        },
-      })}
       className={className}
       data-motion-entrance
-      {...props}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-type StaggerContainerMotionProps = Omit<
-  HTMLMotionProps<"div">,
-  "animate" | "initial" | "ref" | "variants" | "viewport" | "whileInView"
->;
-
-interface StaggerContainerProps extends StaggerContainerMotionProps {
-  children: ReactNode;
-  staggerDelay?: number;
-  delayChildren?: number;
-  className?: string;
-  viewportMargin?: string;
-}
-
-export function StaggerContainer({
-  children,
-  staggerDelay = MOTION_TOKENS.stagger.tight,
-  delayChildren = 0.05,
-  className = "",
-  viewportMargin = "-40px",
-  ...props
-}: StaggerContainerProps) {
-  const shouldReduceMotion = useReducedMotion();
-  const { ref, isHidden } = useRevealState(shouldReduceMotion, viewportMargin);
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={false}
-      animate={isHidden ? "hidden" : "visible"}
-      variants={{
-        hidden: { opacity: 0 },
-        visible: {
-          opacity: 1,
-          transition: {
-            staggerChildren: staggerDelay,
-            delayChildren,
-          },
-        },
+      style={{
+        opacity: isHidden ? 0 : 1,
+        transform: isHidden ? `translate3d(${dx}px, ${dy}px, 0)` : "none",
+        ...(shouldReduceMotion
+          ? {}
+          : {
+              transition: `opacity ${duration}s ${ease} ${delay}s, transform ${duration}s ${ease} ${delay}s`,
+            }),
+        ...style,
       }}
-      className={className}
-      data-motion-entrance
       {...props}
     >
       {children}
-    </motion.div>
-  );
-}
-
-type StaggerItemMotionProps = Omit<HTMLMotionProps<"div">, "initial" | "ref" | "variants">;
-
-export function StaggerItem({
-  children,
-  className = "",
-  distance = MOTION_TOKENS.distance.subtle,
-  ...props
-}: StaggerItemMotionProps & { children: ReactNode; distance?: number }) {
-  return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: distance },
-        visible: {
-          opacity: 1,
-          y: 0,
-          transition: {
-            duration: MOTION_TOKENS.duration.standard,
-            ease: MOTION_TOKENS.ease.entrance,
-          },
-        },
-      }}
-      className={className}
-      data-motion-entrance
-      {...props}
-    >
-      {children}
-    </motion.div>
+    </div>
   );
 }

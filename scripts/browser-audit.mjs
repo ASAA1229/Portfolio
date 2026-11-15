@@ -71,7 +71,14 @@ const STATUS_CHECKS = [
 const launchOptions = process.env.BROWSER_PATH
   ? { executablePath: process.env.BROWSER_PATH }
   : { channel: process.env.BROWSER_CHANNEL ?? "chrome" };
-const browser = await chromium.launch({ ...launchOptions, headless: true });
+// --disable-gpu matches the Lighthouse/chrome-launcher headless configuration: software compositing is
+// deterministic, whereas headless GPU rasterisation on shared CI hosts adds hundreds of milliseconds of
+// presentation delay to the first frame after input and made INP unrepeatable.
+const browser = await chromium.launch({
+  ...launchOptions,
+  headless: true,
+  args: ["--disable-gpu"],
+});
 const findings = [];
 const pageReports = [];
 

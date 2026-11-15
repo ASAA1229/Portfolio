@@ -2996,8 +2996,25 @@ function checkRuntimeConfig(env: unknown): void {
   }
 }
 
+/**
+ * Cloudflare bindings (RESUME_BUCKET, KV, secrets) reach this module in two ways. A raw Worker call passes
+ * them as the second argument; the Nitro cloudflare-module preset (the production build) calls
+ * `nitroApp.fetch(request)` with the request only and exposes the bindings on `request.runtime.cloudflare`
+ * and `globalThis.__env__`. Without this fallback the deployed Worker saw no R2 binding at all.
+ */
+function resolveBindings(request: Request, env: unknown, ctx: unknown) {
+  const runtime = (
+    request as unknown as { runtime?: { cloudflare?: { env?: unknown; context?: unknown } } }
+  ).runtime?.cloudflare;
+  return {
+    env: env ?? runtime?.env ?? (globalThis as { __env__?: unknown }).__env__,
+    ctx: ctx ?? runtime?.context,
+  };
+}
+
 export default {
-  async fetch(request: Request, env: unknown, ctx: unknown) {
+  async fetch(request: Request, rawEnv?: unknown, rawCtx?: unknown) {
+    const { env, ctx } = resolveBindings(request, rawEnv, rawCtx);
     checkRuntimeConfig(env);
     const method = request.method;
     const auditRequest = new Request(request.url, { method });

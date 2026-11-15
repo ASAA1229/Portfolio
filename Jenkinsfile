@@ -27,6 +27,7 @@ pipeline {
   parameters {
     booleanParam(name: 'ENABLE_NEXUS_PUBLISH', defaultValue: false, description: 'Nexus publishing is paused; enable only after explicit approval and configuration. Only runs from main or release/* and still asks for approval.')
     booleanParam(name: 'ENABLE_POLICY_SIGNING', defaultValue: false, description: 'Sign manifest-ignore with the configured Ed25519 Jenkins credentials.')
+    booleanParam(name: 'DEPLOY_LOCAL_PROD', defaultValue: false, description: 'After a green build, run the production build locally on this agent at http://localhost:8300 (wrangler dev --local, local R2 emulation), smoke test it and roll back to the previous release if smoke fails. No Cloudflare account or network deploy is involved.')
     booleanParam(name: 'TRIGGER_LOCAL_STACK_DEPLOY', defaultValue: false, description: 'After a green build of branch new, trigger the ASAA-Local-Stack job (local development stack only; the job must exist).')
   }
   stages {
@@ -136,6 +137,23 @@ pipeline {
           '''
           archiveArtifacts artifacts: 'portfolio-manifest-ignore.sig', fingerprint: true
         }
+      }
+    }
+    stage('Local production deploy and smoke (optional)') {
+      when {
+        expression { return params.DEPLOY_LOCAL_PROD }
+      }
+      environment {
+        // Outside the workspace (which is wiped each build) so the previous release survives for rollback.
+        LOCAL_PROD_HOME = "${env.USERPROFILE}\\portfolio-local-prod"
+        // Stop Jenkins' process-tree killer from terminating the detached local server when the build ends.
+        JENKINS_NODE_COOKIE = 'dontKillMe'
+        BUILD_ID = 'dontKillMe'
+      }
+      steps {
+        bat 'npm run deploy:dry-run'
+        // deploy = build, restart on port 8300, smoke; it rolls back to the previous release when smoke fails.
+        bat 'npm run local:deploy'
       }
     }
     stage('Publish to Nexus (optional, release branches only)') {

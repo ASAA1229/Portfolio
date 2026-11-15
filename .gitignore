@@ -54,3 +54,6 @@ portfolio-build.tar.gz
 portfolio-manifest*.json
 portfolio-dependencies.cdx.json
 portfolio-manifest-ignore.sig
+
+# Local production runner state (secrets, R2 emulation, releases)
+.local-prod/

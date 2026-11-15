@@ -24,7 +24,19 @@
     "check:pm": "node scripts/check-package-manager.mjs",
     "check:budget": "node scripts/bundle-budget.mjs",
     "check:browser": "node scripts/browser-audit.mjs",
-    "verify": "npm run check:pm && npm run typecheck && npm run lint && npm test && npm run build && npm run check:budget"
+    "verify": "npm run check:pm && npm run typecheck && npm run lint && npm test && npm run build && npm run check:budget",
+    "deploy:dry-run": "node scripts/cf-dry-run.mjs r2",
+    "deploy:dry-run:no-r2": "node scripts/cf-dry-run.mjs no-r2",
+    "release:local": "node scripts/release-local.mjs",
+    "local:init": "node scripts/local-prod.mjs init",
+    "local:deploy": "node scripts/local-prod.mjs deploy",
+    "local:start": "node scripts/local-prod.mjs start",
+    "local:stop": "node scripts/local-prod.mjs stop",
+    "local:status": "node scripts/local-prod.mjs status",
+    "local:smoke": "node scripts/local-prod.mjs smoke",
+    "local:rollback": "node scripts/local-prod.mjs rollback",
+    "local:install-startup": "node scripts/local-prod.mjs install-startup",
+    "local:uninstall-startup": "node scripts/local-prod.mjs uninstall-startup"
   },
   "overrides": {
     "rolldown": "1.2.1",
@@ -117,7 +129,8 @@
     "typescript-eslint": "^8.72.2",
     "vite": "8.3.8",
     "vitest": "^4.1.12",
-    "web-vitals": "^6.2.3"
+    "web-vitals": "^6.2.3",
+    "wrangler": "^4.162.0"
   },
   "version": "0.1.0"
 }
