@@ -31,10 +31,16 @@ import {
 } from "@/lib/cms-content";
 import { memoryAdapter, type PutOptions, type StoredObject } from "@/lib/storage-adapter";
 import { createLocalDiskBucket } from "@/lib/local-disk-bucket";
-import { getPersonProject } from "@/lib/person-portfolios";
+import { getPersonPortfolio, getPersonProject } from "@/lib/person-portfolios";
+import {
+  publishedSeoFor,
+  rewriteSeoHead,
+  seoTargetForPath,
+  type SeoValues,
+} from "@/lib/published-seo";
 import { getProject } from "@/lib/project-pages";
 import { buildRobots, buildSitemap, type PublishedByProfile } from "@/lib/seo";
-import { configuredSiteUrl } from "@/lib/seo-head";
+import { absoluteUrl, configuredSiteUrl } from "@/lib/seo-head";
 import { inspectResourceLifecycle } from "@/lib/resource-lifecycle";
 import {
   appendHistory,
@@ -3007,6 +3013,63 @@ export default {
 };
 
 /**
+ * Apply the owner's currently published SEO title/description (and CMS-created project metadata) to
+ * the server-rendered head. Returns null when nothing is published for the page, so the curated
+ * defaults are served untouched and unpublished or draft values never appear.
+ */
+async function withPublishedSeo(
+  response: Response,
+  path: string,
+  env: unknown,
+): Promise<Response | null> {
+  if (!(response.headers.get("content-type") ?? "").toLowerCase().includes("text/html"))
+    return null;
+  const target = seoTargetForPath(path);
+  const bucket = resolvePrivateBucket(env);
+  if (!target || !bucket) return null;
+  try {
+    const published = publishedContent(await readContentDocument(bucket, target.profileId));
+    const siteName =
+      target.profileId === "abhishek"
+        ? "Guda Abhishek"
+        : (getPersonPortfolio(target.profileId)?.name ?? "Portfolio");
+    const values: SeoValues = { ...(publishedSeoFor(target, published, siteName) ?? {}) };
+    if (target.projectSlug) {
+      // An approved project image becomes the social image; pending or unpublished images never do.
+      try {
+        const images = (await readImageIndex(bucket)).filter(
+          (item) =>
+            item.status === "approved" &&
+            item.profileId === target.profileId &&
+            item.slot === "project" &&
+            item.projectSlug === target.projectSlug,
+        );
+        const cover = images[images.length - 1];
+        if (cover) {
+          values.image = absoluteUrl(`/api/published-images/${cover.id}`, configuredSiteUrl());
+          values.imageAlt = cover.alt;
+        }
+      } catch {
+        // An unreadable image index only loses the social image; title and description still apply.
+      }
+    }
+    if (!values.title && !values.description && !values.image) return null;
+    const html = rewriteSeoHead(await response.clone().text(), values);
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.delete("content-encoding");
+    return new Response(html, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch {
+    // Unreadable CMS state: serve the curated head rather than failing the page.
+    return null;
+  }
+}
+
+/**
  * /sitemap.xml and /robots.txt are served here (not by the SSR routes) so the sitemap can use the
  * published CMS state: archived or unpublished projects are omitted, published additions listed.
  */
@@ -3133,6 +3196,10 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
             headers: response.headers,
           });
         }
+      }
+      if (!isAdmin && request.method === "GET" && response.status === 200) {
+        const seoResponse = await withPublishedSeo(response, path, env);
+        if (seoResponse) return seoResponse;
       }
       return isAdmin ? withNoindex(response) : response;
     } catch (error) {
