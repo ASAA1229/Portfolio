@@ -189,7 +189,7 @@ function stop() {
   rmSync(files.run, { force: true });
 }
 
-async function waitForServer(timeoutMs = 90000) {
+async function waitForServer(timeoutMs = 240000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
     try {
@@ -203,7 +203,7 @@ async function waitForServer(timeoutMs = 90000) {
   return false;
 }
 
-async function start() {
+async function start(soft = false) {
   init();
   const { current } = readJson(files.current, {});
   if (!current) fail("No release built yet. Run `npm run local:deploy` first.");
@@ -246,9 +246,11 @@ async function start() {
   log(`Starting release ${current} on ${URL_BASE} (pid ${child.pid}) ...`);
   if (!(await waitForServer())) {
     stop();
+    if (soft) return false;
     fail(`Server did not answer on ${URL_BASE}; see ${path.join(files.logs, "server.log")}.`);
   }
   log("Server is up.");
+  return true;
 }
 
 async function smoke() {
@@ -338,8 +340,8 @@ async function rollback() {
 async function deploy() {
   const before = readJson(files.current, {}).current ?? null;
   build();
-  await start();
-  if (await smoke()) {
+  const up = await start(true);
+  if (up && (await smoke())) {
     log("Local production deploy succeeded.");
     return;
   }
