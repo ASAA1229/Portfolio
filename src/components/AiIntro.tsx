@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Bot, Pause, Play, RotateCcw, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -212,6 +212,33 @@ function DynamicIntroPlayer() {
   );
 }
 
+/**
+ * Opening the dialog must paint immediately (INP). The player mounts a video, starts a streaming
+ * request and re-renders per chunk, so it is mounted one frame after the dialog frame, as a transition.
+ */
+function DeferredIntroPlayer() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const schedule =
+      typeof window.requestAnimationFrame === "function"
+        ? (callback: () => void) => window.requestAnimationFrame(() => callback())
+        : (callback: () => void) => window.setTimeout(callback, 16);
+    const cancel =
+      typeof window.cancelAnimationFrame === "function"
+        ? (id: number) => window.cancelAnimationFrame(id)
+        : (id: number) => window.clearTimeout(id);
+    const id = schedule(() => startTransition(() => setReady(true)));
+    return () => cancel(id);
+  }, []);
+  return ready ? (
+    <DynamicIntroPlayer />
+  ) : (
+    <p role="status" className="py-8 text-sm text-muted-foreground">
+      Preparing the introduction…
+    </p>
+  );
+}
+
 export function AiIntro({
   compact = false,
   controlledOpen,
@@ -263,7 +290,7 @@ export function AiIntro({
         <DialogDescription className="pr-4 text-xs leading-5">
           A live, profile-aware introduction generated from verified portfolio information.
         </DialogDescription>
-        {open && <DynamicIntroPlayer />}
+        {open && <DeferredIntroPlayer />}
         <DialogClose asChild>
           <Button variant="ghost" className="min-h-11">
             <ArrowRight /> Close introduction
