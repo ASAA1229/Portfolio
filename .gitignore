@@ -43,3 +43,14 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+
+# Jenkins/CI scratch output
+.jenkins-temp/
+portfolio-*.sha256
+.nexus-verify/
+.manifest-ignore-public.pem
+customer-release-report.json
+portfolio-build.tar.gz
+portfolio-manifest*.json
+portfolio-dependencies.cdx.json
+portfolio-manifest-ignore.sig

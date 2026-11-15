@@ -17,6 +17,7 @@
     "format": "prettier --write .",
     "test": "vitest run && node --test scripts/on-site-change-detection.test.mjs",
     "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=test-results/junit-vitest.xml && node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-results/junit-scripts.xml scripts/on-site-change-detection.test.mjs",
     "audit:images": "node scripts/audit-public-images.mjs",
     "audit:deps": "npm audit --audit-level=high",
     "test:e2e": "node scripts/build-e2e.mjs && playwright test",
