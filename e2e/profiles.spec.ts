@@ -149,28 +149,47 @@ for (const profile of PROFILES) {
       const stamp = `${profile.id}-${Date.now()}`;
       const headline = (version: number) => `CMS headline v${version} ${stamp}`;
       const home = profile.prefix || "/";
-      const seen = async (text: string) => {
-        await visitor.goto(home, { waitUntil: "networkidle" });
-        return (await visitor.content()).includes(text);
+      // Published content is applied after hydration, so a single networkidle snapshot can race it.
+      // Poll (reloading) until the page agrees with the expectation or the budget runs out; a stable
+      // wrong answer still fails.
+      const seen = async (text: string, expected = true) => {
+        let found = false;
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          await visitor.goto(home, { waitUntil: "networkidle" });
+          await visitor.waitForTimeout(250);
+          found = (await visitor.content()).includes(text);
+          if (found === expected) break;
+        }
+        return found;
       };
+      // Version numbers are per profile and other specs publish too, so roll back to the version that
+      // THIS test published first rather than assuming it is 1.
+      let firstVersion = 0;
       for (const version of [1, 2]) {
         await contentAction(context, "draft", {
           profileId: profile.id,
           content: { basics: { headline: headline(version) } },
         });
         await contentAction(context, "publish", { profileId: profile.id });
+        if (version === 1) {
+          const doc = (await (
+            await context.request.get(`/api/admin/content?profileId=${profile.id}`)
+          ).json()) as { document: { publishedVersion: number | null } };
+          firstVersion = doc.document.publishedVersion ?? 0;
+        }
       }
+      expect(firstVersion).toBeGreaterThan(0);
       expect(await seen(headline(2))).toBe(true);
-      await contentAction(context, "rollback", { profileId: profile.id, version: 1 });
+      await contentAction(context, "rollback", { profileId: profile.id, version: firstVersion });
       expect(await seen(headline(1))).toBe(true);
-      expect(await seen(headline(2))).toBe(false);
+      expect(await seen(headline(2), false)).toBe(false);
       // No other profile shows this profile's content.
       for (const other of PROFILES.filter((item) => item.id !== profile.id)) {
         await visitor.goto(other.prefix || "/", { waitUntil: "networkidle" });
         expect(await visitor.content(), `${other.id} leaked ${profile.id}`).not.toContain(stamp);
       }
       await contentAction(context, "unpublish", { profileId: profile.id });
-      expect(await seen(headline(1))).toBe(false);
+      expect(await seen(headline(1), false)).toBe(false);
       await visitor.context().close();
       await context.close();
     });
