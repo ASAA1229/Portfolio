@@ -75,13 +75,20 @@ export interface ContentOverrides {
   /** Theme preset and layout choices; presets are fixed token sets, never free-form CSS. */
   appearance?: {
     theme?: ThemePresetId;
+    /** Approved font stacks only (no external font loading). */
+    typography?: TypographyPresetId;
     /** Sections removed from navigation (home always stays). */
     hiddenSections?: ContentPage[];
+    /** Navigation order of the non-home sections; unlisted sections follow in default order. */
+    sectionOrder?: ContentPage[];
   };
 }
 
 export const THEME_PRESET_IDS = ["crimson", "cobalt", "emerald", "amber", "violet"] as const;
 export type ThemePresetId = (typeof THEME_PRESET_IDS)[number];
+
+export const TYPOGRAPHY_PRESET_IDS = ["standard", "editorial", "readable"] as const;
+export type TypographyPresetId = (typeof TYPOGRAPHY_PRESET_IDS)[number];
 
 export interface ContentVersion {
   version: number;
@@ -517,7 +524,12 @@ export function validateContentOverrides(
     if (!appearance || typeof appearance !== "object" || Array.isArray(appearance)) {
       errors.push("appearance must be an object.");
     } else {
-      unknownKeys(appearance, ["theme", "hiddenSections"], "appearance", errors);
+      unknownKeys(
+        appearance,
+        ["theme", "typography", "hiddenSections", "sectionOrder"],
+        "appearance",
+        errors,
+      );
       const result: NonNullable<ContentOverrides["appearance"]> = {};
       const theme = appearance["theme"];
       if (theme !== undefined) {
@@ -525,6 +537,28 @@ export function validateContentOverrides(
           result.theme = theme as ThemePresetId;
         } else {
           errors.push(`appearance.theme must be one of: ${THEME_PRESET_IDS.join(", ")}.`);
+        }
+      }
+      const typography = appearance["typography"];
+      if (typography !== undefined) {
+        if ((TYPOGRAPHY_PRESET_IDS as readonly unknown[]).includes(typography)) {
+          result.typography = typography as TypographyPresetId;
+        } else {
+          errors.push(`appearance.typography must be one of: ${TYPOGRAPHY_PRESET_IDS.join(", ")}.`);
+        }
+      }
+      const order = appearance["sectionOrder"];
+      if (order !== undefined) {
+        if (
+          !Array.isArray(order) ||
+          !order.every(
+            (page) => (CONTENT_PAGES as readonly unknown[]).includes(page) && page !== "home",
+          ) ||
+          new Set(order).size !== order.length
+        ) {
+          errors.push("appearance.sectionOrder must list unique non-home section ids.");
+        } else {
+          result.sectionOrder = order as ContentPage[];
         }
       }
       const hidden = appearance["hiddenSections"];

@@ -6,7 +6,13 @@ import { AiIntro } from "@/components/AiIntro";
 import type { PersonPortfolio } from "@/lib/person-portfolios";
 import logoImage from "../../../logo.png";
 import { monogramFor } from "@/lib/monogram";
-import { NAV_SECTIONS, sectionHref, themeCssVariables, themeForPreset } from "@/config/site-config";
+import {
+  NAV_SECTIONS,
+  arrangeSections,
+  sectionHref,
+  themeCssVariables,
+  themeForAppearance,
+} from "@/config/site-config";
 import { navigationLabel } from "@/lib/cms-content";
 import { usePublishedContent } from "@/lib/published-content";
 
@@ -54,9 +60,10 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   // Exact 8 items in required order, from the shared site configuration (PORT-US-040).
   // Labels can be overridden per profile through published CMS content (PORT-US-035).
   const publishedContent = usePublishedContent(isPerson && personId ? personId : "abhishek");
-  const hiddenSections = new Set(publishedContent?.appearance?.hiddenSections ?? []);
-  const links: NavItem[] = NAV_SECTIONS.filter(
-    (section) => section.page === "home" || !hiddenSections.has(section.page),
+  const links: NavItem[] = arrangeSections(
+    NAV_SECTIONS,
+    publishedContent?.appearance?.hiddenSections,
+    publishedContent?.appearance?.sectionOrder,
   ).map((section) => ({
     to: sectionHref(isPerson ? personId : undefined, section),
     label: navigationLabel(publishedContent, section.page, section.label),
@@ -64,9 +71,10 @@ export function PortfolioNavbar({ person }: PortfolioNavbarProps) {
   }));
   // Published theme preset: fixed token values only, so the style block cannot carry owner input.
   const themePreset = publishedContent?.appearance?.theme;
+  const typography = publishedContent?.appearance?.typography;
   const themeStyle =
-    themePreset && themePreset !== "crimson"
-      ? `.site-shell { ${themeCssVariables(themeForPreset(themePreset))} }`
+    (themePreset && themePreset !== "crimson") || (typography && typography !== "standard")
+      ? `.site-shell { ${themeCssVariables(themeForAppearance(themePreset, typography))} }`
       : null;
 
   const homeTo = isPerson && personId ? `/people/${personId}` : "/";

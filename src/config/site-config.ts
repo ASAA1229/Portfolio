@@ -7,7 +7,7 @@
  * components. Theme tokens are the canonical list of what src/styles.css defines
  * on :root; `themeCssVariables()` renders an override block for a custom theme.
  */
-import type { ContentPage, ThemePresetId } from "@/lib/cms-content";
+import type { ContentPage, ThemePresetId, TypographyPresetId } from "@/lib/cms-content";
 
 export interface ThemeTokens {
   colors: {
@@ -83,6 +83,59 @@ export const THEME_PRESETS: Record<
   amber: { label: "Amber", primary: "oklch(0.7 0.16 70)", primaryText: "#f5b545" },
   violet: { label: "Violet", primary: "oklch(0.55 0.22 300)", primaryText: "#c38bff" },
 };
+
+/**
+ * Owner-selectable typography presets. Only fonts already bundled or available as system fonts are
+ * used, so a preset can never load an untrusted external resource.
+ */
+export const TYPOGRAPHY_PRESETS: Record<
+  TypographyPresetId,
+  { label: string; fonts: Partial<ThemeTokens["fonts"]> }
+> = {
+  standard: { label: "Standard (Barlow Condensed + Sora)", fonts: {} },
+  editorial: {
+    label: "Editorial (serif headings)",
+    fonts: { display: 'Georgia, "Times New Roman", serif' },
+  },
+  readable: {
+    label: "High legibility (system UI)",
+    fonts: {
+      display: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    },
+  },
+};
+
+/** Theme tokens for accent plus typography presets; absent or unknown values use the defaults. */
+export function themeForAppearance(
+  preset: ThemePresetId | undefined,
+  typography: TypographyPresetId | undefined,
+): ThemeTokens {
+  const base = themeForPreset(preset);
+  const fonts = typography ? TYPOGRAPHY_PRESETS[typography]?.fonts : undefined;
+  return fonts && Object.keys(fonts).length
+    ? { ...base, fonts: { ...base.fonts, ...fonts } }
+    : base;
+}
+
+/**
+ * Navigation sections after owner customization: hidden sections removed (Home always stays) and the
+ * owner's order applied to the rest, with unlisted sections following in their default order.
+ */
+export function arrangeSections(
+  sections: readonly NavSection[],
+  hidden: readonly ContentPage[] = [],
+  order: readonly ContentPage[] = [],
+): NavSection[] {
+  const visible = sections.filter((s) => s.page === "home" || !hidden.includes(s.page));
+  const home = visible.filter((s) => s.page === "home");
+  const rest = visible.filter((s) => s.page !== "home");
+  const rank = (page: ContentPage) => {
+    const index = order.indexOf(page);
+    return index === -1 ? order.length + sections.findIndex((s) => s.page === page) : index;
+  };
+  return [...home, ...[...rest].sort((a, b) => rank(a.page) - rank(b.page))];
+}
 
 /** Theme tokens for a preset; unknown or absent presets fall back to the default theme. */
 export function themeForPreset(preset: ThemePresetId | undefined): ThemeTokens {

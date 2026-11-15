@@ -7,16 +7,20 @@ import {
   PROFILE_REVIEW_ITEMS,
   isProfileReviewCurrent,
   THEME_PRESET_IDS,
+  TYPOGRAPHY_PRESET_IDS,
   validateContentOverrides,
   type ContentDocument,
   type ContentOverrides,
+  type ContentPage,
   type ContentProfileId,
 } from "@/lib/cms-content";
 import {
   NAV_SECTIONS,
   THEME_PRESETS,
+  TYPOGRAPHY_PRESETS,
+  arrangeSections,
   themeCssVariables,
-  themeForPreset,
+  themeForAppearance,
 } from "@/config/site-config";
 import { clearPublishedContentCache } from "@/lib/published-content";
 
@@ -218,10 +222,15 @@ function ContentManager() {
         ? { basics: { ...cleanBasics, ...(socials ? { socials } : {}) } }
         : {}),
       ...(Object.keys(cleanNavigation).length ? { navigation: cleanNavigation } : {}),
-      ...(appearance.theme || appearance.hiddenSections?.length
+      ...(appearance.theme ||
+      appearance.typography ||
+      appearance.hiddenSections?.length ||
+      appearance.sectionOrder?.length
         ? {
             appearance: {
               ...(appearance.theme ? { theme: appearance.theme } : {}),
+              ...(appearance.typography ? { typography: appearance.typography } : {}),
+              ...(appearance.sectionOrder?.length ? { sectionOrder: appearance.sectionOrder } : {}),
               ...(appearance.hiddenSections?.length
                 ? { hiddenSections: appearance.hiddenSections }
                 : {}),
@@ -293,11 +302,23 @@ function ContentManager() {
     basics.headline?.trim() ||
     PROFILES.find((profile) => profile.id === profileId)?.label ||
     profileId;
-  const previewTheme = themeForPreset(appearance.theme);
-  const previewNavigation = NAV_SECTIONS.filter(
-    (section) =>
-      section.page === "home" || !(appearance.hiddenSections ?? []).includes(section.page),
-  ).map((section) => navigation?.[section.page]?.trim() || section.label);
+  const previewTheme = themeForAppearance(appearance.theme, appearance.typography);
+  const orderedSections = arrangeSections(
+    NAV_SECTIONS,
+    appearance.hiddenSections,
+    appearance.sectionOrder,
+  );
+  const previewNavigation = orderedSections.map(
+    (section) => navigation?.[section.page]?.trim() || section.label,
+  );
+  function moveSection(page: ContentPage, direction: -1 | 1) {
+    const pages = orderedSections.filter((section) => section.page !== "home").map((s) => s.page);
+    const index = pages.indexOf(page);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= pages.length) return;
+    [pages[index], pages[target]] = [pages[target]!, pages[index]!];
+    setAppearance({ ...appearance, sectionOrder: pages });
+  }
   const input = "mt-2 w-full rounded border border-border bg-background p-2 text-sm";
 
   return (
@@ -418,6 +439,55 @@ function ContentManager() {
               ))}
             </select>
           </label>
+          <label className="text-sm">
+            Typography
+            <select
+              className={input}
+              value={appearance.typography ?? "standard"}
+              onChange={(event) =>
+                setAppearance({
+                  ...appearance,
+                  typography: event.target.value as (typeof TYPOGRAPHY_PRESET_IDS)[number],
+                })
+              }
+            >
+              {TYPOGRAPHY_PRESET_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {TYPOGRAPHY_PRESETS[id].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <fieldset className="text-sm">
+            <legend>Navigation order</legend>
+            <ol className="mt-2 space-y-1">
+              {orderedSections
+                .filter((section) => section.page !== "home")
+                .map((section, index, list) => (
+                  <li key={section.page} className="flex items-center gap-2">
+                    <span className="min-w-28">{section.label}</span>
+                    <button
+                      type="button"
+                      className="min-h-11 min-w-11 rounded border border-border px-2"
+                      aria-label={`Move ${section.label} up`}
+                      disabled={index === 0}
+                      onClick={() => moveSection(section.page, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-11 min-w-11 rounded border border-border px-2"
+                      aria-label={`Move ${section.label} down`}
+                      disabled={index === list.length - 1}
+                      onClick={() => moveSection(section.page, 1)}
+                    >
+                      ↓
+                    </button>
+                  </li>
+                ))}
+            </ol>
+          </fieldset>
           <fieldset className="text-sm">
             <legend>Hidden sections</legend>
             <div className="mt-2 flex flex-wrap gap-3">
