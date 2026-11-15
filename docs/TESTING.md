@@ -70,3 +70,8 @@ P1: broken workflows, integration/reliability, accessibility, performance or CI/
 P2: non-blocking enhancements and future scope.
 
 Each failure record must include SHA, command/workflow, environment, exact error, affected story, remediation commit and rerun evidence.
+
+
+## Update 2026-11-15
+
+Commit d36d9f6 changes the suites to survive load (concurrent sweeps, cheaper axe, worker cap). Not yet verified by a repeated clean run; the flaky-test fix proof and INP measurement are in progress. Verification reruns are deferred to the test phase.

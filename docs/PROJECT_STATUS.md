@@ -133,3 +133,11 @@ Preserve React + TypeScript + TanStack Start and Cloudflare/R2. Keep four-profil
 ## Documentation reconciliation — 2026-11-14 (documentation owner)
 
 Corrected stale statements to match command output and the coordinator's reruns: Vitest 42 files / 472 passed / 1 skipped (flaky, see Testing row); Playwright 17/17; Miniflare R2 11 tests; manifest 208 files; CLS 0.005 after self-hosting fonts; INP measured and still above 200 ms. Documentation-owner reruns on head c91bd10: `npm run typecheck` exit 0 and `npm run lint` exit 0. No GitHub Actions or Jenkins run has been observed (the `gh` CLI is unauthenticated), so nothing is CI VERIFIED.
+
+## Delivery phase — 2026-11-15
+
+**Current phase: DEVELOPMENT** (owner direction: DEVELOPMENT, then TESTING, then DEPLOYMENT). Features added in this phase carry the status **IMPLEMENTED — NOT FULLY TESTED** until the testing phase runs. Test-phase and deployment-phase items that are not yet due (full-suite reruns, CI runs, hosted or staging verification, hosting, live providers, production rehearsal) are **deferred to test phase** or **deferred to deployment phase**; they are not failures. Evidence classes used in these documents: coordinator-verified, agent-reported, in progress, CI not observed.
+
+## 2026-11-15 reconciliation (documentation owner)
+
+Head at time of writing: `d36d9f6` ("make the suite resilient to load": concurrent sweeps, cheaper axe, worker cap). This is agent-pushed. The proof that the flaky image/resume lifecycle tests are fixed is in progress, and INP work (still over the 200 ms target) is in progress; neither is claimed. Until the test phase runs, the Vitest figure stays "472 passed / 1 skipped, flaky". PORT-GAP-001 stays PARTIALLY COMPLETE. Hosted/staging and CI items are deferred to the deployment and test phases.

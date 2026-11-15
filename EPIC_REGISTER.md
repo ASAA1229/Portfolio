@@ -2,7 +2,7 @@
 
 | ID | Epic | Development | Testing | Integration | Acceptance/release |
 |---|---|---|---|---|---|
-| PORT-E01 | Build stability and engineering foundation | Implemented locally | typecheck 0, lint 0, build pass; Vitest 472 passed/1 skipped but FLAKY; Playwright 17/17; no CI run | CI configured; run unobserved | Not accepted |
+| PORT-E01 | Build stability and engineering foundation | Implemented locally | typecheck 0, lint 0, build pass; Vitest 472 passed/1 skipped, flaky (fix proof in progress, d36d9f6 agent-pushed); Playwright 17/17; CI deferred to test phase | CI configured; run unobserved | Not accepted |
 | PORT-E02 | Four profiles/content architecture | Implemented | Four-profile CMS lifecycle matrix passes locally | Profile isolation tests local | Not accepted |
 | PORT-E03 | Cinematic UI/navigation/responsive | Implemented | axe and Playwright keyboard/zoom/reflow/target-size pass locally | Local only | Not accepted |
 | PORT-E04 | Profile content/career sections | Implemented (all person fields CMS-managed) | PERSON_FIELD_COVERAGE test passes; owner factual review pending | Static/dynamic reconcile pending | Not accepted |
@@ -15,3 +15,5 @@
 Historical roadmap states testing was paused during a development-only period. Do not silently treat source changes as tested or accepted.
 
 **Reconciled 2026-11-14 (documentation owner):** development, testing, integration and acceptance columns updated to the verified evidence in PROJECT_STATUS.md. Local evidence is not CI evidence (no GitHub Actions run observed; `gh` unauthenticated) and nothing here is CI VERIFIED.
+
+**Reconciled 2026-11-15 (documentation owner):** development, testing, integration and acceptance columns updated to the verified evidence in PROJECT_STATUS.md. Local evidence is not CI evidence (no GitHub Actions run observed; `gh` unauthenticated) and nothing here is CI VERIFIED.
