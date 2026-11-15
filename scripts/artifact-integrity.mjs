@@ -371,14 +371,28 @@ function normalizeArchiveMember(rawName) {
 }
 
 async function archiveMemberDigest(archivePath, memberPath) {
-  const hash = createHash(ALGORITHM);
-  let size = 0;
-  await runTar(archivePath, ["-xOzf", "--", "./" + memberPath], (chunk) => {
-    size += chunk.length;
-    if (!Number.isSafeInteger(size)) throw new Error("Archive member is too large: " + memberPath);
-    hash.update(chunk);
-  });
-  return { size, sha256: hash.digest("hex") };
+  // GNU tar matches member names literally; bsdtar (Windows System32\tar.exe, used by Jenkins agents) treats
+  // [ ] * ? as wildcards, so names such as "react-dialog+[...].mjs" only match when those characters are escaped.
+  const candidates = ["./" + memberPath];
+  if (/[[\]*?]/.test(memberPath))
+    candidates.push("./" + memberPath.replace(/([[\]*?\\])/g, "\\$1"));
+  let lastError;
+  for (const candidate of candidates) {
+    const hash = createHash(ALGORITHM);
+    let size = 0;
+    try {
+      await runTar(archivePath, ["-xOzf", "--", candidate], (chunk) => {
+        size += chunk.length;
+        if (!Number.isSafeInteger(size))
+          throw new Error("Archive member is too large: " + memberPath);
+        hash.update(chunk);
+      });
+      return { size, sha256: hash.digest("hex") };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 async function verifyArchiveInventory(archivePath, expected) {
