@@ -62,7 +62,9 @@ pipeline {
     stage('SBOM and dependency audit') {
       steps {
         bat 'npm run audit:deps'
-        bat 'npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json'
+        // npm sbom has no --output-file option (it prints to stdout), so redirect it and verify the written file.
+        bat 'npm sbom --sbom-format=cyclonedx > portfolio-dependencies.cdx.json'
+        bat 'node scripts\\sbom-verify.mjs portfolio-dependencies.cdx.json'
       }
     }
     stage('Static analysis') {
