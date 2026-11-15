@@ -4,6 +4,7 @@ pipeline {
     timestamps()
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '20'))
+    skipDefaultCheckout(true)
   }
   environment {
     PROJECT_NAME = 'portfolio'
@@ -26,7 +27,7 @@ pipeline {
     }
     stage('Agent prerequisites') {
       steps {
-        powershell -ExecutionPolicy Bypass -File scripts/devops-preflight.ps1
+        powershell '-NoProfile -ExecutionPolicy Bypass -File scripts/devops-preflight.ps1'
       }
     }
     stage('Install locked dependencies') {
