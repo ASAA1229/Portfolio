@@ -369,80 +369,83 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
     profile.story;
   return (
     <>
-      <section className="person-hero">
-        <img src={backdrop} alt="" className="person-hero-backdrop" aria-hidden="true" />
+      <section className="home-hero person-hero">
         <img
           src={publishedPortrait?.src ?? profile.portrait}
           alt={publishedPortrait?.alt ?? `${profile.name} portrait`}
-          className="person-hero-portrait"
+          className="home-portrait person-hero-portrait"
           fetchPriority="high"
           decoding="async"
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}
         />
-        <div className="person-hero-shade" aria-hidden="true" />
-        <div className="site-container relative z-10 py-14 sm:py-20">
+        <div className="hero-shade person-hero-shade" aria-hidden="true" />
+        <div className="site-container relative z-10 py-12 sm:py-20">
           <Reveal>
-            <p className="font-mono text-xs text-primary">
-              {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
-            </p>
-            <h1 className="person-name mt-6">{profile.name}</h1>
-            <p className="mt-6 max-w-xl text-lg font-semibold leading-7">{headline}</p>
-            <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">{story}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild className="min-h-11">
-                <PersonLink
-                  person={profile.id}
-                  section="projects"
-                  className="inline-flex min-h-6 items-center"
+            <div className="hero-copy">
+              <p className="mb-6 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+                <span className="h-px w-8 bg-primary" />
+                {profile.displayName.toUpperCase()} / THE PERSONAL SERIES
+              </p>
+              <h1 className="home-title person-name">{profile.name.toUpperCase()}</h1>
+              <p className="mt-6 max-w-md text-lg font-semibold leading-7">{headline}</p>
+              <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">{story}</p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Button asChild className="min-h-11">
+                  <PersonLink
+                    person={profile.id}
+                    section="projects"
+                    className="inline-flex min-h-6 items-center"
+                  >
+                    Explore my work <ArrowUpRight />
+                  </PersonLink>
+                </Button>
+                <Button asChild variant="outline" className="min-h-11">
+                  <PersonLink person={profile.id} section="about">
+                    The full story <ArrowRight />
+                  </PersonLink>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => window.dispatchEvent(new Event("portfolio:open-ai-intro"))}
                 >
-                  Explore my work <ArrowUpRight />
-                </PersonLink>
-              </Button>
-              <Button asChild variant="outline" className="min-h-11">
-                <PersonLink person={profile.id} section="about">
-                  The full story <ArrowRight />
-                </PersonLink>
-              </Button>
-              <Button
-                variant="outline"
-                className="min-h-11"
-                onClick={() => window.dispatchEvent(new Event("portfolio:open-ai-intro"))}
-              >
-                <Bot /> AI Intro
-              </Button>
+                  <Bot /> AI Intro
+                </Button>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <ResumeAction profileId={profile.id} />
+                <ContactActions profile={profile} />
+                <SocialButtons profile={profile} />
+              </div>
+              <p className="mt-7 max-w-lg font-mono text-xs leading-6 text-muted-foreground">
+                {educationTitle} · {educationPeriod}
+                <br />
+                {educationOrganization}
+                {educationScore ? " · " + educationScore : ""}
+                {educationLocation && (
+                  <>
+                    <br />
+                    {educationLocation}
+                  </>
+                )}
+              </p>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <ResumeAction profileId={profile.id} />
-              <ContactActions profile={profile} />
-              <SocialButtons profile={profile} />
-            </div>
-            <p className="mt-7 max-w-lg font-mono text-xs leading-6 text-muted-foreground">
-              {educationTitle} · {educationPeriod}
-              <br />
-              {educationOrganization}
-              {educationScore ? " · " + educationScore : ""}
-              {educationLocation && (
-                <>
-                  <br />
-                  {educationLocation}
-                </>
-              )}
-            </p>
           </Reveal>
         </div>
       </section>
       <PublishedResumeHighlights profileId={profile.id} />
       <section className="home-disciplines">
-        <div className="site-container grid gap-7 py-8 md:grid-cols-3">
+        <div className="site-container grid gap-6 py-7 sm:grid-cols-3">
           {profile.strengths.map((strength, index) => (
-            <div key={strength.title} className="person-strength-card flex gap-4">
+            <div key={strength.title} className="discipline-card flex items-start gap-4">
               <span className="font-mono text-xs text-primary">0{index + 1}</span>
               <div>
                 <h2 className="font-sans text-sm font-semibold">{strength.title}</h2>
                 <p className="mt-2 text-xs leading-6 text-muted-foreground">{strength.text}</p>
               </div>
+              <ArrowUpRight className="ml-auto size-4 shrink-0 text-violet" aria-hidden="true" />
             </div>
           ))}
         </div>
@@ -470,10 +473,10 @@ export function PersonHome({ profile }: { profile: PersonPortfolio }) {
         </div>
       </section>
       <section className="home-about">
-        <div className="site-container grid gap-6 py-12 md:grid-cols-[1fr_2fr]">
-          <h2 className="text-4xl">Beyond the work.</h2>
+        <div className="site-container grid gap-8 py-12 md:grid-cols-[1fr_1.4fr]">
+          <h2 className="text-4xl font-semibold">Beyond the work.</h2>
           <div>
-            <p className="text-sm leading-8 text-muted-foreground">
+            <p className="max-w-xl text-sm leading-7 text-muted-foreground">
               {publishedContent?.basics?.story ||
                 publishedContent?.basics?.summary ||
                 publishedResume?.summary ||
@@ -663,14 +666,15 @@ export function PersonContent({
       >
         {section === "about" && (
           <>
-            <div className="grid gap-8 md:grid-cols-[1fr_2fr]">
+            <div className="about-story">
               <div>
-                <h2 className="text-4xl">
+                <p className="chapter-kicker">THE PERSON BEHIND THE WORK</p>
+                <h2>
                   {publishedContent?.basics?.headline ||
                     publishedResume?.headline ||
                     profile.headline}
                 </h2>
-                <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
+                <div className="mt-6 overflow-hidden rounded-lg border border-border">
                   <img
                     src={publishedPortrait?.src ?? profile.portrait}
                     alt={publishedPortrait?.alt ?? `${profile.name} — portfolio portrait`}
@@ -682,9 +686,12 @@ export function PersonContent({
                   />
                 </div>
               </div>
-              <div>
-                <p className="text-sm leading-8 text-muted-foreground">
-                  {publishedResume?.summary || profile.summary}
+              <div className="about-story-copy">
+                <p className="story-lead">
+                  {publishedContent?.basics?.story ||
+                    publishedContent?.basics?.summary ||
+                    publishedResume?.summary ||
+                    profile.summary}
                 </p>
                 {galleryPhotos.length > 0 && (
                   <div

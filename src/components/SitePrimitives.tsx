@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { CONTACT } from "@/lib/portfolio-data";
 import { usePublishedProfileResume, usePublishedProjectImages } from "@/lib/published-resume";
+import { getLocalResumeOptions } from "@/lib/local-resumes";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { siteProjects } from "@/lib/site-data";
 
@@ -47,15 +48,92 @@ export function SocialLinks({
 }
 export function ResumeAction({ profileId = "abhishek" }: { profileId?: string } = {}) {
   const publishedResume = usePublishedProfileResume(profileId);
-  if (publishedResume) {
+  const localResumes = getLocalResumeOptions(profileId);
+  const newestLocalResume = localResumes[0];
+  const defaultResumeUrl =
+    newestLocalResume?.url ??
+    (publishedResume
+      ? `/api/published-resumes/${encodeURIComponent(publishedResume.id)}`
+      : undefined);
+
+  if (defaultResumeUrl) {
     return (
-      <Button asChild className="min-h-11">
-        <a href={`/api/published-resumes/${encodeURIComponent(publishedResume.id)}`} download>
-          <Download /> Download resume
-        </a>
-      </Button>
+      <div className="flex flex-wrap gap-3">
+        <Button asChild className="min-h-11">
+          <a href={defaultResumeUrl} download={newestLocalResume ? newestLocalResume.name : true}>
+            <Download /> Download resume
+          </a>
+        </Button>
+        {localResumes.length > 0 && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="min-h-11">
+                View versions
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogTitle>Resume versions</DialogTitle>
+              <DialogDescription>
+                Choose a version to view or download. Date-prefixed local files appear newest first.
+              </DialogDescription>
+              <ul className="mt-4 grid gap-4">
+                {localResumes.map((resume) => (
+                  <li
+                    key={resume.url}
+                    className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
+                  >
+                    <span className="break-all text-sm">{resume.name}</span>
+                    <div className="flex gap-3 text-sm">
+                      <a
+                        href={resume.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-4"
+                      >
+                        View
+                      </a>
+                      <a
+                        href={resume.url}
+                        download={resume.name}
+                        className="underline underline-offset-4"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </li>
+                ))}
+                {publishedResume && (
+                  <li className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                    <span className="text-sm">
+                      {publishedResume.displayName} · Published resume
+                    </span>
+                    <div className="flex gap-3 text-sm">
+                      <a
+                        href={`/api/published-resumes/${encodeURIComponent(publishedResume.id)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-4"
+                      >
+                        View
+                      </a>
+                      <a
+                        href={`/api/published-resumes/${encodeURIComponent(publishedResume.id)}`}
+                        download
+                        className="underline underline-offset-4"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </li>
+                )}
+              </ul>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     );
   }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -66,11 +144,11 @@ export function ResumeAction({ profileId = "abhishek" }: { profileId?: string } 
       <DialogContent>
         <DialogTitle>Resume & professional background</DialogTitle>
         <DialogDescription>
-          A downloadable resume has not been published for this profile.
+          No resume file has been added or published for this profile yet.
         </DialogDescription>
         <p className="text-sm leading-7">
-          No resume has been published for this profile yet. Upload the correct profile's resume in
-          Admin, review its extracted details, and publish it to enable this download.
+          Add a PDF, DOC, or DOCX file to this profile&apos;s folder under src/assets/resumes/, or
+          publish a resume in Admin.
         </p>
       </DialogContent>
     </Dialog>

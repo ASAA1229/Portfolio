@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { PersonContent, PersonShell } from "@/components/PersonPortfolio";
+import { PersonContent, PersonHome, PersonShell } from "@/components/PersonPortfolio";
 import { PERSON_PORTFOLIOS, PERSON_SECTIONS } from "@/lib/person-portfolios";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -46,6 +46,20 @@ vi.mock("@/lib/published-resume", async (importOriginal) => ({
 const people = [PERSON_PORTFOLIOS.ammu, PERSON_PORTFOLIOS.bava, PERSON_PORTFOLIOS.sai];
 
 describe("person portfolio pages share Abhishek's chapter template", () => {
+  for (const profile of people) {
+    it(`${profile.id} home page uses Abhishek's hero and card layout`, () => {
+      const { container } = render(<PersonHome profile={profile} />);
+
+      expect(container.querySelector(".home-hero.person-hero .home-portrait")).not.toBeNull();
+      expect(container.querySelector(".hero-shade.person-hero-shade")).not.toBeNull();
+      expect(container.querySelector(".home-hero .home-title")).not.toBeNull();
+      expect(container.querySelectorAll(".home-disciplines .discipline-card")).toHaveLength(
+        profile.strengths.length,
+      );
+      expect(container.querySelector(".home-about")).not.toBeNull();
+    });
+  }
+
   for (const profile of people) {
     const others = people.filter((other) => other.id !== profile.id);
     for (const { id: section } of PERSON_SECTIONS) {
