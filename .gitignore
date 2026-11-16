@@ -57,3 +57,6 @@ portfolio-manifest-ignore.sig
 
 # Local production runner state (secrets, R2 emulation, releases)
 .local-prod/
+
+# npm dependency lockfile (repository policy)
+package-lock.json
