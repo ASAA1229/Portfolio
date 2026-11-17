@@ -60,3 +60,18 @@ portfolio-manifest-ignore.sig
 
 # npm dependency lockfile (repository policy)
 package-lock.json
+
+# Organization policy
+build/
+coverage/
+*.pem
+*.key
+secrets/
+credentials/
+*.db
+*.sqlite3
+Thumbs.db
+*.zip
+*.tar.gz
+*.sha256
+*.cdx.json
