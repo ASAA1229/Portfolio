@@ -1,0 +1,47 @@
+{
+  "schema": "asaa.ecosystem-registry.v1",
+  "orgId": "asaa",
+  "projects": [
+    {
+      "code": "ASAA",
+      "repository": "https://github.com/ASAA1229/ASAA",
+      "classification": "Professional",
+      "services": [
+        { "service": "asaa-api", "localProdBaseUrl": "http://127.0.0.1:8101", "devBaseUrl": "http://127.0.0.1:8001", "manifestPath": "/.well-known/asaa-service" },
+        { "service": "asaa-portal", "localProdBaseUrl": "http://127.0.0.1:8100", "devBaseUrl": "http://127.0.0.1:5173" }
+      ]
+    },
+    {
+      "code": "JARVIS",
+      "repository": "https://github.com/ASAA1229/JARVIS",
+      "classification": "Professional",
+      "services": [
+        { "service": "jarvis", "devBaseUrl": "http://127.0.0.1:3000", "manifestPath": "/.well-known/asaa-service" },
+        { "service": "jarvis-ai-gateway", "devBaseUrl": "http://127.0.0.1:3100", "manifestPath": "/v1/health" }
+      ]
+    },
+    {
+      "code": "TEMPLATES",
+      "repository": "https://github.com/ASAA1229/Templates",
+      "classification": "Professional",
+      "services": [
+        { "service": "templates-api", "localProdBaseUrl": "http://127.0.0.1:8201", "devBaseUrl": "http://127.0.0.1:4000", "manifestPath": "/.well-known/asaa-service" },
+        { "service": "templates-web", "localProdBaseUrl": "http://127.0.0.1:8200", "devBaseUrl": "http://127.0.0.1:5000" }
+      ]
+    },
+    {
+      "code": "PORTFOLIO",
+      "repository": "https://github.com/ASAA1229/Portfolio",
+      "classification": "Professional",
+      "services": [
+        { "service": "portfolio", "localProdBaseUrl": "http://127.0.0.1:8300", "manifestPath": "/.well-known/asaa-service" }
+      ]
+    }
+  ],
+  "contracts": {
+    "serviceManifest": "v1",
+    "eventEnvelope": "v1",
+    "aiGateway": "openai-chat-completions-subset (JARVIS /v1)",
+    "correlationHeader": "X-Request-ID"
+  }
+}
