@@ -55,5 +55,9 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     server: { entry: "server" },
   },
-  vite: { plugins: [devServerMarker, buildInfo] },
+  vite: {
+    plugins: [devServerMarker, buildInfo],
+    // ASAA owns 5173 and the Keycloak `portfolio-admin` client redirects to 127.0.0.1:5174 and :8300.
+    server: { host: "127.0.0.1", port: 5174, strictPort: true },
+  },
 });

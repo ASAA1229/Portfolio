@@ -15,7 +15,7 @@ vi.mock("@tanstack/react-start/server-entry", () => ({
 }));
 const { default: server } = await import("@/server");
 
-const ORIGIN = "http://127.0.0.1:5173";
+const ORIGIN = "http://127.0.0.1:5174";
 const ISSUER = "http://127.0.0.1:8280/realms/asaa";
 const CLIENT_ID = "portfolio-admin";
 const CLIENT_SECRET = "mock-client-secret-not-real";
