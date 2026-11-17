@@ -48,6 +48,30 @@ export function normalizeJarvisUrl(raw: string | undefined): string | null {
   return url.toString().replace(/\/+$/, "").replace(/\/v1$/, "");
 }
 
+const AI_ENV_KEYS = [
+  "JARVIS_AI_URL",
+  "JARVIS_AI_KEY",
+  "OPENAI_API_KEY",
+  "PORTFOLIO_AI_ALLOW_PAID_FALLBACK",
+] as const;
+
+/**
+ * Collect the AI settings from Worker bindings first, then process.env (the same precedence the rest of
+ * the server uses for secrets), so callers holding the Worker env do not depend on process.env population.
+ */
+export function aiEnvFrom(bindings: unknown, processEnv?: Env): Env {
+  const source = (bindings && typeof bindings === "object" ? bindings : {}) as Record<
+    string,
+    unknown
+  >;
+  const out: Env = {};
+  for (const key of AI_ENV_KEYS) {
+    const bound = source[key];
+    out[key] = typeof bound === "string" ? bound : processEnv?.[key];
+  }
+  return out;
+}
+
 export function resolveAiProvider(env: Env): AiProvider | null {
   const jarvisUrl = normalizeJarvisUrl(env["JARVIS_AI_URL"]);
   const jarvisKey = env["JARVIS_AI_KEY"];

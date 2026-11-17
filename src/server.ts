@@ -74,6 +74,8 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
+import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
+import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { resolveChatLimiter, resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
 import {
   adminAuthConfigured,
@@ -3118,11 +3120,50 @@ async function handleSeoRoutes(request: Request, env: unknown): Promise<Response
   });
 }
 
+/**
+ * GET/HEAD /.well-known/asaa-service: unauthenticated, secret-free ASAA service manifest (contract v1).
+ * Storage is probed with one read of a key that never exists (no writes); the AI check only inspects
+ * configuration and never calls the gateway.
+ */
+async function handleServiceManifest(request: Request, env: unknown): Promise<Response | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (normalizedPath(request) !== "/.well-known/asaa-service") return null;
+  const bucket = resolvePrivateBucket(env);
+  let storage: CheckState = "disabled";
+  if (bucket) {
+    try {
+      await bucket.get("private-admin/.health-probe");
+      storage = "ok";
+    } catch {
+      storage = "down";
+    }
+  }
+  const bindings = (env ?? {}) as Record<string, unknown>;
+  const ai: CheckState = resolveAiProvider(
+    aiEnvFrom(bindings, typeof process !== "undefined" ? process.env : undefined),
+  )
+    ? "ok"
+    : "disabled";
+  const environment =
+    bindings["ENVIRONMENT"] ??
+    (typeof process !== "undefined" ? process.env["ENVIRONMENT"] : undefined);
+  const manifest = buildServiceManifest({
+    version: typeof __PORTFOLIO_VERSION__ !== "undefined" ? __PORTFOLIO_VERSION__ : undefined,
+    commit: typeof __PORTFOLIO_BUILD_COMMIT__ !== "undefined" ? __PORTFOLIO_BUILD_COMMIT__ : null,
+    environment,
+    storage,
+    ai,
+  });
+  return jsonResponse(manifest, 200, { "cache-control": "no-store" });
+}
+
 async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
   {
     const path = normalizedPath(request);
     const seoResponse = await handleSeoRoutes(request, env);
     if (seoResponse) return seoResponse;
+    const manifestResponse = await handleServiceManifest(request, env);
+    if (manifestResponse) return manifestResponse;
     const isAdmin = isAdminPath(path);
     // Central CSRF guard (defence in depth over the per-handler checks): every state-changing
     // request to an admin page or API must carry an Origin equal to the request origin and

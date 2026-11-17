@@ -21,6 +21,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
 import {
+  appendFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -214,6 +215,12 @@ async function start(soft = false) {
   // wrangler reads Worker secrets from a .dev.vars file next to the config; the copy is user-only and git-ignored.
   const releaseVars = path.join(releaseDir, ".dev.vars");
   cpSync(files.vars, releaseVars);
+  // Identify this runtime in the ASAA service manifest (/.well-known/asaa-service); not a secret.
+  if (!/^ENVIRONMENT=/m.test(readFileSync(releaseVars, "utf8")))
+    appendFileSync(
+      releaseVars,
+      ["", "ENVIRONMENT=local-prod", ""].join(process.platform === "win32" ? "\r\n" : "\n"),
+    );
   restrictToCurrentUser(releaseVars);
   mkdirSync(files.logs, { recursive: true });
   const out = openSync(path.join(files.logs, "server.log"), "a");
