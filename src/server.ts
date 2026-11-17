@@ -3091,7 +3091,7 @@ async function withPublishedSeo(
  * published CMS state: archived or unpublished projects are omitted, published additions listed.
  */
 async function handleSeoRoutes(request: Request, env: unknown): Promise<Response | null> {
-  if (request.method !== "GET") return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
   const path = normalizedPath(request);
   if (path !== "/sitemap.xml" && path !== "/robots.txt") return null;
   const siteUrl = configuredSiteUrl();

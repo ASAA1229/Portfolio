@@ -19,8 +19,6 @@ import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
@@ -87,16 +85,6 @@ const ProfilesRoute = ProfilesRouteImport.update({
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
-  id: '/robots.txt',
-  path: '/robots.txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SkillsRoute = SkillsRouteImport.update({
@@ -197,8 +185,6 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -227,8 +213,6 @@ export interface FileRoutesByTo {
   '/portfolio': typeof PortfolioRoute
   '/privacy': typeof PrivacyRoute
   '/profiles': typeof ProfilesRoute
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -258,8 +242,6 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/profiles': typeof ProfilesRoute
   '/projects': typeof ProjectsRouteWithChildren
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/skills': typeof SkillsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/backup': typeof AdminBackupRoute
@@ -291,8 +273,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profiles'
     | '/projects'
-    | '/robots.txt'
-    | '/sitemap.xml'
     | '/skills'
     | '/admin/audit'
     | '/admin/backup'
@@ -321,8 +301,6 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/privacy'
     | '/profiles'
-    | '/robots.txt'
-    | '/sitemap.xml'
     | '/skills'
     | '/admin/audit'
     | '/admin/backup'
@@ -351,8 +329,6 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/profiles'
     | '/projects'
-    | '/robots.txt'
-    | '/sitemap.xml'
     | '/skills'
     | '/admin/audit'
     | '/admin/backup'
@@ -383,8 +359,6 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ProfilesRoute: typeof ProfilesRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
-  RobotsDottxtRoute: typeof RobotsDottxtRoute
-  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SkillsRoute: typeof SkillsRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminBackupRoute: typeof AdminBackupRoute
@@ -468,20 +442,6 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/robots.txt': {
-      id: '/robots.txt'
-      path: '/robots.txt'
-      fullPath: '/robots.txt'
-      preLoaderRoute: typeof RobotsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/skills': {
@@ -649,8 +609,6 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ProfilesRoute: ProfilesRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
-  RobotsDottxtRoute: RobotsDottxtRoute,
-  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SkillsRoute: SkillsRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminBackupRoute: AdminBackupRoute,
