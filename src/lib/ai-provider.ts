@@ -20,8 +20,11 @@ export interface ChatTurn {
 export interface AiProvider {
   name: "jarvis" | "openai";
   endpoint: string;
-  /** Request headers; JARVIS also receives the profile scope (X-Jarvis-Profile). */
-  headers(profileId: string): Record<string, string>;
+  /**
+   * Request headers; JARVIS also receives the profile scope (X-Jarvis-Profile) and the correlation id
+   * (X-Request-ID) when one is supplied.
+   */
+  headers(profileId: string, requestId?: string): Record<string, string>;
   body(instructions: string, messages: ChatTurn[], profileId: string): Record<string, unknown>;
   /** Extract assistant text from one parsed SSE event; undefined when the event carries none. */
   extractDelta(event: unknown): string | undefined;
@@ -72,6 +75,13 @@ export function aiEnvFrom(bindings: unknown, processEnv?: Env): Env {
   return out;
 }
 
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{8,64}$/;
+
+/** Reuse a valid incoming X-Request-ID (ASAA correlation contract), otherwise generate a new one. */
+export function correlationRequestId(incoming: string | null | undefined): string {
+  return incoming && REQUEST_ID_PATTERN.test(incoming) ? incoming : crypto.randomUUID();
+}
+
 export function resolveAiProvider(env: Env): AiProvider | null {
   const jarvisUrl = normalizeJarvisUrl(env["JARVIS_AI_URL"]);
   const jarvisKey = env["JARVIS_AI_KEY"];
@@ -81,10 +91,11 @@ export function resolveAiProvider(env: Env): AiProvider | null {
       endpoint: `${jarvisUrl}/v1/chat/completions`,
       // The gateway enforces the site key's allowed profiles from both the header and
       // the body field, so one site key cannot be used to answer as another profile.
-      headers: (profileId) => ({
+      headers: (profileId, requestId) => ({
         "Content-Type": "application/json",
         Authorization: `Bearer ${jarvisKey}`,
         "X-Jarvis-Profile": profileId,
+        ...(requestId ? { "X-Request-ID": requestId } : {}),
       }),
       body: (instructions, messages, profileId) => ({
         model: "jarvis",

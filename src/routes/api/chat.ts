@@ -4,7 +4,11 @@ import { SYSTEM_PROMPT } from "@/lib/portfolio-chat";
 import { getPersonPortfolio } from "@/lib/person-portfolios";
 import { mergePersonPortfolio, validateContentOverrides } from "@/lib/cms-content";
 import { buildRelevantProfileKnowledge } from "@/lib/portfolio-knowledge";
-import { AI_NOT_CONFIGURED_MESSAGE, resolveAiProvider } from "@/lib/ai-provider";
+import {
+  AI_NOT_CONFIGURED_MESSAGE,
+  correlationRequestId,
+  resolveAiProvider,
+} from "@/lib/ai-provider";
 import { buildPersonaPrompt, validatePersonaConfig } from "@/lib/persona";
 
 const body = z.object({
@@ -189,7 +193,10 @@ export const Route = createFileRoute("/api/chat")({
         try {
           upstream = await fetch(provider.endpoint, {
             method: "POST",
-            headers: provider.headers(profileScope),
+            headers: provider.headers(
+              profileScope,
+              correlationRequestId(request.headers.get("x-request-id")),
+            ),
             body: JSON.stringify(
               provider.body(
                 instructions,

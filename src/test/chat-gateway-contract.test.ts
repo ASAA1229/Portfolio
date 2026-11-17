@@ -69,7 +69,7 @@ function systemPrompt(call: Upstream): string {
 function chat(
   env: unknown,
   body: Record<string, unknown>,
-  extra: { ip?: string; signal?: AbortSignal } = {},
+  extra: { ip?: string; signal?: AbortSignal; requestId?: string } = {},
 ) {
   return server.fetch(
     new Request(`${ORIGIN}/api/chat`, {
@@ -77,6 +77,7 @@ function chat(
       headers: {
         "content-type": "application/json",
         ...(extra.ip ? { "cf-connecting-ip": extra.ip } : {}),
+        ...(extra.requestId ? { "x-request-id": extra.requestId } : {}),
       },
       body: JSON.stringify(body),
       ...(extra.signal ? { signal: extra.signal } : {}),
@@ -262,6 +263,46 @@ describe("gateway authentication and transport", () => {
     expect(call.headers["Authorization"]).toBe(`Bearer ${JARVIS_KEY}`);
     expect(JSON.stringify(call.body)).not.toContain(JARVIS_KEY);
     expect([...response.headers.values()].join(" ")).not.toContain(JARVIS_KEY);
+  });
+
+  it("propagates a valid incoming X-Request-ID to the gateway", async () => {
+    configureJarvis();
+    stubUpstream(() => new Response(sse("ok")));
+    const response = await chat(
+      {},
+      { person: "ammu", messages: [{ role: "user", content: "hi" }] },
+      { requestId: "req-1234.abcd_EF" },
+    );
+    await response.text();
+    expect(upstreamCalls[0]!.headers["X-Request-ID"]).toBe("req-1234.abcd_EF");
+  });
+
+  it.each(["short", "has spaces in it!", "x".repeat(65), "bad/char/12345"])(
+    "replaces an invalid X-Request-ID (%s) with a generated one",
+    async (invalid) => {
+      configureJarvis();
+      stubUpstream(() => new Response(sse("ok")));
+      const response = await chat(
+        {},
+        { person: "ammu", messages: [{ role: "user", content: "hi" }] },
+        { requestId: invalid },
+      );
+      await response.text();
+      const sent = upstreamCalls[0]!.headers["X-Request-ID"];
+      expect(sent).toMatch(/^[A-Za-z0-9._-]{8,64}$/);
+      expect(sent).not.toBe(invalid);
+    },
+  );
+
+  it("generates an X-Request-ID when none is supplied", async () => {
+    configureJarvis();
+    stubUpstream(() => new Response(sse("ok")));
+    const response = await chat(
+      {},
+      { person: "ammu", messages: [{ role: "user", content: "hi" }] },
+    );
+    await response.text();
+    expect(upstreamCalls[0]!.headers["X-Request-ID"]).toMatch(/^[A-Za-z0-9._-]{8,64}$/);
   });
 
   it.each([
