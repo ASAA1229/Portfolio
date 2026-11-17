@@ -15,7 +15,13 @@ const MAX_ACTIVE_ENTRIES = 1000;
 export interface AdminAuditEntry {
   id: string;
   at: string;
-  actor: "owner" | "local-dev";
+  /**
+   * Who acted: the SSO username (or subject), "password-admin" for the legacy password login,
+   * "local-dev" for the development bypass. Older entries may say "owner".
+   */
+  actor: string;
+  /** Opaque SSO subject when the session came from single sign-on. */
+  actorSub?: string;
   action: string;
   /** Resource ids parsed from the route, e.g. resume/image ids or profile ids. */
   targets: string[];

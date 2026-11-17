@@ -76,13 +76,15 @@ import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
 import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
+import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
+import { passwordLoginAllowed, resolveOidcConfig } from "./lib/oidc";
 import { resolveChatLimiter, resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
 import {
   adminAuthConfigured,
   adminCookieHeader,
   clearAdminCookieHeader,
   createAdminCookie,
-  isAdminRequest,
+  readAdminSession,
   verifyAdminPassword,
 } from "./lib/admin-auth";
 import {
@@ -284,15 +286,54 @@ async function isAdminAuthorized(request: Request, env: unknown): Promise<boolea
   if (!bucket) return false;
   try {
     const epoch = await readSessionEpoch(bucket);
-    return await isAdminRequest(request, env, epoch);
+    return (await readAdminSession(request, env, epoch)) !== null;
   } catch {
     return false;
   }
 }
 
+/** Who is acting: SSO identity, the legacy password admin, or the local development bypass. */
+type AdminActor = { actor: string; sub?: string };
+
+async function resolveAdminActor(request: Request, env: unknown): Promise<AdminActor | null> {
+  if (adminAuthBypassed(env)) return { actor: "local-dev" };
+  const bucket = resolvePrivateBucket(env);
+  if (!bucket) return null;
+  try {
+    const session = await readAdminSession(request, env, await readSessionEpoch(bucket));
+    if (!session) return null;
+    return session.identity
+      ? { actor: session.identity.username || session.identity.sub, sub: session.identity.sub }
+      : { actor: "password-admin" };
+  } catch {
+    return null;
+  }
+}
+
+/** SSO callback results, keyed by the response object so fetch() can audit and report them. */
+const ssoOutcomes = new WeakMap<Response, SsoOutcome>();
+
 async function handleAdminAuth(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
+  const sso = await handleAdminSso(request, {
+    path,
+    env,
+    limiter: () => resolveLoginLimiter(env, resolvePrivateBucket(env)),
+    readEpoch: async () => {
+      const bucket = resolvePrivateBucket(env);
+      return bucket ? await readSessionEpoch(bucket) : null;
+    },
+    notFound: privateNotFound,
+    json: jsonResponse,
+  });
+  if (sso) {
+    if (sso.outcome) ssoOutcomes.set(sso.response, sso.outcome);
+    return sso.response;
+  }
   if (path === "/api/admin/login" && request.method === "POST") {
+    if (!passwordLoginAllowed(env)) {
+      return jsonResponse({ error: "Password sign-in is disabled. Use ASAA SSO." }, 403);
+    }
     const boundedRequest = await limitRequestBody(request, 4 * 1024);
     if (boundedRequest instanceof Response) return boundedRequest;
     request = boundedRequest;
@@ -399,7 +440,8 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     if (!bucket) return jsonResponse({ error: "Admin session storage is unavailable." }, 503);
     try {
       const epoch = await readSessionEpoch(bucket);
-      const cookie = await createAdminCookie(env, epoch);
+      const current = adminAuthBypassed(env) ? null : await readAdminSession(request, env, epoch);
+      const cookie = await createAdminCookie(env, epoch, current?.identity ?? undefined);
       if (!cookie) return jsonResponse({ error: "Admin authentication is not configured." }, 503);
       return jsonResponse({ ok: true }, 200, {
         "set-cookie": adminCookieHeader(cookie, new URL(request.url).protocol === "https:"),
@@ -2908,29 +2950,37 @@ async function personProjectExists(path: string, env: unknown): Promise<boolean 
  * /api/admin/) is recorded once, after the handler responds, with ids/actions/
  * status only. Audit failures are logged but never change the API response.
  */
-async function auditAdminMutation(request: Request, env: unknown, response: Response) {
+async function auditAdminMutation(
+  request: Request,
+  env: unknown,
+  response: Response,
+  who: AdminActor,
+  force = false,
+): Promise<string | undefined> {
   const path = normalizedPath(request);
-  if (!path.startsWith("/api/admin/") || ["GET", "HEAD", "OPTIONS"].includes(request.method)) {
-    return;
-  }
+  if (!path.startsWith("/api/admin/")) return undefined;
+  if (!force && ["GET", "HEAD", "OPTIONS"].includes(request.method)) return undefined;
   // Failed logins are rate-limited separately; only record successful sign-ins.
-  if (path === "/api/admin/login" && response.status !== 200) return;
+  if (path === "/api/admin/login" && response.status !== 200) return undefined;
   const bucket = resolvePrivateBucket(env);
-  if (!bucket) return;
+  if (!bucket) return undefined;
   const { action, targets } = describeAdminAction(request.method, path);
   try {
-    await appendAdminAudit(bucket, {
-      actor: adminAuthBypassed(env) ? "local-dev" : "owner",
+    const entry = await appendAdminAudit(bucket, {
+      actor: who.actor,
+      ...(who.sub ? { actorSub: who.sub } : {}),
       action,
       targets,
       status: response.status,
       outcome: response.status < 400 ? "success" : response.status < 500 ? "rejected" : "failed",
     });
+    return entry.id;
   } catch (error) {
     console.error("Admin audit entry could not be written.", {
       action,
       reason: error instanceof Error ? error.message : "unknown",
     });
+    return undefined;
   }
 }
 
@@ -2966,13 +3016,17 @@ function checkRuntimeConfig(env: unknown): void {
         : typeof process !== "undefined"
           ? (process.env["PORTFOLIO_ADMIN_SESSION_SECRET"] ?? "")
           : "";
-    if (
-      !has("PORTFOLIO_ADMIN_PASSWORD") ||
-      (typeof bindings["PORTFOLIO_ADMIN_PASSWORD"] === "string"
+    // The password is only required while the password form is available (it can be turned off once
+    // SSO is configured).
+    const passwordRequired = !(resolveOidcConfig(env) && !passwordLoginAllowed(env));
+    const passwordLength =
+      typeof bindings["PORTFOLIO_ADMIN_PASSWORD"] === "string"
         ? Array.from((bindings["PORTFOLIO_ADMIN_PASSWORD"] as string).trim()).length
         : typeof process !== "undefined"
           ? Array.from((process.env["PORTFOLIO_ADMIN_PASSWORD"] ?? "").trim()).length
-          : 0) < 12 ||
+          : 0;
+    if (
+      (passwordRequired && (!has("PORTFOLIO_ADMIN_PASSWORD") || passwordLength < 12)) ||
       new TextEncoder().encode(sessionSecret.trim()).byteLength < 32
     ) {
       requiredDeploymentConfigMissing.push(
@@ -3020,13 +3074,37 @@ export default {
     checkRuntimeConfig(env);
     const method = request.method;
     const auditRequest = new Request(request.url, { method });
+    const requestPath = normalizedPath(request);
+    // Resolve the actor before routing: logout-everywhere changes the epoch and would otherwise make
+    // the acting session unreadable afterwards.
+    const preActor =
+      requestPath.startsWith("/api/admin/") && !["GET", "HEAD", "OPTIONS"].includes(method)
+        ? await resolveAdminActor(request, env)
+        : null;
     const response = await routeRequest(request, env, ctx);
-    const securedResponse = isAdminPath(normalizedPath(request))
+    const securedResponse = isAdminPath(requestPath)
       ? withAdminSecurityHeaders(response, request.url)
       : response;
     // Unauthenticated probes return a private 404 and are not worth an audit entry.
-    if (securedResponse.status !== 404)
-      await auditAdminMutation(auditRequest, env, securedResponse);
+    if (securedResponse.status !== 404) {
+      const ssoOutcome = ssoOutcomes.get(response);
+      const who: AdminActor =
+        ssoOutcome?.kind === "login"
+          ? {
+              actor: ssoOutcome.identity.username || ssoOutcome.identity.sub,
+              sub: ssoOutcome.identity.sub,
+            }
+          : requestPath === "/api/admin/login"
+            ? { actor: adminAuthBypassed(env) ? "local-dev" : "password-admin" }
+            : (preActor ?? { actor: "unknown" });
+      await auditAdminMutation(
+        auditRequest,
+        env,
+        securedResponse,
+        who,
+        ssoOutcome?.kind === "login",
+      );
+    }
     return securedResponse;
   },
 };

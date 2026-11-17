@@ -91,12 +91,47 @@ export function isValidSessionEpoch(value: unknown): value is string {
   );
 }
 
-export async function createAdminCookie(env?: unknown, epoch = "0"): Promise<string | null> {
+/** Signed-in identity carried by an SSO session (opaque subject plus a display name). */
+export interface AdminIdentity {
+  sub: string;
+  username: string;
+}
+
+function encodeIdentity(identity: AdminIdentity): string {
+  return bytesToBase64Url(
+    new TextEncoder().encode(
+      JSON.stringify({ s: identity.sub.slice(0, 128), u: identity.username.slice(0, 128) }),
+    ),
+  );
+}
+
+function decodeIdentity(value: string): AdminIdentity | null {
+  const bytes = base64UrlToBytes(value);
+  if (!bytes) return null;
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { s?: unknown; u?: unknown };
+    if (typeof parsed.s !== "string" || typeof parsed.u !== "string" || !parsed.s) return null;
+    return { sub: parsed.s, username: parsed.u };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Session cookie: `<expiry>[~<identity>].<hmac>`. Password sessions carry only the expiry; SSO
+ * sessions also carry the (signed) identity so audit entries can be attributed. The HMAC covers the
+ * whole payload, so the identity cannot be altered without the signing secret.
+ */
+export async function createAdminCookie(
+  env?: unknown,
+  epoch = "0",
+  identity?: AdminIdentity,
+): Promise<string | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  const payload = String(expires);
+  const payload = identity ? `${expires}~${encodeIdentity(identity)}` : String(expires);
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 
@@ -105,8 +140,17 @@ export async function isAdminRequest(
   env?: unknown,
   epoch = "0",
 ): Promise<boolean> {
+  return (await readAdminSession(request, env, epoch)) !== null;
+}
+
+/** Verified session for the request, or null. `identity` is null for password sessions. */
+export async function readAdminSession(
+  request: Request,
+  env?: unknown,
+  epoch = "0",
+): Promise<{ identity: AdminIdentity | null } | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
-  if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return false;
+  if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
   const cookieHeader = request.headers.get("cookie") ?? "";
   const cookie = cookieHeader
@@ -114,17 +158,18 @@ export async function isAdminRequest(
     .map((part) => part.trim())
     .find((part) => part.startsWith(`${COOKIE_NAME}=`))
     ?.slice(COOKIE_NAME.length + 1);
-  if (!cookie) return false;
+  if (!cookie) return null;
 
   // A SHA-256 HMAC has a fixed 32-byte signature (43 unpadded base64url
   // characters). Reject non-canonical or oversized cookie values before
   // decoding or performing cryptographic work.
-  const match = cookie.match(/^([1-9]\d{9,15})\.([A-Za-z0-9_-]{43})$/);
-  if (!match) return false;
+  const match = cookie.match(/^([1-9]\d{9,15}(?:~[A-Za-z0-9_-]{1,600})?)\.([A-Za-z0-9_-]{43})$/);
+  if (!match) return null;
   const [, payload, encodedSignature] = match;
-  if (!payload || !encodedSignature) return false;
+  if (!payload || !encodedSignature) return null;
   const signature = base64UrlToBytes(encodedSignature);
-  const expiry = Number(payload);
+  const [expiryText, encodedIdentity] = payload.split("~");
+  const expiry = Number(expiryText);
   if (
     !signature ||
     signature.length !== 32 ||
@@ -132,8 +177,34 @@ export async function isAdminRequest(
     !Number.isSafeInteger(expiry) ||
     expiry <= Math.floor(Date.now() / 1000)
   )
-    return false;
-  return constantTimeEqual(signature, await hmac(payload, key));
+    return null;
+  if (!constantTimeEqual(signature, await hmac(payload, key))) return null;
+  if (encodedIdentity === undefined) return { identity: null };
+  const identity = decodeIdentity(encodedIdentity);
+  return identity ? { identity } : null;
+}
+
+/**
+ * Sign/verify a short-lived value (e.g. the SSO transaction cookie) with the session secret under a
+ * separate key domain, so it can never be replayed as an admin session.
+ */
+export async function signAdminValue(value: string, env?: unknown): Promise<string | null> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !hasStrongSessionSecret(env)) return null;
+  const encoded = bytesToBase64Url(new TextEncoder().encode(value));
+  return `${encoded}.${bytesToBase64Url(await hmac(encoded, `${secretValue}|sso-tx`))}`;
+}
+
+export async function verifyAdminValue(signed: string, env?: unknown): Promise<string | null> {
+  const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
+  if (!secretValue || !hasStrongSessionSecret(env)) return null;
+  const match = signed.match(/^([A-Za-z0-9_-]{1,4096})\.([A-Za-z0-9_-]{43})$/);
+  if (!match || !match[1] || !match[2]) return null;
+  const signature = base64UrlToBytes(match[2]);
+  if (!signature || signature.length !== 32) return null;
+  if (!constantTimeEqual(signature, await hmac(match[1], `${secretValue}|sso-tx`))) return null;
+  const bytes = base64UrlToBytes(match[1]);
+  return bytes ? new TextDecoder().decode(bytes) : null;
 }
 
 export function adminCookieHeader(value: string, secure: boolean): string {

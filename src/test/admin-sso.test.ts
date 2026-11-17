@@ -1,0 +1,547 @@
+// @vitest-environment node
+//
+// MOCK IdP: every network call in this file is answered by an in-test stub (discovery, JWKS and token
+// endpoints) that signs ID tokens with an RSA key generated here. Nothing talks to a real Keycloak.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readAuditLog } from "@/lib/admin-audit";
+import { resetOidcCaches } from "@/lib/oidc";
+import { MemoryR2 } from "./helpers/memory-r2";
+
+// The SSR entry cannot boot under Vitest; admin APIs are answered by the Worker before SSR.
+vi.mock("@tanstack/react-start/server-entry", () => ({
+  default: {
+    fetch: () => new Response("<html></html>", { headers: { "content-type": "text/html" } }),
+  },
+}));
+const { default: server } = await import("@/server");
+
+const ORIGIN = "http://127.0.0.1:5173";
+const ISSUER = "http://127.0.0.1:8280/realms/asaa";
+const CLIENT_ID = "portfolio-admin";
+const CLIENT_SECRET = "mock-client-secret-not-real";
+const SESSION_SECRET = "test-session-secret-with-sufficient-length";
+
+const b64url = (input: string | Uint8Array) =>
+  Buffer.from(typeof input === "string" ? input : input).toString("base64url");
+
+class MockIdp {
+  key!: CryptoKeyPair;
+  otherKey!: CryptoKeyPair;
+  jwk!: JsonWebKey;
+  kid = "mock-kid-1";
+  tokenCalls: { body: URLSearchParams; authorization: string | null }[] = [];
+  /** Captured from the authorization redirect so the token endpoint can enforce PKCE and the nonce. */
+  pending: { nonce: string; challenge: string; redirectUri: string } | null = null;
+  claims: () => Record<string, unknown> = () => ({});
+  signWith: "good" | "other" | "none" | "hs256" = "good";
+  tokenStatus = 200;
+
+  async init() {
+    const algorithm = {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    };
+    this.key = (await crypto.subtle.generateKey(algorithm, true, [
+      "sign",
+      "verify",
+    ])) as CryptoKeyPair;
+    this.otherKey = (await crypto.subtle.generateKey(algorithm, true, [
+      "sign",
+      "verify",
+    ])) as CryptoKeyPair;
+    this.jwk = await crypto.subtle.exportKey("jwk", this.key.publicKey);
+  }
+
+  async sign(payload: Record<string, unknown>): Promise<string> {
+    const alg = this.signWith === "none" ? "none" : this.signWith === "hs256" ? "HS256" : "RS256";
+    const head = b64url(JSON.stringify({ alg, kid: this.kid, typ: "JWT" }));
+    const body = b64url(JSON.stringify(payload));
+    const input = `${head}.${body}`;
+    if (this.signWith === "none") return `${input}.`;
+    if (this.signWith === "hs256") return `${input}.${b64url("x".repeat(32))}`;
+    const privateKey = this.signWith === "other" ? this.otherKey.privateKey : this.key.privateKey;
+    const signature = await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      privateKey,
+      new TextEncoder().encode(input),
+    );
+    return `${input}.${b64url(new Uint8Array(signature))}`;
+  }
+
+  defaultClaims(): Record<string, unknown> {
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      iss: ISSUER,
+      aud: CLIENT_ID,
+      azp: CLIENT_ID,
+      sub: "kc-user-1234",
+      preferred_username: "alice",
+      iat: now,
+      exp: now + 300,
+      nonce: this.pending?.nonce,
+      amr: ["pwd", "otp"],
+      realm_access: { roles: ["portfolio-admin", "offline_access"] },
+      ...this.claims(),
+    };
+  }
+
+  async handle(url: string, init?: RequestInit): Promise<Response> {
+    if (url === `${ISSUER}/.well-known/openid-configuration`) {
+      return Response.json({
+        issuer: ISSUER,
+        authorization_endpoint: `${ISSUER}/protocol/openid-connect/auth`,
+        token_endpoint: `${ISSUER}/protocol/openid-connect/token`,
+        jwks_uri: `${ISSUER}/protocol/openid-connect/certs`,
+      });
+    }
+    if (url === `${ISSUER}/protocol/openid-connect/certs`) {
+      return Response.json({
+        keys: [{ ...this.jwk, kid: this.kid, use: "sig", alg: "RS256" }],
+      });
+    }
+    if (url === `${ISSUER}/protocol/openid-connect/token`) {
+      const body = new URLSearchParams(String(init?.body ?? ""));
+      const headers = new Headers(init?.headers);
+      this.tokenCalls.push({ body, authorization: headers.get("authorization") });
+      const expectedBasic = `Basic ${Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64")}`;
+      const verifier = body.get("code_verifier") ?? "";
+      const challenge = b64url(
+        new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))),
+      );
+      if (
+        this.tokenStatus !== 200 ||
+        body.get("grant_type") !== "authorization_code" ||
+        body.get("code") !== "good-code" ||
+        headers.get("authorization") !== expectedBasic ||
+        challenge !== this.pending?.challenge ||
+        body.get("redirect_uri") !== this.pending?.redirectUri
+      ) {
+        return Response.json(
+          { error: "invalid_grant" },
+          { status: this.tokenStatus === 200 ? 400 : this.tokenStatus },
+        );
+      }
+      return Response.json({
+        id_token: await this.sign(this.defaultClaims()),
+        token_type: "Bearer",
+      });
+    }
+    return new Response("unexpected request to " + url, { status: 599 });
+  }
+}
+
+let idp: MockIdp;
+let r2: MemoryR2;
+let ipCounter = 0;
+let errors: string[];
+
+const baseEnv = (extra: Record<string, unknown> = {}) => ({
+  ENVIRONMENT: "test",
+  PORTFOLIO_ADMIN_PASSWORD: "test-admin-password",
+  PORTFOLIO_ADMIN_SESSION_SECRET: SESSION_SECRET,
+  PORTFOLIO_OIDC_ISSUER: ISSUER,
+  PORTFOLIO_OIDC_CLIENT_ID: CLIENT_ID,
+  PORTFOLIO_OIDC_CLIENT_SECRET: CLIENT_SECRET,
+  RESUME_BUCKET: r2,
+  ...extra,
+});
+
+function call(env: object, path: string, init: RequestInit = {}, ip = "sso-test-ip") {
+  const headers = new Headers(init.headers);
+  headers.set("cf-connecting-ip", ip);
+  if (init.method && init.method !== "GET") headers.set("origin", ORIGIN);
+  return server.fetch(new Request(ORIGIN + path, { ...init, headers }), env, {});
+}
+
+async function begin(env: object, ip: string) {
+  const response = await call(env, "/api/admin/sso/start", {}, ip);
+  expect(response.status).toBe(302);
+  const location = new URL(response.headers.get("location")!);
+  const txCookie = response.headers.get("set-cookie")!.split(";")[0]!;
+  idp.pending = {
+    nonce: location.searchParams.get("nonce")!,
+    challenge: location.searchParams.get("code_challenge")!,
+    redirectUri: location.searchParams.get("redirect_uri")!,
+  };
+  return { response, location, txCookie, state: location.searchParams.get("state")! };
+}
+
+async function finish(
+  env: object,
+  tx: { txCookie: string; state: string },
+  overrides: { state?: string; code?: string; cookie?: string | null; query?: string } = {},
+  ip = "sso-test-ip",
+) {
+  const query =
+    overrides.query ??
+    new URLSearchParams({
+      code: overrides.code ?? "good-code",
+      state: overrides.state ?? tx.state,
+    }).toString();
+  const cookie = overrides.cookie === undefined ? tx.txCookie : overrides.cookie;
+  return call(env, `/api/admin/sso/callback?${query}`, { headers: cookie ? { cookie } : {} }, ip);
+}
+
+const nextIp = () => `sso-ip-${++ipCounter}`;
+
+async function signIn(env: object, ip = nextIp()) {
+  const tx = await begin(env, ip);
+  const response = await finish(env, tx, {}, ip);
+  return { response, ip, tx };
+}
+
+function sessionCookie(response: Response): string {
+  const cookies = response.headers.getSetCookie();
+  const session = cookies.find((value) => value.startsWith("portfolio_admin_session="));
+  return session!.split(";")[0]!;
+}
+
+beforeEach(async () => {
+  resetOidcCaches();
+  r2 = new MemoryR2();
+  idp = new MockIdp();
+  await idp.init();
+  errors = [];
+  vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+    errors.push(args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" "));
+  });
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) => idp.handle(String(url), init));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("SSO availability and options", () => {
+  it("is off unless issuer, client id and client secret are all configured", async () => {
+    for (const missing of [
+      "PORTFOLIO_OIDC_ISSUER",
+      "PORTFOLIO_OIDC_CLIENT_ID",
+      "PORTFOLIO_OIDC_CLIENT_SECRET",
+    ]) {
+      const env = { ...baseEnv(), [missing]: "" };
+      const options = await (await call(env, "/api/admin/login/options")).json();
+      expect(options).toEqual({ sso: false, password: true });
+      expect((await call(env, "/api/admin/sso/start")).status).toBe(404);
+    }
+  });
+
+  it("offers SSO when configured and keeps the password form by default", async () => {
+    expect(await (await call(baseEnv(), "/api/admin/login/options")).json()).toEqual({
+      sso: true,
+      password: true,
+    });
+  });
+
+  it("refuses a non-https, non-loopback issuer", async () => {
+    const env = baseEnv({ PORTFOLIO_OIDC_ISSUER: "http://idp.example.test/realms/asaa" });
+    expect(await (await call(env, "/api/admin/login/options")).json()).toMatchObject({
+      sso: false,
+    });
+    expect((await call(env, "/api/admin/sso/start")).status).toBe(404);
+  });
+});
+
+describe("authorization request (Authorization Code + PKCE)", () => {
+  it("redirects to the IdP with state, nonce and an S256 challenge, and sets a signed Lax cookie", async () => {
+    const { response, location } = await begin(baseEnv(), nextIp());
+    expect(location.origin + location.pathname).toBe(`${ISSUER}/protocol/openid-connect/auth`);
+    expect(location.searchParams.get("response_type")).toBe("code");
+    expect(location.searchParams.get("client_id")).toBe(CLIENT_ID);
+    expect(location.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(location.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(location.searchParams.get("state")!.length).toBeGreaterThanOrEqual(32);
+    expect(location.searchParams.get("nonce")!.length).toBeGreaterThanOrEqual(32);
+    expect(location.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/api/admin/sso/callback`);
+    expect(location.searchParams.get("scope")).toBe("openid profile");
+    const cookie = response.headers.get("set-cookie")!;
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Path=/api/admin/sso");
+    expect(cookie).not.toContain(CLIENT_SECRET);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("does not start from a cross-site request", async () => {
+    const response = await call(baseEnv(), "/api/admin/sso/start", {
+      headers: { "sec-fetch-site": "cross-site" },
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("uses the configured redirect URI when provided", async () => {
+    const env = baseEnv({
+      PORTFOLIO_OIDC_REDIRECT_URI: "http://127.0.0.1:8300/api/admin/sso/callback",
+    });
+    const { location } = await begin(env, nextIp());
+    expect(location.searchParams.get("redirect_uri")).toBe(
+      "http://127.0.0.1:8300/api/admin/sso/callback",
+    );
+  });
+});
+
+describe("successful sign-in", () => {
+  it("creates the same admin session cookie, redirects to the admin, and never leaks the client secret", async () => {
+    const env = baseEnv();
+    const { response } = await signIn(env);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/admin/resumes");
+    const cookie = sessionCookie(response);
+    const all = response.headers.getSetCookie().join(" ");
+    expect(all).toContain("HttpOnly");
+    expect(all).toContain("SameSite=Strict");
+    expect(all).not.toContain(CLIENT_SECRET);
+
+    // The token exchange used the confidential client with PKCE.
+    const token = idp.tokenCalls[0]!;
+    expect(token.body.get("code_verifier")).toBeTruthy();
+    expect(token.authorization).toMatch(/^Basic /);
+
+    const session = await call(env, "/api/admin/session", { headers: { cookie } });
+    expect(session.status).toBe(200);
+    expect(errors.join("\n")).not.toContain(CLIENT_SECRET);
+  });
+
+  it("attributes audited admin actions to the SSO identity, and password logins to password-admin", async () => {
+    const env = baseEnv();
+    const { response } = await signIn(env);
+    const cookie = sessionCookie(response);
+    const mutation = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+    });
+    expect(mutation.status).toBe(200);
+
+    const password = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    expect(password.status).toBe(200);
+
+    const log = await readAuditLog(r2);
+    const actors = log.entries.map((entry) => [entry.action, entry.actor, entry.actorSub ?? null]);
+    expect(actors).toContainEqual(["GET sso/callback", "alice", "kc-user-1234"]);
+    expect(actors).toContainEqual(["POST session/renew", "alice", "kc-user-1234"]);
+    expect(actors).toContainEqual(["POST login", "password-admin", null]);
+  });
+
+  it("keeps the identity across session renewal and ends with logout-everywhere", async () => {
+    const env = baseEnv();
+    const { response } = await signIn(env);
+    const cookie = sessionCookie(response);
+    const renewed = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+    });
+    const renewedCookie = sessionCookie(renewed);
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: renewedCookie } })).status,
+    ).toBe(200);
+    const logoutAll = await call(env, "/api/admin/logout-all", {
+      method: "POST",
+      headers: { cookie: renewedCookie },
+    });
+    expect(logoutAll.status).toBe(200);
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: renewedCookie } })).status,
+    ).toBe(404);
+    const log = await readAuditLog(r2);
+    expect(
+      log.entries.some((entry) => entry.action === "POST logout-all" && entry.actor === "alice"),
+    ).toBe(true);
+  });
+
+  it("rejects a session cookie whose identity was tampered with", async () => {
+    const env = baseEnv();
+    const { response } = await signIn(env);
+    const cookie = sessionCookie(response);
+    const [name, value] = cookie.split("=") as [string, string];
+    const [payload, signature] = value.split(".") as [string, string];
+    const [expiry] = payload.split("~") as [string];
+    const forged = `${expiry}~${b64url(JSON.stringify({ s: "attacker", u: "root" }))}.${signature}`;
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: `${name}=${forged}` } })).status,
+    ).toBe(404);
+  });
+});
+
+describe("callback validation", () => {
+  const failed = (response: Response) => {
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/admin/login?sso=failed");
+    expect(
+      response.headers.getSetCookie().some((c) => c.startsWith("portfolio_admin_session=")),
+    ).toBe(false);
+  };
+
+  it("rejects a missing transaction cookie", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    failed(await finish(env, tx, { cookie: null }));
+  });
+
+  it("rejects a state mismatch", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    failed(await finish(env, tx, { state: "attacker-state" }));
+  });
+
+  it("rejects a forged or tampered transaction cookie", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    const [payload, signature] = tx.txCookie.split("=")[1]!.split(".") as [string, string];
+    const forgedPayload = b64url(
+      JSON.stringify({ s: "x", n: "y", v: "z", r: "http://evil", e: 9999999999 }),
+    );
+    failed(await finish(env, tx, { cookie: `portfolio_sso_tx=${forgedPayload}.${signature}` }));
+    failed(await finish(env, tx, { cookie: `portfolio_sso_tx=${payload}.${"A".repeat(43)}` }));
+  });
+
+  it("rejects a provider error response and a missing code", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    failed(await finish(env, tx, { query: `error=access_denied&state=${tx.state}` }));
+    failed(await finish(env, tx, { query: `state=${tx.state}` }));
+  });
+
+  it("rejects a code the IdP refuses (PKCE verifier or code mismatch)", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    failed(await finish(env, tx, { code: "bad-code" }));
+  });
+
+  it("rejects tokens signed by an unknown key, with alg none, or with HS256", async () => {
+    for (const signWith of ["other", "none", "hs256"] as const) {
+      const env = baseEnv();
+      const tx = await begin(env, nextIp());
+      idp.signWith = signWith;
+      failed(await finish(env, tx));
+    }
+  });
+
+  it.each([
+    ["wrong issuer", { iss: "http://127.0.0.1:8280/realms/other" }],
+    ["wrong audience", { aud: "someone-else" }],
+    ["wrong authorized party", { azp: "someone-else" }],
+    ["multiple audiences without azp", { aud: [CLIENT_ID, "other"], azp: undefined }],
+    ["expired token", { exp: Math.floor(Date.now() / 1000) - 3600 }],
+    ["wrong nonce", { nonce: "not-the-nonce" }],
+    ["missing subject", { sub: undefined }],
+    ["no MFA evidence", { amr: ["pwd"] }],
+    ["no amr claim at all", { amr: undefined }],
+    ["missing required role", { realm_access: { roles: ["offline_access"] } }],
+    ["no role claim", { realm_access: undefined }],
+  ])("rejects a token with %s", async (_label, claims) => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => claims;
+    failed(await finish(env, tx));
+  });
+
+  it("accepts a token whose audience list contains the client and a matching azp", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => ({ aud: [CLIENT_ID, "account"], azp: CLIENT_ID });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it("is throttled after repeated failures from the same client", async () => {
+    const env = baseEnv();
+    const ip = nextIp();
+    let last: Response | undefined;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const tx = await begin(env, ip).catch(() => null);
+      if (!tx) break;
+      last = await finish(env, tx, { state: "wrong" }, ip);
+      if (last.status === 429) break;
+    }
+    const blocked = await call(env, "/api/admin/sso/start", {}, ip);
+    expect([429, 302]).toContain(blocked.status);
+    const next = await call(env, "/api/admin/sso/callback?code=x&state=y", {}, ip);
+    expect(next.status).toBe(429);
+    expect(Number(next.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+});
+
+describe("configurable MFA and role policy", () => {
+  it("accepts a configured amr value and a configured acr", async () => {
+    const env = baseEnv({ PORTFOLIO_OIDC_MFA_AMR: "hwk", PORTFOLIO_OIDC_MFA_ACR: "urn:mfa:gold" });
+    let tx = await begin(env, nextIp());
+    idp.claims = () => ({ amr: ["hwk"] });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+
+    tx = await begin(env, nextIp());
+    idp.claims = () => ({ amr: undefined, acr: "urn:mfa:gold" });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+
+    tx = await begin(env, nextIp());
+    idp.claims = () => ({ amr: ["otp"] }); // default values no longer accepted
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+  });
+
+  it("supports a custom role claim path and required role (groups with a leading slash)", async () => {
+    const env = baseEnv({
+      PORTFOLIO_OIDC_ROLE_CLAIM: "groups",
+      PORTFOLIO_OIDC_REQUIRED_ROLE: "site-owners",
+    });
+    let tx = await begin(env, nextIp());
+    idp.claims = () => ({ groups: ["/site-owners"], realm_access: undefined });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+
+    tx = await begin(env, nextIp());
+    idp.claims = () => ({ groups: ["/others"] });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+  });
+});
+
+describe("password login option", () => {
+  const login = (env: object) =>
+    call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+
+  it("still works unchanged by default, even with SSO configured", async () => {
+    expect((await login(baseEnv())).status).toBe(200);
+  });
+
+  it("is disabled by PORTFOLIO_ADMIN_PASSWORD_LOGIN=false once SSO is live", async () => {
+    const env = baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" });
+    expect((await login(env)).status).toBe(403);
+    expect(await (await call(env, "/api/admin/login/options")).json()).toEqual({
+      sso: true,
+      password: false,
+    });
+    expect((await signIn(env)).response.headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it("ignores the flag when SSO is not configured, so the admin cannot be locked out", async () => {
+    const env = {
+      ...baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" }),
+      PORTFOLIO_OIDC_CLIENT_SECRET: "",
+    };
+    expect((await login(env)).status).toBe(200);
+  });
+
+  it("does not require an admin password in SSO-only mode (session secret still required)", async () => {
+    const env = baseEnv({ PORTFOLIO_ADMIN_PASSWORD: "", PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" });
+    const { response } = await signIn(env);
+    const cookie = sessionCookie(response);
+    expect((await call(env, "/api/admin/session", { headers: { cookie } })).status).toBe(200);
+  });
+});
