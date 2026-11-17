@@ -78,6 +78,15 @@ import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
 import { passwordLoginAllowed, resolveOidcConfig } from "./lib/oidc";
+import {
+  buildEnvelope,
+  classifyAdminEvent,
+  enqueueEvent,
+  eventsCheck,
+  flushEvents,
+  resolveEventsConfig,
+  type EventsConfig,
+} from "./lib/asaa-events";
 import { resolveChatLimiter, resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
 import {
   adminAuthConfigured,
@@ -2984,6 +2993,79 @@ async function auditAdminMutation(
   }
 }
 
+type WaitUntilContext = { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
+
+/** Run background work after the response when the platform allows it; otherwise fire and forget. */
+function runInBackground(ctx: unknown, work: Promise<unknown>): void {
+  const guarded = work.catch(() => undefined);
+  const context = ctx as WaitUntilContext;
+  if (typeof context?.waitUntil === "function") context.waitUntil(guarded);
+}
+
+/**
+ * Report an admin action to ASAA (disabled unless ASAA_EVENTS_* are configured). Only metadata is
+ * sent: event type, outcome, status, resource/profile ids and an opaque actor id.
+ */
+function reportAdminEvent(input: {
+  request: Request;
+  env: unknown;
+  ctx: unknown;
+  config: EventsConfig;
+  path: string;
+  status: number;
+  who: AdminActor;
+  auditId: string | undefined;
+  ssoOutcome: SsoOutcome | undefined;
+}): void {
+  const bucket = resolvePrivateBucket(input.env);
+  if (!bucket) return;
+  const { request, config, path, status, who, auditId, ssoOutcome } = input;
+  let type: string;
+  let severity: "info" | "warning" | "critical";
+  let subject: string | undefined;
+  let targets: string[] = [];
+  const data: Record<string, unknown> = { status };
+  if (ssoOutcome) {
+    type = ssoOutcome.kind === "login" ? "portfolio.admin.login" : "portfolio.admin.login-failed";
+    severity = ssoOutcome.kind === "login" ? "info" : "warning";
+    data["method"] = "sso";
+    if (ssoOutcome.kind === "login-failed") data["reason"] = ssoOutcome.reason.slice(0, 60);
+  } else {
+    const classified = classifyAdminEvent({ method: request.method, path, status });
+    if (!classified) return;
+    type = classified.type;
+    severity = classified.severity;
+    subject = classified.subject;
+    targets = classified.targets;
+    if (path === "/api/admin/login") data["method"] = "password";
+  }
+  data["outcome"] =
+    ssoOutcome?.kind === "login-failed"
+      ? "rejected"
+      : status < 400
+        ? "success"
+        : status < 500
+          ? "rejected"
+          : "failed";
+  if (targets.length) data["targets"] = targets;
+  data["actor"] = who.sub ?? who.actor;
+  const envelope = buildEnvelope(config, {
+    ...(auditId ? { id: auditId } : {}),
+    type,
+    severity,
+    ...(subject ? { subject } : {}),
+    correlationId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+    data,
+  });
+  runInBackground(
+    input.ctx,
+    (async () => {
+      await enqueueEvent(bucket, envelope);
+      await flushEvents(bucket, config);
+    })(),
+  );
+}
+
 let runtimeConfigChecked = false;
 
 /**
@@ -3097,13 +3179,27 @@ export default {
           : requestPath === "/api/admin/login"
             ? { actor: adminAuthBypassed(env) ? "local-dev" : "password-admin" }
             : (preActor ?? { actor: "unknown" });
-      await auditAdminMutation(
+      const auditId = await auditAdminMutation(
         auditRequest,
         env,
         securedResponse,
         who,
         ssoOutcome?.kind === "login",
       );
+      const eventsConfig = resolveEventsConfig(env);
+      if (eventsConfig && requestPath.startsWith("/api/admin/")) {
+        reportAdminEvent({
+          request,
+          env,
+          ctx,
+          config: eventsConfig,
+          path: requestPath,
+          status: securedResponse.status,
+          who,
+          auditId,
+          ssoOutcome,
+        });
+      }
     }
     return securedResponse;
   },
@@ -3203,7 +3299,11 @@ async function handleSeoRoutes(request: Request, env: unknown): Promise<Response
  * Storage is probed with one read of a key that never exists (no writes); the AI check only inspects
  * configuration and never calls the gateway.
  */
-async function handleServiceManifest(request: Request, env: unknown): Promise<Response | null> {
+async function handleServiceManifest(
+  request: Request,
+  env: unknown,
+  ctx: unknown,
+): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   if (normalizedPath(request) !== "/.well-known/asaa-service") return null;
   const bucket = resolvePrivateBucket(env);
@@ -3225,12 +3325,17 @@ async function handleServiceManifest(request: Request, env: unknown): Promise<Re
   const environment =
     bindings["ENVIRONMENT"] ??
     (typeof process !== "undefined" ? process.env["ENVIRONMENT"] : undefined);
+  // ASAA polls this endpoint, so it also retries any queued events (no separate cron required).
+  const eventsConfig = resolveEventsConfig(env);
+  if (eventsConfig && bucket) runInBackground(ctx, flushEvents(bucket, eventsConfig));
+  const asaaEvents = await eventsCheck(bucket, eventsConfig);
   const manifest = buildServiceManifest({
     version: typeof __PORTFOLIO_VERSION__ !== "undefined" ? __PORTFOLIO_VERSION__ : undefined,
     commit: typeof __PORTFOLIO_BUILD_COMMIT__ !== "undefined" ? __PORTFOLIO_BUILD_COMMIT__ : null,
     environment,
     storage,
     ai,
+    asaaEvents,
   });
   return jsonResponse(manifest, 200, { "cache-control": "no-store" });
 }
@@ -3240,7 +3345,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
     const path = normalizedPath(request);
     const seoResponse = await handleSeoRoutes(request, env);
     if (seoResponse) return seoResponse;
-    const manifestResponse = await handleServiceManifest(request, env);
+    const manifestResponse = await handleServiceManifest(request, env, ctx);
     if (manifestResponse) return manifestResponse;
     const isAdmin = isAdminPath(path);
     // Central CSRF guard (defence in depth over the per-handler checks): every state-changing

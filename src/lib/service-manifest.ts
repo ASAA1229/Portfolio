@@ -44,6 +44,8 @@ export function buildServiceManifest(input: {
   environment: unknown;
   storage: CheckState;
   ai: CheckState;
+  /** Delivery health of ASAA events ("disabled" unless ASAA_EVENTS_* are configured). */
+  asaaEvents?: CheckState;
   now?: Date;
 }): ServiceManifest {
   const environment = parseManifestEnvironment(input.environment);
@@ -56,7 +58,11 @@ export function buildServiceManifest(input: {
     ...(environment ? { environment } : {}),
     status: input.storage === "ok" ? "ok" : "degraded",
     checkedAt: (input.now ?? new Date()).toISOString(),
-    checks: { storage: input.storage, ai: input.ai },
+    checks: {
+      storage: input.storage,
+      ai: input.ai,
+      asaaEvents: input.asaaEvents ?? "disabled",
+    },
     capabilities: ["portfolio.profiles", "portfolio.published-feeds", "ai.chat-consumer"],
     contracts: { serviceManifest: "v1" },
   };
