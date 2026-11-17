@@ -98,7 +98,7 @@ function init() {
 
 function wranglerBin() {
   const bin = path.join(root, "node_modules", "wrangler", "bin", "wrangler.js");
-  if (!existsSync(bin)) fail("wrangler is not installed. Run `npm ci` first.");
+  if (!existsSync(bin)) fail("wrangler is not installed. Run `npm install` first.");
   return bin;
 }
 

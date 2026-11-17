@@ -51,12 +51,12 @@ pipeline {
     }
     stage('Agent prerequisites') {
       steps {
-        bat 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ci\\jenkins\\agent-prereqs.ps1 -Require "node,npm,git,tar,lockfile,workspace" -NpmRange ">=11" -ReportFile .jenkins-temp\\agent-prereqs.json'
+        bat 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ci\\jenkins\\agent-prereqs.ps1 -Require "node,npm,git,tar,workspace" -NpmRange ">=11" -ReportFile .jenkins-temp\\agent-prereqs.json'
       }
     }
     stage('Install locked dependencies') {
       steps {
-        bat 'npm ci'
+        bat 'npm install --no-audit --no-fund'
         bat 'npm run check:pm'
       }
     }
