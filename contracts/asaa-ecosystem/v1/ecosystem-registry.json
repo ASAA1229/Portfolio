@@ -17,7 +17,7 @@
       "classification": "Professional",
       "services": [
         { "service": "jarvis", "devBaseUrl": "http://127.0.0.1:3000", "manifestPath": "/.well-known/asaa-service" },
-        { "service": "jarvis-ai-gateway", "devBaseUrl": "http://127.0.0.1:3100", "manifestPath": "/v1/health" }
+        { "service": "jarvis-ai-gateway", "devBaseUrl": "http://127.0.0.1:3100", "healthPath": "/v1/health", "healthNote": "Liveness only (not a service manifest). Port is whatever JARVIS_SITE_GATEWAY_PORT is set to; 3100 is the ecosystem convention, not a built-in default." }
       ]
     },
     {
