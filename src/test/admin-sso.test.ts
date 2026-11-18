@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readAuditLog } from "@/lib/admin-audit";
 import { resetOidcCaches } from "@/lib/oidc";
+import { resetNamedLimiters } from "@/lib/login-limiter";
 import { MemoryR2 } from "./helpers/memory-r2";
 
 // The SSR entry cannot boot under Vitest; admin APIs are answered by the Worker before SSR.
@@ -200,6 +201,7 @@ function sessionCookie(response: Response): string {
 
 beforeEach(async () => {
   resetOidcCaches();
+  resetNamedLimiters();
   r2 = new MemoryR2();
   idp = new MockIdp();
   await idp.init();
@@ -464,11 +466,73 @@ describe("callback validation", () => {
       last = await finish(env, tx, { state: "wrong" }, ip);
       if (last.status === 429) break;
     }
-    const blocked = await call(env, "/api/admin/sso/start", {}, ip);
-    expect([429, 302]).toContain(blocked.status);
-    const next = await call(env, "/api/admin/sso/callback?code=x&state=y", {}, ip);
+    // Starting is a separate counter; the callback with a valid transaction is what is throttled.
+    const tx = await begin(env, ip);
+    const next = await finish(env, tx, {}, ip);
     expect(next.status).toBe(429);
     expect(Number(next.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+});
+
+describe("unauthenticated callback noise cannot lock out sign-in", () => {
+  it("lets a legitimate sign-in succeed after many transaction-less callbacks from the same client", async () => {
+    const env = baseEnv();
+    const ip = nextIp();
+    for (let i = 0; i < 10; i++) {
+      const noise = await call(env, "/api/admin/sso/callback?error=x", {}, ip);
+      expect(noise.status).toBe(302);
+      expect(noise.headers.get("location")).toBe("/admin/login?sso=failed");
+    }
+    const tx = await begin(env, ip);
+    const response = await finish(env, tx, {}, ip);
+    expect(response.headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it("does not let noise from other clients lock a shared or unknown address bucket", async () => {
+    const env = baseEnv();
+    // No cf-connecting-ip at all: the platform could not supply an address.
+    const anonymous = (path: string, init: RequestInit = {}) =>
+      server.fetch(new Request(ORIGIN + path, init), env, {});
+    for (let i = 0; i < 20; i++) await anonymous("/api/admin/sso/callback?error=x");
+    const start = await anonymous("/api/admin/sso/start");
+    expect(start.status).toBe(302);
+    const location = new URL(start.headers.get("location")!);
+    idp.pending = {
+      nonce: location.searchParams.get("nonce")!,
+      challenge: location.searchParams.get("code_challenge")!,
+      redirectUri: location.searchParams.get("redirect_uri")!,
+    };
+    const tx = start.headers.get("set-cookie")!.split(";")[0]!;
+    const done = await anonymous(
+      `/api/admin/sso/callback?code=good-code&state=${location.searchParams.get("state")}`,
+      { headers: { cookie: tx } },
+    );
+    expect(done.headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it("applies a coarse ceiling to pure noise without affecting a client holding a valid transaction", async () => {
+    const env = baseEnv();
+    const ip = nextIp();
+    const tx = await begin(env, ip);
+    let blocked = 0;
+    for (let i = 0; i < 70; i++) {
+      const noise = await call(env, "/api/admin/sso/callback?error=x", {}, ip);
+      if (noise.status === 429) blocked++;
+    }
+    expect(blocked).toBeGreaterThan(0);
+    // The valid transaction still completes: the noise ceiling is separate from the sign-in limiter.
+    expect((await finish(env, tx, {}, ip)).headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it("counts failures after a valid transaction and starts have a separate counter", async () => {
+    const env = baseEnv();
+    const ip = nextIp();
+    for (let i = 0; i < 5; i++) {
+      const tx = await begin(env, ip);
+      await finish(env, tx, { state: "wrong" }, ip);
+    }
+    const tx = await begin(env, ip);
+    expect((await finish(env, tx, {}, ip)).status).toBe(429);
   });
 });
 

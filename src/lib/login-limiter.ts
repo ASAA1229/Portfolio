@@ -240,6 +240,40 @@ export function resolveLoginLimiter(env: unknown, bucket: ObjectBucket | undefin
   return fallback;
 }
 
+const namedFallbacks = new Map<string, MemoryLoginLimiter>();
+
+/**
+ * A named limiter with its own thresholds (so different kinds of attempts never share a counter):
+ * KV when bound, then the private R2 bucket, then a per-process memory counter. Pass
+ * `memoryOnly` for unauthenticated traffic, where one storage write per request would be an
+ * amplification vector.
+ */
+export function resolveNamedLimiter(
+  env: unknown,
+  bucket: ObjectBucket | undefined,
+  name: string,
+  options: LimiterOptions,
+  memoryOnly = false,
+): LoginLimiter {
+  if (!memoryOnly) {
+    const kv = (env as { LOGIN_RATE_LIMIT_KV?: KvNamespaceLike } | undefined)?.LOGIN_RATE_LIMIT_KV;
+    if (kv && typeof kv.get === "function" && typeof kv.put === "function")
+      return new KvLoginLimiter(kv, options);
+    if (bucket) return new StorageLoginLimiter(bucket, options);
+  }
+  let limiter = namedFallbacks.get(name);
+  if (!limiter) {
+    limiter = new MemoryLoginLimiter(options);
+    namedFallbacks.set(name, limiter);
+  }
+  return limiter;
+}
+
+/** Test hook: forget every per-process named limiter. */
+export function resetNamedLimiters(): void {
+  namedFallbacks.clear();
+}
+
 let chatFallback: MemoryLoginLimiter | undefined;
 
 /**

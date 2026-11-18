@@ -87,7 +87,12 @@ import {
   resolveEventsConfig,
   type EventsConfig,
 } from "./lib/asaa-events";
-import { resolveChatLimiter, resolveLoginLimiter, type LimitDecision } from "./lib/login-limiter";
+import {
+  resolveChatLimiter,
+  resolveLoginLimiter,
+  resolveNamedLimiter,
+  type LimitDecision,
+} from "./lib/login-limiter";
 import {
   adminAuthConfigured,
   adminCookieHeader,
@@ -327,7 +332,8 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
   const sso = await handleAdminSso(request, {
     path,
     env,
-    limiter: () => resolveLoginLimiter(env, resolvePrivateBucket(env)),
+    limiter: (name, options, memoryOnly) =>
+      resolveNamedLimiter(env, resolvePrivateBucket(env), name, options, memoryOnly),
     readEpoch: async () => {
       const bucket = resolvePrivateBucket(env);
       return bucket ? await readSessionEpoch(bucket) : null;
