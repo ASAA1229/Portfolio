@@ -1,3 +1,5 @@
+import { sanitizeActorLabel } from "./admin-audit";
+
 /**
  * Optional OpenID Connect single sign-on for the Admin (Authorization Code + PKCE S256, confidential
  * client). Everything here is server-side: discovery, token exchange and ID-token verification
@@ -316,16 +318,8 @@ function asStrings(value: unknown): string[] {
 }
 
 export function sanitizeUsername(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback.slice(0, 128);
-  const cleaned = Array.from(value)
-    .filter((char) => {
-      const code = char.codePointAt(0) ?? 0;
-      return code > 0x1f && code !== 0x7f;
-    })
-    .join("")
-    .trim()
-    .slice(0, 128);
-  return cleaned || fallback.slice(0, 128);
+  const cleaned = typeof value === "string" ? sanitizeActorLabel(value) : "";
+  return cleaned || sanitizeActorLabel(fallback);
 }
 
 export async function verifyIdToken(

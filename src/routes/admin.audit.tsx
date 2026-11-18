@@ -31,6 +31,7 @@ function AuditHistory() {
       [
         entry.action,
         entry.actor,
+        entry.actorLabel ?? "",
         entry.outcome,
         entry.targets.join(" "),
         String(entry.status),
@@ -156,7 +157,9 @@ function AuditHistory() {
                   <td className="break-all p-3 font-mono text-xs">
                     {entry.targets.join(", ") || "—"}
                   </td>
-                  <td className="p-3">{entry.actor}</td>
+                  <td className="p-3">
+                    {entry.actorLabel ? `${entry.actorLabel} (${entry.actor})` : entry.actor}
+                  </td>
                   <td className="p-3">
                     {entry.outcome} ({entry.status})
                   </td>

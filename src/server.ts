@@ -323,7 +323,8 @@ async function isAdminAuthorized(request: Request, env: unknown): Promise<boolea
 }
 
 /** Who is acting: SSO identity, the legacy password admin, or the local development bypass. */
-type AdminActor = { actor: string; sub?: string };
+/** `actor` is the stable key (SSO subject); `label` is a display name only. */
+type AdminActor = { actor: string; label?: string };
 
 async function resolveAdminActor(request: Request, env: unknown): Promise<AdminActor | null> {
   if (adminAuthBypassed(env)) return { actor: "local-dev" };
@@ -333,7 +334,7 @@ async function resolveAdminActor(request: Request, env: unknown): Promise<AdminA
     const session = await readAdminSession(request, env, await readSessionEpoch(bucket));
     if (!session || !sessionAcceptable(session, env)) return null;
     return session.identity
-      ? { actor: session.identity.username || session.identity.sub, sub: session.identity.sub }
+      ? { actor: session.identity.sub, label: session.identity.username }
       : { actor: "password-admin" };
   } catch {
     return null;
@@ -3018,7 +3019,7 @@ async function auditAdminMutation(
   try {
     const entry = await appendAdminAudit(bucket, {
       actor: who.actor,
-      ...(who.sub ? { actorSub: who.sub } : {}),
+      ...(who.label ? { actorLabel: who.label } : {}),
       action,
       targets,
       status: response.status,
@@ -3103,7 +3104,7 @@ function reportAdminEvent(input: {
           ? "rejected"
           : "failed";
   if (targets.length) data["targets"] = targets;
-  data["actor"] = who.sub ?? who.actor;
+  data["actor"] = who.actor;
   const envelope = buildEnvelope(config, {
     ...(auditId ? { id: auditId } : {}),
     type,
@@ -3227,10 +3228,7 @@ export default {
       const ssoOutcome = ssoOutcomes.get(response);
       const who: AdminActor =
         ssoOutcome?.kind === "login"
-          ? {
-              actor: ssoOutcome.identity.username || ssoOutcome.identity.sub,
-              sub: ssoOutcome.identity.sub,
-            }
+          ? { actor: ssoOutcome.identity.sub, label: ssoOutcome.identity.username }
           : requestPath === "/api/admin/login"
             ? { actor: adminAuthBypassed(env) ? "local-dev" : "password-admin" }
             : (preActor ?? { actor: "unknown" });

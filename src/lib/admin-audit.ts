@@ -11,17 +11,19 @@ export const AUDIT_LOG_KEY = "private-admin/audit/log.json";
 export const AUDIT_ARCHIVE_PREFIX = "private-admin/audit/archive/";
 export const SESSION_EPOCH_KEY = "private-admin/session-epoch.json";
 const MAX_ACTIVE_ENTRIES = 1000;
+const AUDIT_WRITE_ATTEMPTS = 8;
 
 export interface AdminAuditEntry {
   id: string;
   at: string;
   /**
-   * Who acted: the SSO username (or subject), "password-admin" for the legacy password login,
-   * "local-dev" for the development bypass. Older entries may say "owner".
+   * Who acted, as a stable key: the SSO subject, "password-admin" for the legacy password login,
+   * "local-dev" for the development bypass, "anonymous" for unauthenticated attempts. Older entries
+   * may say "owner".
    */
   actor: string;
-  /** Opaque SSO subject when the session came from single sign-on. */
-  actorSub?: string;
+  /** Display label only (the SSO username, sanitized). Never used for matching or authorization. */
+  actorLabel?: string;
   action: string;
   /** Resource ids parsed from the route, e.g. resume/image ids or profile ids. */
   targets: string[];
@@ -36,12 +38,44 @@ interface AuditLog {
 }
 
 interface JsonStorage {
-  get(key: string): Promise<{ json<T>(): Promise<T> } | null>;
+  get(key: string): Promise<{ json<T>(): Promise<T>; etag?: string | undefined } | null>;
   put(
     key: string,
     value: string,
-    options?: { httpMetadata?: { contentType?: string } },
+    options?: {
+      httpMetadata?: { contentType?: string };
+      onlyIf?: { etagMatches?: string; etagDoesNotMatch?: string };
+    },
   ): Promise<unknown>;
+}
+
+/**
+ * Characters that must never reach an audit label: C0/C1 controls, soft hyphen, zero-width and
+ * bidirectional formatting characters (including the isolates and embeddings that can visually
+ * reorder text), line/paragraph separators, BOM and interlinear annotation marks.
+ */
+const UNSAFE_RANGES: [number, number][] = [
+  [0x0000, 0x001f],
+  [0x007f, 0x009f],
+  [0x00ad, 0x00ad],
+  [0x061c, 0x061c],
+  [0x180e, 0x180e],
+  [0x200b, 0x200f],
+  [0x2028, 0x202e],
+  [0x2060, 0x206f],
+  [0xfeff, 0xfeff],
+  [0xfff9, 0xfffb],
+];
+
+export function sanitizeActorLabel(value: string, max = 128): string {
+  return Array.from(value)
+    .filter((char) => {
+      const code = char.codePointAt(0) ?? 0;
+      return !UNSAFE_RANGES.some(([from, to]) => code >= from && code <= to);
+    })
+    .join("")
+    .trim()
+    .slice(0, max);
 }
 
 const JSON_TYPE = { httpMetadata: { contentType: "application/json; charset=utf-8" } };
@@ -86,27 +120,43 @@ export async function appendAdminAudit(
   entry: Omit<AdminAuditEntry, "id" | "at">,
   now = new Date(),
 ): Promise<AdminAuditEntry> {
-  const log = await readAuditLog(storage);
   const full: AdminAuditEntry = {
     id: crypto.randomUUID(),
     at: now.toISOString(),
     ...entry,
+    actor: sanitizeActorLabel(entry.actor) || "unknown",
+    ...(entry.actorLabel ? { actorLabel: sanitizeActorLabel(entry.actorLabel) } : {}),
     action: entry.action.slice(0, 120),
     targets: entry.targets.slice(0, 8).map((target) => target.slice(0, 64)),
   };
-  if (log.entries.length >= MAX_ACTIVE_ENTRIES) {
-    // Seal the full log into an archive object; never rewrite existing entries.
-    await storage.put(
-      `${AUDIT_ARCHIVE_PREFIX}${log.startedAt.replace(/[:.]/g, "-")}.json`,
-      JSON.stringify(log),
-      JSON_TYPE,
-    );
-    log.startedAt = now.toISOString();
-    log.entries = [];
+  // Read-modify-write with an etag precondition (where the provider enforces it) and jittered retries,
+  // so two concurrent admin actions cannot silently overwrite each other's audit entry.
+  for (let attempt = 0; attempt < AUDIT_WRITE_ATTEMPTS; attempt++) {
+    const object = await storage.get(AUDIT_LOG_KEY);
+    const value = object ? await object.json<unknown>() : null;
+    if (value !== null && !isAuditLog(value)) throw new Error("Admin audit log failed validation.");
+    const log: AuditLog = value ?? { version: 1, startedAt: now.toISOString(), entries: [] };
+    if (log.entries.length >= MAX_ACTIVE_ENTRIES) {
+      // Seal the full log into an archive object (same key for the same log, so a retry is harmless);
+      // never rewrite existing entries.
+      await storage.put(
+        `${AUDIT_ARCHIVE_PREFIX}${log.startedAt.replace(/[:.]/g, "-")}.json`,
+        JSON.stringify(log),
+        JSON_TYPE,
+      );
+      log.startedAt = now.toISOString();
+      log.entries = [];
+    }
+    log.entries.push(full);
+    const etag = object?.etag;
+    const result = await storage.put(AUDIT_LOG_KEY, JSON.stringify(log), {
+      ...JSON_TYPE,
+      onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
+    });
+    if (result !== null) return full;
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 15 * 2 ** attempt));
   }
-  log.entries.push(full);
-  await storage.put(AUDIT_LOG_KEY, JSON.stringify(log), JSON_TYPE);
-  return full;
+  throw new Error("Admin audit log was modified concurrently; entry not recorded.");
 }
 
 export async function readSessionEpoch(storage: JsonStorage | undefined): Promise<string> {

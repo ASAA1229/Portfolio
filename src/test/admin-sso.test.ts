@@ -331,9 +331,13 @@ describe("successful sign-in", () => {
     expect(password.status).toBe(200);
 
     const log = await readAuditLog(r2);
-    const actors = log.entries.map((entry) => [entry.action, entry.actor, entry.actorSub ?? null]);
-    expect(actors).toContainEqual(["GET sso/callback", "alice", "kc-user-1234"]);
-    expect(actors).toContainEqual(["POST session/renew", "alice", "kc-user-1234"]);
+    const actors = log.entries.map((entry) => [
+      entry.action,
+      entry.actor,
+      entry.actorLabel ?? null,
+    ]);
+    expect(actors).toContainEqual(["GET sso/callback", "kc-user-1234", "alice"]);
+    expect(actors).toContainEqual(["POST session/renew", "kc-user-1234", "alice"]);
     expect(actors).toContainEqual(["POST login", "password-admin", null]);
   });
 
@@ -359,7 +363,9 @@ describe("successful sign-in", () => {
     ).toBe(404);
     const log = await readAuditLog(r2);
     expect(
-      log.entries.some((entry) => entry.action === "POST logout-all" && entry.actor === "alice"),
+      log.entries.some(
+        (entry) => entry.action === "POST logout-all" && entry.actor === "kc-user-1234",
+      ),
     ).toBe(true);
   });
 
@@ -758,5 +764,79 @@ describe("absolute SSO session lifetime and SSO-only enforcement", () => {
     expect(
       (await call(env, "/api/admin/session", { headers: { cookie: sessionCookie(login) } })).status,
     ).toBe(200);
+  });
+});
+
+describe("audit attribution and label hygiene", () => {
+  it("keys entries by subject and strips bidi/format/control characters from the display label", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    // Right-to-left override, zero-width space, isolate, C1 control and a newline inside the name.
+    const c = (code: number) => String.fromCharCode(code);
+    idp.claims = () => ({
+      preferred_username: [
+        "al",
+        c(0x202e),
+        "ce",
+        c(0x200b),
+        c(0x2066),
+        c(0x85),
+        "x",
+        c(10),
+        c(0x2069),
+      ].join(""),
+    });
+    const response = await finish(env, tx);
+    expect(response.headers.get("location")).toBe("/admin/resumes");
+    const cookie = sessionCookie(response);
+    await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+    const entry = (await readAuditLog(r2)).entries.find((e) => e.action === "POST session/renew")!;
+    expect(entry.actor).toBe("kc-user-1234");
+    expect(entry.actorLabel).toBe("alcex");
+    const codes = Array.from(JSON.stringify(entry)).map((ch) => ch.codePointAt(0)!);
+    expect(
+      codes.some(
+        (code) => (code >= 0x80 && code <= 0x9f) || [0x202e, 0x200b, 0x2066, 0x2069].includes(code),
+      ),
+    ).toBe(false);
+  });
+
+  it("two users with the same username stay distinguishable by subject", async () => {
+    const env = baseEnv();
+    for (const sub of ["kc-user-aaaa", "kc-user-bbbb"]) {
+      const tx = await begin(env, nextIp());
+      idp.claims = () => ({ sub, preferred_username: "alice" });
+      const cookie = sessionCookie(await finish(env, tx));
+      await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+    }
+    const actors = (await readAuditLog(r2)).entries
+      .filter((e) => e.action === "POST session/renew")
+      .map((e) => e.actor);
+    expect(actors).toEqual(["kc-user-aaaa", "kc-user-bbbb"]);
+  });
+
+  it("does not lose audit entries when admin actions are recorded concurrently", async () => {
+    r2.interleave = true; // every storage operation yields so writers interleave
+    const env = baseEnv();
+    const login = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    const cookie = sessionCookie(login);
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } }),
+      ),
+    );
+    const renewals = (await readAuditLog(r2)).entries.filter(
+      (e) => e.action === "POST session/renew",
+    );
+    expect(renewals).toHaveLength(8);
   });
 });
