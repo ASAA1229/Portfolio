@@ -36,6 +36,10 @@ class MockIdp {
   claims: () => Record<string, unknown> = () => ({});
   signWith: "good" | "other" | "none" | "hs256" = "good";
   tokenStatus = 200;
+  jwksFetches = 0;
+  /** When set, the JWKS publishes this kid while tokens still carry `kid`. */
+  jwksKid: string | undefined;
+  discoveryOverrides: Record<string, string> = {};
 
   async init() {
     const algorithm = {
@@ -96,11 +100,13 @@ class MockIdp {
         authorization_endpoint: `${ISSUER}/protocol/openid-connect/auth`,
         token_endpoint: `${ISSUER}/protocol/openid-connect/token`,
         jwks_uri: `${ISSUER}/protocol/openid-connect/certs`,
+        ...this.discoveryOverrides,
       });
     }
     if (url === `${ISSUER}/protocol/openid-connect/certs`) {
+      this.jwksFetches++;
       return Response.json({
-        keys: [{ ...this.jwk, kid: this.kid, use: "sig", alg: "RS256" }],
+        keys: [{ ...this.jwk, kid: this.jwksKid ?? this.kid, use: "sig", alg: "RS256" }],
       });
     }
     if (url === `${ISSUER}/protocol/openid-connect/token`) {
@@ -1033,4 +1039,52 @@ describe("identity size cap", () => {
       .pop()!;
     expect(loginEntry.actor).toBe(last.actor);
   });
+});
+
+describe("JWKS refetch cooldown and issuer-origin pinning", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("refetches the key set at most once per 60 seconds for unknown key ids", async () => {
+    const env = baseEnv();
+    const attempt = async () => {
+      const ip = nextIp();
+      const tx = await begin(env, ip);
+      idp.kid = "rotated-unknown-kid"; // the token names a key the published set does not have
+      idp.jwksKid = "published-kid";
+      await finish(env, tx, {}, ip);
+      idp.kid = "mock-kid-1";
+      idp.jwksKid = undefined;
+    };
+    // First unknown kid: the set is fetched once (cold cache), and the forced refetch is suppressed.
+    await attempt();
+    const first = idp.jwksFetches;
+    expect(first).toBe(1);
+    for (let i = 0; i < 5; i++) await attempt();
+    expect(idp.jwksFetches).toBe(first); // still cooling down: no further IdP calls
+    // After the cooldown a single refetch is allowed again.
+    vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
+    await attempt();
+    expect(idp.jwksFetches).toBe(first + 1);
+  });
+
+  it("still picks up a rotated key after the cooldown", async () => {
+    const env = baseEnv();
+    const warm = await begin(env, nextIp());
+    expect((await finish(env, warm)).headers.get("location")).toBe("/admin/resumes");
+    idp.kid = "rotated-kid-2";
+    vi.useFakeTimers({ now: Date.now() + 61_000, toFake: ["Date"] });
+    const tx = await begin(env, nextIp());
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+  });
+
+  it.each(["token_endpoint", "authorization_endpoint", "jwks_uri"])(
+    "rejects a discovery document whose %s is on another origin",
+    async (field) => {
+      const env = baseEnv();
+      idp.discoveryOverrides = { [field]: "http://127.0.0.1:9999/elsewhere" };
+      const response = await call(env, "/api/admin/sso/start", {}, nextIp());
+      expect(response.status).toBe(502);
+      expect(response.headers.get("location")).toBeNull();
+    },
+  );
 });

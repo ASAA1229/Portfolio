@@ -194,6 +194,7 @@ export interface OidcDiscovery {
 }
 
 const CACHE_MS = 10 * 60 * 1000;
+const JWKS_REFETCH_COOLDOWN_MS = 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_JSON_BYTES = 256 * 1024;
 const discoveryCache = new Map<string, { at: number; value: OidcDiscovery }>();
@@ -233,8 +234,12 @@ export async function discover(config: OidcConfig): Promise<OidcDiscovery> {
   // The advertised issuer must match the configured one exactly (mix-up defence), and every
   // endpoint must itself be https (or loopback).
   if (value.issuer.replace(/\/+$/, "") !== config.issuer) throw new Error("Issuer mismatch");
+  const issuerOrigin = new URL(config.issuer).origin;
   for (const endpoint of [value.authorization_endpoint, value.token_endpoint, value.jwks_uri]) {
     if (!isSecureOrLoopbackUrlAllowingQuery(endpoint)) throw new Error("Insecure endpoint");
+    // Pin every endpoint to the issuer's origin: a compromised or spoofed discovery document cannot
+    // send the authorization code, client secret or key fetches to another host.
+    if (new URL(endpoint).origin !== issuerOrigin) throw new Error("Endpoint origin mismatch");
   }
   discoveryCache.set(config.issuer, { at: Date.now(), value });
   return value;
@@ -254,6 +259,9 @@ function isSecureOrLoopbackUrlAllowingQuery(raw: string): boolean {
 async function loadKeys(discovery: OidcDiscovery, force: boolean): Promise<JsonWebKey[]> {
   const cached = jwksCache.get(discovery.jwks_uri);
   if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.keys;
+  // Unknown-kid refetches are the only unauthenticated way to make us call the IdP: allow one per
+  // cooldown window, otherwise serve what we already have.
+  if (force && cached && Date.now() - cached.at < JWKS_REFETCH_COOLDOWN_MS) return cached.keys;
   const doc = (await fetchJson(discovery.jwks_uri)) as { keys?: unknown };
   const keys = Array.isArray(doc.keys) ? (doc.keys as JsonWebKey[]) : [];
   jwksCache.set(discovery.jwks_uri, { at: Date.now(), keys });
