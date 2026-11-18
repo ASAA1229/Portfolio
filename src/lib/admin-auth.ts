@@ -1,5 +1,7 @@
 const COOKIE_NAME = "portfolio_admin_session";
 const SESSION_SECONDS = 60 * 60 * 8;
+/** Absolute lifetime of a signed-in (SSO) session: renewal can never extend beyond issue time + this. */
+export const ADMIN_SESSION_SECONDS = SESSION_SECONDS;
 
 type SecretEnv = Record<string, unknown>;
 
@@ -97,21 +99,34 @@ export interface AdminIdentity {
   username: string;
 }
 
-function encodeIdentity(identity: AdminIdentity): string {
+function encodeIdentity(identity: AdminIdentity, issuedAt: number): string {
   return bytesToBase64Url(
     new TextEncoder().encode(
-      JSON.stringify({ s: identity.sub.slice(0, 128), u: identity.username.slice(0, 128) }),
+      JSON.stringify({
+        s: identity.sub.slice(0, 128),
+        u: identity.username.slice(0, 128),
+        i: issuedAt,
+      }),
     ),
   );
 }
 
-function decodeIdentity(value: string): AdminIdentity | null {
+function decodeIdentity(
+  value: string,
+): { identity: AdminIdentity; issuedAt: number | null } | null {
   const bytes = base64UrlToBytes(value);
   if (!bytes) return null;
   try {
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { s?: unknown; u?: unknown };
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as {
+      s?: unknown;
+      u?: unknown;
+      i?: unknown;
+    };
     if (typeof parsed.s !== "string" || typeof parsed.u !== "string" || !parsed.s) return null;
-    return { sub: parsed.s, username: parsed.u };
+    return {
+      identity: { sub: parsed.s, username: parsed.u },
+      issuedAt: typeof parsed.i === "number" && Number.isSafeInteger(parsed.i) ? parsed.i : null,
+    };
   } catch {
     return null;
   }
@@ -126,12 +141,21 @@ export async function createAdminCookie(
   env?: unknown,
   epoch = "0",
   identity?: AdminIdentity,
+  /** Original sign-in time (seconds) when renewing an SSO session; defaults to now. */
+  issuedAt?: number,
 ): Promise<string | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
-  const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  const payload = identity ? `${expires}~${encodeIdentity(identity)}` : String(expires);
+  const now = Math.floor(Date.now() / 1000);
+  // SSO sessions have an absolute lifetime measured from the original sign-in: renewal never
+  // extends past it, and a renewal after it returns null.
+  const issued = identity ? (issuedAt ?? now) : now;
+  const expires = identity
+    ? Math.min(now + SESSION_SECONDS, issued + SESSION_SECONDS)
+    : now + SESSION_SECONDS;
+  if (expires <= now) return null;
+  const payload = identity ? `${expires}~${encodeIdentity(identity, issued)}` : String(expires);
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 
@@ -143,12 +167,15 @@ export async function isAdminRequest(
   return (await readAdminSession(request, env, epoch)) !== null;
 }
 
-/** Verified session for the request, or null. `identity` is null for password sessions. */
+/**
+ * Verified session for the request, or null. `identity` is null for password sessions; SSO sessions
+ * also report `issuedAt` (the original sign-in time), which bounds their absolute lifetime.
+ */
 export async function readAdminSession(
   request: Request,
   env?: unknown,
   epoch = "0",
-): Promise<{ identity: AdminIdentity | null } | null> {
+): Promise<{ identity: AdminIdentity | null; issuedAt: number | null } | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
@@ -179,9 +206,13 @@ export async function readAdminSession(
   )
     return null;
   if (!constantTimeEqual(signature, await hmac(payload, key))) return null;
-  if (encodedIdentity === undefined) return { identity: null };
-  const identity = decodeIdentity(encodedIdentity);
-  return identity ? { identity } : null;
+  if (encodedIdentity === undefined) return { identity: null, issuedAt: null };
+  const decoded = decodeIdentity(encodedIdentity);
+  if (!decoded) return null;
+  // Cookies minted before issue times were recorded: the session started one lifetime before expiry.
+  const issuedAt = decoded.issuedAt ?? expiry - SESSION_SECONDS;
+  if (issuedAt + SESSION_SECONDS <= Math.floor(Date.now() / 1000)) return null;
+  return { identity: decoded.identity, issuedAt };
 }
 
 /**

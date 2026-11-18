@@ -80,6 +80,7 @@ class MockIdp {
       sub: "kc-user-1234",
       preferred_username: "alice",
       iat: now,
+      auth_time: now,
       exp: now + 300,
       nonce: this.pending?.nonce,
       amr: ["pwd", "otp"],
@@ -607,5 +608,155 @@ describe("password login option", () => {
     const { response } = await signIn(env);
     const cookie = sessionCookie(response);
     expect((await call(env, "/api/admin/session", { headers: { cookie } })).status).toBe(200);
+  });
+});
+
+describe("fresh authentication (max_age)", () => {
+  it("requires a fresh login by default: max_age=0 and prompt=login", async () => {
+    const { location } = await begin(baseEnv(), nextIp());
+    expect(location.searchParams.get("max_age")).toBe("0");
+    expect(location.searchParams.get("prompt")).toBe("login");
+  });
+
+  it("supports a configurable window without forcing a prompt", async () => {
+    const env = baseEnv({ PORTFOLIO_OIDC_MAX_AGE: "300" });
+    const { location } = await begin(env, nextIp());
+    expect(location.searchParams.get("max_age")).toBe("300");
+    expect(location.searchParams.has("prompt")).toBe(false);
+    const tx = await begin(env, nextIp());
+    idp.claims = () => ({ auth_time: Math.floor(Date.now() / 1000) - 100 });
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
+    const stale = await begin(env, nextIp());
+    idp.claims = () => ({ auth_time: Math.floor(Date.now() / 1000) - 3600 });
+    expect((await finish(env, stale)).headers.get("location")).toBe("/admin/login?sso=failed");
+  });
+
+  it.each([
+    ["missing auth_time", { auth_time: undefined }],
+    [
+      "authentication older than max_age=0 allows",
+      { auth_time: Math.floor(Date.now() / 1000) - 3600 },
+    ],
+  ])("rejects a token with %s", async (_label, claims) => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => claims;
+    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+  });
+});
+
+describe("absolute SSO session lifetime and SSO-only enforcement", () => {
+  const expiryOf = (cookie: string) => Number(cookie.split("=")[1]!.split(".")[0]!.split("~")[0]);
+
+  afterEach(() => vi.useRealTimers());
+
+  it("never extends a session past eight hours from the original sign-in", async () => {
+    const env = baseEnv();
+    const start = Date.now();
+    const { response } = await signIn(env);
+    let cookie = sessionCookie(response);
+    const issuedExpiry = expiryOf(cookie);
+    vi.useFakeTimers({ now: start + 7 * 3600_000, toFake: ["Date"] });
+    let renewed = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+    });
+    expect(renewed.status).toBe(200);
+    cookie = sessionCookie(renewed);
+    // A normal renewal would reach start+15h; the absolute cap keeps it at the original expiry.
+    expect(expiryOf(cookie)).toBe(issuedExpiry);
+    vi.setSystemTime(start + 7.9 * 3600_000);
+    renewed = await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+    expect(renewed.status).toBe(200);
+    expect(expiryOf(sessionCookie(renewed))).toBe(issuedExpiry);
+    // Past the absolute maximum nothing works, including renewal.
+    vi.setSystemTime(start + 8 * 3600_000 + 5_000);
+    expect((await call(env, "/api/admin/session", { headers: { cookie } })).status).toBe(404);
+    expect(
+      (await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } })).status,
+    ).toBe(404);
+  });
+
+  it("keeps password sessions on the normal sliding renewal", async () => {
+    const env = baseEnv();
+    const login = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    const cookie = sessionCookie(login);
+    const first = expiryOf(cookie);
+    vi.useFakeTimers({ now: Date.now() + 3600_000, toFake: ["Date"] });
+    const renewed = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+    });
+    expect(expiryOf(sessionCookie(renewed))).toBeGreaterThan(first);
+  });
+
+  it("rejects password/legacy cookies once the password form is disabled and SSO is live", async () => {
+    const env = baseEnv();
+    const login = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    const passwordCookie = sessionCookie(login);
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: passwordCookie } })).status,
+    ).toBe(200);
+
+    const ssoOnlyEnv = baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" });
+    expect(
+      (await call(ssoOnlyEnv, "/api/admin/session", { headers: { cookie: passwordCookie } }))
+        .status,
+    ).toBe(404);
+    expect(
+      (
+        await call(ssoOnlyEnv, "/api/admin/session/renew", {
+          method: "POST",
+          headers: { cookie: passwordCookie },
+        })
+      ).status,
+    ).toBe(404);
+
+    const { response } = await signIn(ssoOnlyEnv);
+    expect(
+      (
+        await call(ssoOnlyEnv, "/api/admin/session", {
+          headers: { cookie: sessionCookie(response) },
+        })
+      ).status,
+    ).toBe(200);
+  });
+
+  it("does not lock out the password admin when the flag is set but SSO is not configured", async () => {
+    const env = {
+      ...baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" }),
+      PORTFOLIO_OIDC_CLIENT_SECRET: "",
+    };
+    const login = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: sessionCookie(login) } })).status,
+    ).toBe(200);
   });
 });

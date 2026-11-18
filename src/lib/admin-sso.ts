@@ -165,6 +165,7 @@ export async function handleAdminSso(
         n: nonce,
         v: verifier,
         r: redirectUri,
+        t: Math.floor(Date.now() / 1000),
         e: Math.floor(Date.now() / 1000) + TX_SECONDS,
       }),
       env,
@@ -197,7 +198,14 @@ export async function handleAdminSso(
   // unauthenticated callback noise can never lock the real administrator out.
   const rawTx = readTxCookie(request);
   const txText = rawTx ? await verifyAdminValue(rawTx, env) : null;
-  let tx: { s?: unknown; n?: unknown; v?: unknown; r?: unknown; e?: unknown } | null;
+  let tx: {
+    s?: unknown;
+    n?: unknown;
+    v?: unknown;
+    r?: unknown;
+    e?: unknown;
+    t?: unknown;
+  } | null;
   try {
     tx = txText ? (JSON.parse(txText) as Record<string, unknown>) : null;
   } catch {
@@ -211,7 +219,7 @@ export async function handleAdminSso(
     typeof tx.r === "string" &&
     typeof tx.e === "number" &&
     tx.e >= Math.floor(Date.now() / 1000)
-      ? { s: tx.s, n: tx.n, v: tx.v, r: tx.r }
+      ? { s: tx.s, n: tx.n, v: tx.v, r: tx.r, t: typeof tx.t === "number" ? tx.t : undefined }
       : null;
 
   if (!validTx) {
@@ -264,7 +272,10 @@ export async function handleAdminSso(
       verifier: validTx.v,
       redirectUri: validTx.r,
     });
-    identity = await verifyIdToken(idToken, discovery, config, { nonce: validTx.n });
+    identity = await verifyIdToken(idToken, discovery, config, {
+      nonce: validTx.n,
+      ...(validTx.t !== undefined ? { startedAt: validTx.t } : {}),
+    });
   } catch (error) {
     return fail(
       error instanceof OidcVerificationError

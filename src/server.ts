@@ -77,7 +77,7 @@ import { extractResumeText } from "./lib/resume-extraction";
 import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
-import { passwordLoginAllowed, resolveOidcConfig } from "./lib/oidc";
+import { passwordLoginAllowed, resolveOidcConfig, ssoOnly } from "./lib/oidc";
 import {
   buildEnvelope,
   classifyAdminEvent,
@@ -100,6 +100,8 @@ import {
   adminCookieHeader,
   clearAdminCookieHeader,
   createAdminCookie,
+  ADMIN_SESSION_SECONDS,
+  type AdminIdentity,
   readAdminSession,
   verifyAdminPassword,
 } from "./lib/admin-auth";
@@ -294,6 +296,18 @@ function adminAuthBypassed(env: unknown): boolean {
   return runtimeBypass || localDevBypass;
 }
 
+/**
+ * A verified session is acceptable unless SSO-only mode is on (SSO configured and the password form
+ * disabled), in which case identity-less (password/legacy) cookies are rejected.
+ */
+function sessionAcceptable(
+  session: { identity: AdminIdentity | null } | null,
+  env: unknown,
+): boolean {
+  if (!session) return false;
+  return session.identity !== null || !ssoOnly(env);
+}
+
 async function isAdminAuthorized(request: Request, env: unknown): Promise<boolean> {
   if (adminAuthBypassed(env)) return true;
   // Missing/unavailable storage must not silently fall back to epoch 0, which
@@ -302,7 +316,7 @@ async function isAdminAuthorized(request: Request, env: unknown): Promise<boolea
   if (!bucket) return false;
   try {
     const epoch = await readSessionEpoch(bucket);
-    return (await readAdminSession(request, env, epoch)) !== null;
+    return sessionAcceptable(await readAdminSession(request, env, epoch), env);
   } catch {
     return false;
   }
@@ -317,7 +331,7 @@ async function resolveAdminActor(request: Request, env: unknown): Promise<AdminA
   if (!bucket) return null;
   try {
     const session = await readAdminSession(request, env, await readSessionEpoch(bucket));
-    if (!session) return null;
+    if (!session || !sessionAcceptable(session, env)) return null;
     return session.identity
       ? { actor: session.identity.username || session.identity.sub, sub: session.identity.sub }
       : { actor: "password-admin" };
@@ -458,7 +472,26 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     try {
       const epoch = await readSessionEpoch(bucket);
       const current = adminAuthBypassed(env) ? null : await readAdminSession(request, env, epoch);
-      const cookie = await createAdminCookie(env, epoch, current?.identity ?? undefined);
+      // SSO sessions have an absolute lifetime from the original sign-in: renewal never extends it.
+      if (
+        current?.identity &&
+        current.issuedAt !== null &&
+        current.issuedAt + ADMIN_SESSION_SECONDS <= Math.floor(Date.now() / 1000)
+      ) {
+        return jsonResponse(
+          { error: "This session reached its maximum lifetime. Sign in again." },
+          401,
+          {
+            "set-cookie": clearAdminCookieHeader(new URL(request.url).protocol === "https:"),
+          },
+        );
+      }
+      const cookie = await createAdminCookie(
+        env,
+        epoch,
+        current?.identity ?? undefined,
+        current?.issuedAt ?? undefined,
+      );
       if (!cookie) return jsonResponse({ error: "Admin authentication is not configured." }, 503);
       return jsonResponse({ ok: true }, 200, {
         "set-cookie": adminCookieHeader(cookie, new URL(request.url).protocol === "https:"),

@@ -9,6 +9,8 @@
  *   PORTFOLIO_OIDC_ROLE_CLAIM      dotted claim path holding roles/groups (default "realm_access.roles")
  *   PORTFOLIO_OIDC_MFA_AMR         comma list; amr must contain one (default "otp,mfa")
  *   PORTFOLIO_OIDC_MFA_ACR         optional comma list; an acr in this list is also accepted as MFA
+ *   PORTFOLIO_OIDC_MAX_AGE         seconds; the IdP must have authenticated the user this recently (default 0 =
+ *                                  fresh login with MFA every time; sent as max_age, plus prompt=login for 0)
  *   PORTFOLIO_OIDC_REDIRECT_URI    optional explicit callback URL (default <origin>/api/admin/sso/callback)
  *   PORTFOLIO_ADMIN_PASSWORD_LOGIN "false" disables the password form once SSO is live
  */
@@ -21,6 +23,8 @@ export interface OidcConfig {
   roleClaim: string;
   mfaAmr: string[];
   mfaAcr: string[];
+  /** Maximum age of the IdP authentication in seconds; 0 forces a fresh sign-in. */
+  maxAge: number;
   redirectUri: string | null;
 }
 
@@ -59,6 +63,11 @@ const list = (value: string | undefined, fallback: string[]) =>
         .filter(Boolean)
     : fallback;
 
+function parseMaxAge(value: string | undefined): number {
+  if (value === undefined || !/^\d{1,5}$/.test(value)) return 0;
+  return Math.min(Number(value), 86_400);
+}
+
 export function resolveOidcConfig(env: Env | unknown): OidcConfig | null {
   const issuerRaw = setting(env, "PORTFOLIO_OIDC_ISSUER");
   const clientId = setting(env, "PORTFOLIO_OIDC_CLIENT_ID");
@@ -84,8 +93,14 @@ export function resolveOidcConfig(env: Env | unknown): OidcConfig | null {
     roleClaim: setting(env, "PORTFOLIO_OIDC_ROLE_CLAIM") ?? "realm_access.roles",
     mfaAmr: list(setting(env, "PORTFOLIO_OIDC_MFA_AMR"), ["otp", "mfa"]),
     mfaAcr: list(setting(env, "PORTFOLIO_OIDC_MFA_ACR"), []),
+    maxAge: parseMaxAge(setting(env, "PORTFOLIO_OIDC_MAX_AGE")),
     redirectUri: redirectRaw ?? null,
   };
+}
+
+/** SSO is live and the owner turned the password form off: only SSO sessions are valid. */
+export function ssoOnly(env: unknown): boolean {
+  return resolveOidcConfig(env) !== null && !passwordLoginAllowed(env);
 }
 
 /** The password form stays available unless SSO is live AND the owner explicitly turned it off. */
@@ -221,6 +236,9 @@ export function authorizationUrl(
   url.searchParams.set("nonce", input.nonce);
   url.searchParams.set("code_challenge", input.challenge);
   url.searchParams.set("code_challenge_method", "S256");
+  // Admin sign-in requires fresh authentication (and therefore fresh MFA) within maxAge seconds.
+  url.searchParams.set("max_age", String(config.maxAge));
+  if (config.maxAge === 0) url.searchParams.set("prompt", "login");
   return url.toString();
 }
 
@@ -314,7 +332,10 @@ export async function verifyIdToken(
   idToken: string,
   discovery: OidcDiscovery,
   config: OidcConfig,
-  expected: { nonce: string },
+  expected: {
+    nonce: string;
+    /** Transaction start (seconds), the lower bound for auth_time when maxAge is 0. */ startedAt?: number;
+  },
   nowSeconds = Math.floor(Date.now() / 1000),
 ): Promise<VerifiedIdentity> {
   const parts = idToken.split(".");
@@ -377,6 +398,18 @@ export async function verifyIdToken(
   const nbf = claims["nbf"];
   if (typeof nbf === "number" && nbf - skew > nowSeconds)
     throw new OidcVerificationError("not_yet_valid");
+  // max_age was requested, so the IdP must report when the user actually authenticated.
+  const authTime = claims["auth_time"];
+  if (typeof authTime !== "number" || !Number.isFinite(authTime))
+    throw new OidcVerificationError("auth_time_missing");
+  if (nowSeconds - authTime > config.maxAge + skew)
+    throw new OidcVerificationError("stale_authentication");
+  if (
+    config.maxAge === 0 &&
+    expected.startedAt !== undefined &&
+    authTime + skew < expected.startedAt
+  )
+    throw new OidcVerificationError("stale_authentication");
   if (typeof claims["nonce"] !== "string" || claims["nonce"] !== expected.nonce)
     throw new OidcVerificationError("bad_nonce");
   const sub = claims["sub"];
