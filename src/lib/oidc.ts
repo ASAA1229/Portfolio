@@ -100,15 +100,55 @@ export function resolveOidcConfig(env: Env | unknown): OidcConfig | null {
   };
 }
 
-/** SSO is live and the owner turned the password form off: only SSO sessions are valid. */
-export function ssoOnly(env: unknown): boolean {
-  return resolveOidcConfig(env) !== null && !passwordLoginAllowed(env);
+const FLAG_OFF = ["false", "0", "off", "no"];
+const FLAG_ON = ["true", "1", "on", "yes", ""];
+const warned = new Set<string>();
+
+function warnOnce(message: string): void {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(message);
 }
 
-/** The password form stays available unless SSO is live AND the owner explicitly turned it off. */
+/** Test hook: let the one-time warnings fire again. */
+export function resetOidcWarnings(): void {
+  warned.clear();
+}
+
+/** SSO can actually sign people in: complete OIDC settings AND a strong session-signing secret. */
+function ssoUsable(env: unknown): boolean {
+  const secret = setting(env, "PORTFOLIO_ADMIN_SESSION_SECRET");
+  return (
+    resolveOidcConfig(env) !== null && !!secret && new TextEncoder().encode(secret).byteLength >= 32
+  );
+}
+
+/**
+ * Whether the password form is available. PORTFOLIO_ADMIN_PASSWORD_LOGIN accepts false/0/off/no (disable)
+ * and true/1/on/yes (enable). An unrecognized value fails closed: it is treated as "disable", but only
+ * while SSO is usable, so a typo can never lock the administrator out of every sign-in method. When
+ * SSO-only is requested but SSO is not usable the password form stays on, with a one-time warning.
+ */
 export function passwordLoginAllowed(env: unknown): boolean {
-  if (!resolveOidcConfig(env)) return true;
-  return setting(env, "PORTFOLIO_ADMIN_PASSWORD_LOGIN")?.toLowerCase() !== "false";
+  const raw = setting(env, "PORTFOLIO_ADMIN_PASSWORD_LOGIN")?.toLowerCase();
+  if (raw === undefined || FLAG_ON.includes(raw)) return true;
+  const unrecognized = !FLAG_OFF.includes(raw);
+  if (!ssoUsable(env)) {
+    warnOnce(
+      "PORTFOLIO_ADMIN_PASSWORD_LOGIN asks for SSO-only sign-in but SSO is not usable (incomplete OIDC settings or weak session secret); the password login stays enabled.",
+    );
+    return true;
+  }
+  if (unrecognized)
+    warnOnce(
+      "PORTFOLIO_ADMIN_PASSWORD_LOGIN has an unrecognized value; treating it as disabled (SSO-only). Use true or false.",
+    );
+  return false;
+}
+
+/** SSO is live and the owner turned the password form off: only SSO sessions are valid. */
+export function ssoOnly(env: unknown): boolean {
+  return ssoUsable(env) && !passwordLoginAllowed(env);
 }
 
 // ---------------------------------------------------------------------------------------------

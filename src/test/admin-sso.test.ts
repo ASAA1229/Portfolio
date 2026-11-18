@@ -4,7 +4,7 @@
 // endpoints) that signs ID tokens with an RSA key generated here. Nothing talks to a real Keycloak.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readAuditLog } from "@/lib/admin-audit";
-import { resetOidcCaches } from "@/lib/oidc";
+import { resetOidcCaches, resetOidcWarnings } from "@/lib/oidc";
 import { resetNamedLimiters } from "@/lib/login-limiter";
 import { MemoryR2 } from "./helpers/memory-r2";
 
@@ -202,6 +202,7 @@ function sessionCookie(response: Response): string {
 
 beforeEach(async () => {
   resetOidcCaches();
+  resetOidcWarnings();
   resetNamedLimiters();
   r2 = new MemoryR2();
   idp = new MockIdp();
@@ -838,5 +839,68 @@ describe("audit attribution and label hygiene", () => {
       (e) => e.action === "POST session/renew",
     );
     expect(renewals).toHaveLength(8);
+  });
+});
+
+describe("password-login flag parsing (fails closed)", () => {
+  const options = async (env: object) =>
+    (await (await call(env, "/api/admin/login/options")).json()) as {
+      sso: boolean;
+      password: boolean;
+    };
+
+  it.each(["false", "FALSE", "0", "off", "No", " false "])(
+    "%j disables the password form with SSO live",
+    async (value) => {
+      expect((await options(baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: value }))).password).toBe(
+        false,
+      );
+    },
+  );
+
+  it.each(["true", "TRUE", "1", "on", "yes", ""])("%j keeps the password form", async (value) => {
+    expect((await options(baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: value }))).password).toBe(true);
+  });
+
+  it("treats an unrecognized value as SSO-only when SSO is usable, with a single warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const env = baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "flase" });
+    expect((await options(env)).password).toBe(false);
+    expect((await options(env)).password).toBe(false);
+    const login = await call(
+      env,
+      "/api/admin/login",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password: "test-admin-password" }),
+      },
+      nextIp(),
+    );
+    expect(login.status).toBe(403);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes("unrecognized"))).toHaveLength(1);
+  });
+
+  it("keeps password login and warns once when SSO-only is requested but SSO is not usable", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const incomplete = {
+      ...baseEnv({ PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false" }),
+      PORTFOLIO_OIDC_CLIENT_SECRET: "",
+    };
+    expect((await options(incomplete)).password).toBe(true);
+    expect((await options(incomplete)).password).toBe(true);
+    const weakSecret = baseEnv({
+      PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false",
+      PORTFOLIO_ADMIN_SESSION_SECRET: "too-short",
+    });
+    expect((await options(weakSecret)).password).toBe(true);
+    const badIssuer = baseEnv({
+      PORTFOLIO_ADMIN_PASSWORD_LOGIN: "false",
+      PORTFOLIO_OIDC_ISSUER: "http://idp.example.test/realms/asaa",
+    });
+    expect((await options(badIssuer)).password).toBe(true);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes("SSO is not usable"))).toHaveLength(
+      1,
+    );
   });
 });
