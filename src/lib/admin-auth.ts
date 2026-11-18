@@ -99,16 +99,35 @@ export interface AdminIdentity {
   username: string;
 }
 
-function encodeIdentity(identity: AdminIdentity, issuedAt: number): string {
-  return bytesToBase64Url(
-    new TextEncoder().encode(
-      JSON.stringify({
-        s: identity.sub.slice(0, 128),
-        u: identity.username.slice(0, 128),
-        i: issuedAt,
-      }),
-    ),
-  );
+/** Upper bound for the identity JSON inside the cookie (about 480 base64url characters). */
+const MAX_IDENTITY_JSON_BYTES = 360;
+const MAX_SUB_BYTES = 96;
+
+/**
+ * Compact the identity so the cookie always stays inside its size budget, whatever the IdP sends. A
+ * subject longer than MAX_SUB_BYTES is replaced by a stable SHA-256 pseudonym ("h:" + 32 hex), which
+ * stays unique per subject and is what audit entries key on; the display name is shortened by code
+ * point until the whole payload fits. Neither can make a valid sign-in produce an unreadable cookie.
+ */
+/** The stable audit/session key for a subject: itself when short, otherwise a SHA-256 pseudonym. */
+export async function compactSubject(sub: string): Promise<string> {
+  const encoder = new TextEncoder();
+  if (encoder.encode(sub).byteLength <= MAX_SUB_BYTES) return sub;
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(sub)));
+  return `h:${[...digest.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+async function encodeIdentity(identity: AdminIdentity, issuedAt: number): Promise<string> {
+  const encoder = new TextEncoder();
+  const sub = await compactSubject(identity.sub);
+  const build = (username: string) => JSON.stringify({ s: sub, u: username, i: issuedAt });
+  let username = Array.from(identity.username);
+  while (
+    username.length > 0 &&
+    encoder.encode(build(username.join(""))).byteLength > MAX_IDENTITY_JSON_BYTES
+  )
+    username = username.slice(0, Math.max(0, username.length - 4));
+  return bytesToBase64Url(encoder.encode(build(username.join(""))));
 }
 
 function decodeIdentity(
@@ -155,7 +174,9 @@ export async function createAdminCookie(
     ? Math.min(now + SESSION_SECONDS, issued + SESSION_SECONDS)
     : now + SESSION_SECONDS;
   if (expires <= now) return null;
-  const payload = identity ? `${expires}~${encodeIdentity(identity, issued)}` : String(expires);
+  const payload = identity
+    ? `${expires}~${await encodeIdentity(identity, issued)}`
+    : String(expires);
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 

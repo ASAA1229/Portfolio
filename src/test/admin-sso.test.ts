@@ -981,3 +981,56 @@ describe("transaction cookie hardening (https)", () => {
     expect(cookie).not.toContain("Secure");
   });
 });
+
+describe("identity size cap", () => {
+  const cjk = "漢".repeat(128);
+  const longSub = `sub-${"é漢".repeat(80)}`; // 160 characters, far beyond 96 bytes
+
+  it("keeps a valid session for a 128-character CJK username and a very long non-ASCII subject", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => ({ sub: longSub, preferred_username: cjk });
+    const response = await finish(env, tx);
+    expect(response.headers.get("location")).toBe("/admin/resumes");
+    const cookie = sessionCookie(response);
+    expect(cookie.length).toBeLessThan(800); // always inside the cookie size budget
+    expect((await call(env, "/api/admin/session", { headers: { cookie } })).status).toBe(200);
+    const renewed = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie },
+    });
+    expect(renewed.status).toBe(200);
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: sessionCookie(renewed) } }))
+        .status,
+    ).toBe(200);
+  });
+
+  it("keys long subjects by a stable, unique pseudonym and keeps a non-empty truncated label", async () => {
+    const env = baseEnv();
+    const keys: string[] = [];
+    for (const sub of [longSub, longSub, `${longSub}-other`]) {
+      const tx = await begin(env, nextIp());
+      idp.claims = () => ({ sub, preferred_username: cjk });
+      const cookie = sessionCookie(await finish(env, tx));
+      await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+      const entries = (await readAuditLog(r2)).entries.filter(
+        (e) => e.action === "POST session/renew",
+      );
+      keys.push(entries[entries.length - 1]!.actor);
+    }
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys[0]).toMatch(/^h:[0-9a-f]{32}$/);
+    const last = (await readAuditLog(r2)).entries
+      .filter((e) => e.action === "POST session/renew")
+      .pop()!;
+    expect(last.actorLabel!.length).toBeGreaterThan(0);
+    expect(last.actorLabel!.length).toBeLessThanOrEqual(128);
+    // The SSO login entry and later entries agree on the key.
+    const loginEntry = (await readAuditLog(r2)).entries
+      .filter((e) => e.action === "GET sso/callback")
+      .pop()!;
+    expect(loginEntry.actor).toBe(last.actor);
+  });
+});

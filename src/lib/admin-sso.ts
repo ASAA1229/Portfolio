@@ -16,6 +16,7 @@
  */
 import {
   adminCookieHeader,
+  compactSubject,
   createAdminCookie,
   signAdminValue,
   verifyAdminValue,
@@ -296,10 +297,12 @@ export async function handleAdminSso(
       verifier: validTx.v,
       redirectUri: validTx.r,
     });
-    identity = await verifyIdToken(idToken, discovery, config, {
+    const verified = await verifyIdToken(idToken, discovery, config, {
       nonce: validTx.n,
       ...(validTx.t !== undefined ? { startedAt: validTx.t } : {}),
     });
+    // Long subjects are replaced by a stable pseudonym so the session cookie and audit key agree.
+    identity = { ...verified, sub: await compactSubject(verified.sub) };
   } catch (error) {
     return fail(
       error instanceof OidcVerificationError
