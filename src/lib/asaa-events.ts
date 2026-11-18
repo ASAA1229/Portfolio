@@ -193,6 +193,8 @@ interface OutboxEntry {
   envelope: EventEnvelope;
   attempts: number;
   nextAt: number;
+  /** Security events are evicted only after every routine event has been. Absent = routine. */
+  priority?: "security" | "routine";
 }
 interface Outbox {
   version: 1;
@@ -246,15 +248,76 @@ async function mutateOutbox(bucket: OutboxBucket, change: (outbox: Outbox) => vo
   throw new Error("Event outbox was modified concurrently.");
 }
 
+/**
+ * Security-relevant events (anything above info severity, and content/persona changes) outrank routine
+ * noise such as ordinary logins when the outbox is full.
+ */
+export function eventPriority(envelope: EventEnvelope): "security" | "routine" {
+  return envelope.severity !== "info" || /^portfolio\.admin\.(persona|content)-/.test(envelope.type)
+    ? "security"
+    : "routine";
+}
+
 export async function enqueueEvent(bucket: OutboxBucket, envelope: EventEnvelope): Promise<void> {
   await mutateOutbox(bucket, (outbox) => {
     if (outbox.entries.some((entry) => entry.envelope.id === envelope.id)) return;
-    outbox.entries.push({ envelope, attempts: 0, nextAt: 0 });
+    outbox.entries.push({ envelope, attempts: 0, nextAt: 0, priority: eventPriority(envelope) });
     while (outbox.entries.length > OUTBOX_MAX) {
-      outbox.entries.shift();
+      // Evict the oldest routine event first; only when every entry is a security event does the
+      // oldest security event go.
+      const routine = outbox.entries.findIndex((entry) => entry.priority !== "security");
+      outbox.entries.splice(routine >= 0 ? routine : 0, 1);
       outbox.dropped += 1;
     }
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Emission limits for unauthenticated traffic (per process)
+// ---------------------------------------------------------------------------------------------
+
+const FAILURE_WINDOW_MS = 15 * 60 * 1000;
+const FAILURE_REPORT_AT = [1, 5];
+const MAX_TRACKED_CLIENTS = 1000;
+const failureCounts = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * Failed sign-ins are aggregated per client per window instead of one event per attempt: the first
+ * failure and the one that reaches the lockout threshold are reported (with the running count), the
+ * rest are only counted. Memory is bounded, and the client address never leaves this process.
+ */
+export function aggregateLoginFailure(
+  clientKey: string,
+  now = Date.now(),
+): { report: boolean; attempts: number } {
+  for (const [key, entry] of failureCounts) if (entry.resetAt <= now) failureCounts.delete(key);
+  let entry = failureCounts.get(clientKey);
+  if (!entry) {
+    if (failureCounts.size >= MAX_TRACKED_CLIENTS) {
+      const oldest = failureCounts.keys().next().value;
+      if (oldest !== undefined) failureCounts.delete(oldest);
+    }
+    entry = { count: 0, resetAt: now + FAILURE_WINDOW_MS };
+    failureCounts.set(clientKey, entry);
+  }
+  entry.count += 1;
+  return { report: FAILURE_REPORT_AT.includes(entry.count), attempts: entry.count };
+}
+
+const PROBE_FLUSH_MIN_MS = 30_000;
+let lastProbeFlush = 0;
+
+/** The manifest probe may trigger a delivery retry at most once per 30 s per process. */
+export function probeFlushDue(now = Date.now()): boolean {
+  if (now - lastProbeFlush < PROBE_FLUSH_MIN_MS) return false;
+  lastProbeFlush = now;
+  return true;
+}
+
+/** Test hook: forget per-process emission state. */
+export function resetEventThrottles(): void {
+  failureCounts.clear();
+  lastProbeFlush = 0;
 }
 
 /** Health of event delivery for the service manifest. */

@@ -12,8 +12,10 @@ import {
   flushEvents,
   OUTBOX_KEY,
   OUTBOX_MAX,
+  resetEventThrottles,
   resolveEventsConfig,
 } from "@/lib/asaa-events";
+import { resetNamedLimiters } from "@/lib/login-limiter";
 import { MemoryR2 } from "./helpers/memory-r2";
 
 vi.mock("@tanstack/react-start/server-entry", () => ({
@@ -47,6 +49,8 @@ let received: Received[];
 let respond: (call: Received) => Response | Promise<Response>;
 
 beforeEach(() => {
+  resetEventThrottles();
+  resetNamedLimiters();
   received = [];
   respond = () => new Response(null, { status: 201 });
   vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
@@ -242,6 +246,132 @@ describe("outbox delivery (mock ASAA)", () => {
     respond = () => new Response(null, { status: 500 });
     await flushEvents(r2, config);
     expect(await eventsCheck(r2, config)).toBe("degraded");
+  });
+});
+
+describe("flood resistance", () => {
+  it("evicts routine events before security events when the outbox is full", async () => {
+    const r2 = new MemoryR2();
+    const security = buildEnvelope(config, {
+      type: "portfolio.admin.backup-restored",
+      severity: "warning",
+      data: {},
+    });
+    await enqueueEvent(r2, security);
+    for (let i = 0; i < OUTBOX_MAX + 50; i++)
+      await enqueueEvent(r2, envelope("portfolio.admin.login"));
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { envelope: { id: string } }[];
+      dropped: number;
+    }>();
+    expect(stored.entries).toHaveLength(OUTBOX_MAX);
+    expect(stored.entries.some((entry) => entry.envelope.id === security.id)).toBe(true);
+  });
+
+  it("evicts the oldest security event only when every entry is a security event", async () => {
+    const r2 = new MemoryR2();
+    const first = buildEnvelope(config, {
+      type: "portfolio.admin.logout-all",
+      severity: "warning",
+      data: {},
+    });
+    await enqueueEvent(r2, first);
+    for (let i = 0; i < OUTBOX_MAX; i++)
+      await enqueueEvent(
+        r2,
+        buildEnvelope(config, {
+          type: "portfolio.admin.logout-all",
+          severity: "warning",
+          data: {},
+        }),
+      );
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { envelope: { id: string } }[];
+    }>();
+    expect(stored.entries).toHaveLength(OUTBOX_MAX);
+    expect(stored.entries.some((entry) => entry.envelope.id === first.id)).toBe(false);
+  });
+
+  const settleAll = async (pending: Promise<unknown>[]) =>
+    void (await Promise.all(pending.splice(0)));
+
+  it("aggregates failed logins per client and never reports throttled attempts", async () => {
+    const r2 = new MemoryR2();
+    const env = {
+      ENVIRONMENT: "test",
+      PORTFOLIO_ADMIN_PASSWORD: "test-admin-password",
+      PORTFOLIO_ADMIN_SESSION_SECRET: "test-session-secret-with-sufficient-length",
+      RESUME_BUCKET: r2,
+      ...EVENTS_ENV,
+    };
+    const pending: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (promise: Promise<unknown>) => void pending.push(promise) };
+    const statuses: number[] = [];
+    for (let i = 0; i < 60; i++) {
+      const response = await server.fetch(
+        new Request(`${ORIGIN}/api/admin/login`, {
+          method: "POST",
+          headers: {
+            origin: ORIGIN,
+            "content-type": "application/json",
+            "cf-connecting-ip": "flood-client",
+          },
+          body: JSON.stringify({ password: "wrong-password-value" }),
+        }),
+        env,
+        ctx,
+      );
+      statuses.push(response.status);
+    }
+    await settleAll(pending);
+    expect(statuses).toContain(429);
+    const failed = received.filter((call) => call.body["type"] === "portfolio.admin.login-failed");
+    // 5 real rejections before the lockout: reported at attempt 1 and attempt 5 only.
+    expect(failed.map((call) => (call.body["data"] as { attempts: number }).attempts)).toEqual([
+      1, 5,
+    ]);
+    expect(received.length).toBeLessThanOrEqual(2);
+  });
+
+  it("does not report transaction-less SSO callbacks at all", async () => {
+    const r2 = new MemoryR2();
+    const env = {
+      ENVIRONMENT: "test",
+      PORTFOLIO_ADMIN_SESSION_SECRET: "test-session-secret-with-sufficient-length",
+      PORTFOLIO_OIDC_ISSUER: "http://127.0.0.1:8280/realms/asaa",
+      PORTFOLIO_OIDC_CLIENT_ID: "portfolio-admin",
+      PORTFOLIO_OIDC_CLIENT_SECRET: "mock-secret",
+      RESUME_BUCKET: r2,
+      ...EVENTS_ENV,
+    };
+    const pending: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (promise: Promise<unknown>) => void pending.push(promise) };
+    for (let i = 0; i < 20; i++) {
+      await server.fetch(new Request(`${ORIGIN}/api/admin/sso/callback?error=x`), env, ctx);
+    }
+    await settleAll(pending);
+    expect(received).toHaveLength(0);
+    expect(await r2.get(OUTBOX_KEY)).toBeNull();
+  });
+
+  it("throttles manifest-triggered delivery retries to one per 30 seconds", async () => {
+    const r2 = new MemoryR2();
+    const env = { ENVIRONMENT: "test", RESUME_BUCKET: r2, ...EVENTS_ENV };
+    await enqueueEvent(r2, envelope());
+    respond = () => new Response(null, { status: 201 });
+    const pending: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (promise: Promise<unknown>) => void pending.push(promise) };
+    for (let i = 0; i < 10; i++) {
+      await server.fetch(new Request(`${ORIGIN}/.well-known/asaa-service`), env, ctx);
+    }
+    await settleAll(pending);
+    expect(received).toHaveLength(1); // delivered once; later probes within 30 s did not flush
+    await enqueueEvent(r2, envelope("portfolio.admin.logout"));
+    for (let i = 0; i < 5; i++) {
+      await server.fetch(new Request(`${ORIGIN}/.well-known/asaa-service`), env, ctx);
+    }
+    await settleAll(pending);
+    expect(received).toHaveLength(1); // still inside the 30 s window
   });
 });
 

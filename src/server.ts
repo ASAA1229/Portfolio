@@ -83,7 +83,9 @@ import {
   classifyAdminEvent,
   enqueueEvent,
   eventsCheck,
+  aggregateLoginFailure,
   flushEvents,
+  probeFlushDue,
   resolveEventsConfig,
   type EventsConfig,
 } from "./lib/asaa-events";
@@ -3035,15 +3037,29 @@ function reportAdminEvent(input: {
     type = ssoOutcome.kind === "login" ? "portfolio.admin.login" : "portfolio.admin.login-failed";
     severity = ssoOutcome.kind === "login" ? "info" : "warning";
     data["method"] = "sso";
-    if (ssoOutcome.kind === "login-failed") data["reason"] = ssoOutcome.reason.slice(0, 60);
+    if (ssoOutcome.kind === "login-failed") {
+      // Callbacks without a valid signed transaction are noise anyone can generate: never reported.
+      if (!ssoOutcome.provenTx) return;
+      data["reason"] = ssoOutcome.reason.slice(0, 60);
+    }
   } else {
     const classified = classifyAdminEvent({ method: request.method, path, status });
     if (!classified) return;
+    // Only a real credential rejection is a login-failed event; throttled (429), unavailable (503)
+    // or disabled (403) responses are never reported, and attempts are aggregated below.
+    if (classified.type === "portfolio.admin.login-failed" && status !== 401) return;
     type = classified.type;
     severity = classified.severity;
     subject = classified.subject;
     targets = classified.targets;
     if (path === "/api/admin/login") data["method"] = "password";
+  }
+  if (type === "portfolio.admin.login-failed") {
+    const aggregate = aggregateLoginFailure(
+      request.headers.get("cf-connecting-ip")?.slice(0, 128) ?? "unknown",
+    );
+    if (!aggregate.report) return;
+    data["attempts"] = aggregate.attempts;
   }
   data["outcome"] =
     ssoOutcome?.kind === "login-failed"
@@ -3333,7 +3349,8 @@ async function handleServiceManifest(
     (typeof process !== "undefined" ? process.env["ENVIRONMENT"] : undefined);
   // ASAA polls this endpoint, so it also retries any queued events (no separate cron required).
   const eventsConfig = resolveEventsConfig(env);
-  if (eventsConfig && bucket) runInBackground(ctx, flushEvents(bucket, eventsConfig));
+  if (eventsConfig && bucket && probeFlushDue())
+    runInBackground(ctx, flushEvents(bucket, eventsConfig));
   const asaaEvents = await eventsCheck(bucket, eventsConfig);
   const manifest = buildServiceManifest({
     version: typeof __PORTFOLIO_VERSION__ !== "undefined" ? __PORTFOLIO_VERSION__ : undefined,
