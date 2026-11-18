@@ -12,6 +12,7 @@ import {
   flushEvents,
   OUTBOX_KEY,
   OUTBOX_MAX,
+  parseRetryAfter,
   resetEventThrottles,
   resolveEventsConfig,
 } from "@/lib/asaa-events";
@@ -500,5 +501,77 @@ describe("producer wired into the Worker", () => {
     expect(manifest.checks.asaaEvents).toBe("ok");
     const stored = await (await r2.get(OUTBOX_KEY))!.json<{ entries: unknown[] }>();
     expect(stored.entries).toHaveLength(0);
+  });
+});
+
+describe("rate limiting and contention", () => {
+  it("parses Retry-After as seconds or an HTTP date, bounded", () => {
+    expect(parseRetryAfter("120")).toBe(120_000);
+    expect(parseRetryAfter("9999999")).toBe(3_600_000);
+    expect(parseRetryAfter("0")).toBe(1000);
+    expect(parseRetryAfter("garbage")).toBe(60_000);
+    expect(parseRetryAfter(null)).toBe(60_000);
+    const now = Date.parse("2026-01-01T00:00:00Z");
+    expect(parseRetryAfter("Thu, 01 Jan 2026 00:05:00 GMT", now)).toBe(300_000);
+  });
+
+  it("stops the batch on 429, honors Retry-After and does not consume attempts", async () => {
+    const r2 = new MemoryR2();
+    await enqueueEvent(r2, envelope());
+    await enqueueEvent(r2, envelope("portfolio.admin.logout"));
+    respond = () => new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    const first = await flushEvents(r2, config, { now: 5_000_000 });
+    expect(first).toMatchObject({ delivered: 0, dropped: 0, pending: 2 });
+    expect(received).toHaveLength(1);
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { attempts: number; nextAt: number }[];
+    }>();
+    expect(stored.entries.map((entry) => entry.attempts)).toEqual([0, 0]);
+    expect(stored.entries.every((entry) => entry.nextAt === 5_000_000 + 120_000)).toBe(true);
+    // Inside the Retry-After window nothing is sent.
+    await flushEvents(r2, config, { now: 5_000_000 + 119_000 });
+    expect(received).toHaveLength(1);
+    // After it, delivery resumes.
+    respond = () => new Response(null, { status: 201 });
+    expect(await flushEvents(r2, config, { now: 5_000_000 + 121_000 })).toMatchObject({
+      delivered: 2,
+      pending: 0,
+    });
+  });
+
+  it("counts events lost to outbox contention and surfaces it in the check", async () => {
+    const r2 = new MemoryR2();
+    const realPut = r2.put.bind(r2);
+    let failing = true;
+    r2.put = (async (...args: Parameters<MemoryR2["put"]>) =>
+      failing ? null : realPut(...args)) as MemoryR2["put"];
+    await enqueueEvent(r2, envelope()); // every attempt fails the precondition: resolves, never throws
+    expect(await eventsCheck(r2, config)).toBe("degraded");
+    failing = false;
+    await enqueueEvent(r2, envelope("portfolio.admin.logout"));
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{ lost?: number; lostAt?: number }>();
+    expect(stored.lost).toBe(1);
+    expect(typeof stored.lostAt).toBe("number");
+    expect(await eventsCheck(r2, config)).toBe("degraded");
+    vi.useFakeTimers({ now: Date.now() + 2 * 3_600_000, toFake: ["Date"] });
+    try {
+      // The failed-then-recorded loss ages out; the queued entry has never failed delivery.
+      expect(await eventsCheck(r2, config)).toBe("ok");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps every event when several writers contend (jittered CAS retries)", async () => {
+    const r2 = new MemoryR2();
+    r2.interleave = true;
+    const events = Array.from({ length: 6 }, () => envelope());
+    await Promise.all(events.map((event) => enqueueEvent(r2, event)));
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { envelope: { id: string } }[];
+    }>();
+    expect(stored.entries.map((entry) => entry.envelope.id).sort()).toEqual(
+      events.map((event) => event.id).sort(),
+    );
   });
 });

@@ -200,6 +200,9 @@ interface Outbox {
   version: 1;
   dropped: number;
   entries: OutboxEntry[];
+  /** Events that could not be queued because the outbox stayed contended, and when it last happened. */
+  lost?: number;
+  lostAt?: number;
 }
 
 export interface OutboxBucket {
@@ -234,18 +237,42 @@ async function readOutbox(bucket: OutboxBucket): Promise<{ outbox: Outbox; etag?
   return { outbox: value, ...(object.etag ? { etag: object.etag } : {}) };
 }
 
-/** Read-modify-write with an etag precondition where the provider supports it; a few retries. */
+const CAS_ATTEMPTS = 8;
+/** Events lost to outbox contention in this process that are not yet recorded in the outbox itself. */
+let pendingLost = 0;
+
+class OutboxContentionError extends Error {
+  constructor() {
+    super("Event outbox was modified concurrently.");
+    this.name = "OutboxContentionError";
+  }
+}
+
+/**
+ * Read-modify-write with an etag precondition where the provider supports it. Retries use jittered,
+ * growing delays so concurrent writers spread out instead of colliding in lockstep. Contention losses
+ * recorded in this process are folded into the outbox on the next successful write.
+ */
 async function mutateOutbox(bucket: OutboxBucket, change: (outbox: Outbox) => void): Promise<void> {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt++) {
     const { outbox, etag } = await readOutbox(bucket);
     change(outbox);
+    const folded = pendingLost;
+    if (folded > 0) {
+      outbox.lost = (outbox.lost ?? 0) + folded;
+      outbox.lostAt = Date.now();
+    }
     const result = await bucket.put(OUTBOX_KEY, JSON.stringify(outbox), {
       httpMetadata: { contentType: "application/json; charset=utf-8" },
       onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
     });
-    if (result !== null) return;
+    if (result !== null) {
+      pendingLost = Math.max(0, pendingLost - folded);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.random() * 10 * 2 ** attempt));
   }
-  throw new Error("Event outbox was modified concurrently.");
+  throw new OutboxContentionError();
 }
 
 /**
@@ -259,17 +286,24 @@ export function eventPriority(envelope: EventEnvelope): "security" | "routine" {
 }
 
 export async function enqueueEvent(bucket: OutboxBucket, envelope: EventEnvelope): Promise<void> {
-  await mutateOutbox(bucket, (outbox) => {
-    if (outbox.entries.some((entry) => entry.envelope.id === envelope.id)) return;
-    outbox.entries.push({ envelope, attempts: 0, nextAt: 0, priority: eventPriority(envelope) });
-    while (outbox.entries.length > OUTBOX_MAX) {
-      // Evict the oldest routine event first; only when every entry is a security event does the
-      // oldest security event go.
-      const routine = outbox.entries.findIndex((entry) => entry.priority !== "security");
-      outbox.entries.splice(routine >= 0 ? routine : 0, 1);
-      outbox.dropped += 1;
-    }
-  });
+  try {
+    await mutateOutbox(bucket, (outbox) => {
+      if (outbox.entries.some((entry) => entry.envelope.id === envelope.id)) return;
+      outbox.entries.push({ envelope, attempts: 0, nextAt: 0, priority: eventPriority(envelope) });
+      while (outbox.entries.length > OUTBOX_MAX) {
+        // Evict the oldest routine event first; only when every entry is a security event does the
+        // oldest security event go.
+        const routine = outbox.entries.findIndex((entry) => entry.priority !== "security");
+        outbox.entries.splice(routine >= 0 ? routine : 0, 1);
+        outbox.dropped += 1;
+      }
+    });
+  } catch (error) {
+    if (!(error instanceof OutboxContentionError)) throw error;
+    // Lost to contention: count it so it shows in checks.asaaEvents instead of vanishing silently.
+    pendingLost += 1;
+    console.error("ASAA event lost: the outbox stayed contended.");
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -318,6 +352,7 @@ export function probeFlushDue(now = Date.now()): boolean {
 export function resetEventThrottles(): void {
   failureCounts.clear();
   lastProbeFlush = 0;
+  pendingLost = 0;
 }
 
 /** Health of event delivery for the service manifest. */
@@ -330,18 +365,42 @@ export async function eventsCheck(
   try {
     const { outbox } = await readOutbox(bucket);
     if (outbox.entries.length >= OUTBOX_MAX) return "down";
+    const recentlyLost =
+      pendingLost > 0 || (outbox.lostAt !== undefined && Date.now() - outbox.lostAt < 60 * 60_000);
+    if (recentlyLost) return "degraded";
     return outbox.entries.some((entry) => entry.attempts > 0) ? "degraded" : "ok";
   } catch {
     return "degraded";
   }
 }
 
-type Delivery = "delivered" | "drop" | "retry" | "stop";
+type Delivery =
+  | { kind: "delivered" | "drop" | "retry" | "stop" }
+  /** 429: the receiver asked us to back off; not counted as a failed attempt. */
+  | { kind: "rate-limited"; retryAfterMs: number };
+
+const DEFAULT_RETRY_AFTER_MS = 60_000;
+const MAX_RETRY_AFTER_MS = 60 * 60_000;
+
+/** Retry-After as delta-seconds or an HTTP date, bounded to 1 s .. 1 h; 60 s when absent or invalid. */
+export function parseRetryAfter(header: string | null, now = Date.now()): number {
+  if (!header) return DEFAULT_RETRY_AFTER_MS;
+  const value = header.trim();
+  let ms: number;
+  if (/^\d{1,7}$/.test(value)) ms = Number(value) * 1000;
+  else {
+    const at = Date.parse(value);
+    if (Number.isNaN(at)) return DEFAULT_RETRY_AFTER_MS;
+    ms = at - now;
+  }
+  return Math.min(Math.max(ms, 1000), MAX_RETRY_AFTER_MS);
+}
 
 async function deliver(
   config: EventsConfig,
   envelope: EventEnvelope,
   fetchFn: typeof fetch,
+  now: number,
 ): Promise<Delivery> {
   try {
     const response = await fetchFn(`${config.url}/api/v1/integration/events`, {
@@ -357,13 +416,18 @@ async function deliver(
     });
     await response.body?.cancel().catch(() => undefined);
     const status = response.status;
-    if (status >= 200 && status < 300) return "delivered";
-    if (status === 409) return "delivered"; // idempotent re-delivery: already accepted
-    if (status === 400 || status === 413 || status === 422) return "drop"; // will never be accepted
-    if (status === 401 || status === 403 || status >= 500) return "stop"; // endpoint/credential problem
-    return "retry";
+    if (status >= 200 && status < 300) return { kind: "delivered" };
+    if (status === 409) return { kind: "delivered" }; // idempotent re-delivery: already accepted
+    if (status === 429)
+      return {
+        kind: "rate-limited",
+        retryAfterMs: parseRetryAfter(response.headers.get("retry-after"), now),
+      };
+    if (status === 400 || status === 413 || status === 422) return { kind: "drop" }; // never acceptable
+    if (status === 401 || status === 403 || status >= 500) return { kind: "stop" }; // endpoint or credential
+    return { kind: "retry" };
   } catch {
-    return "stop"; // network error or timeout: stop the batch and retry later
+    return { kind: "stop" }; // network error or timeout: stop the batch and retry later
   }
 }
 
@@ -385,13 +449,19 @@ export async function flushEvents(
     const dropped = new Set<string>();
     const failed = new Map<string, number>();
     let stopped = false;
+    let rateLimitedMs = 0;
     for (const entry of due) {
-      const result = await deliver(config, entry.envelope, fetchFn);
-      if (result === "delivered") delivered.add(entry.envelope.id);
-      else if (result === "drop") dropped.add(entry.envelope.id);
-      else {
+      const result = await deliver(config, entry.envelope, fetchFn, now);
+      if (result.kind === "delivered") delivered.add(entry.envelope.id);
+      else if (result.kind === "drop") dropped.add(entry.envelope.id);
+      else if (result.kind === "rate-limited") {
+        // Honor Retry-After for this entry and everything behind it; no attempt is consumed.
+        stopped = true;
+        rateLimitedMs = result.retryAfterMs;
+        break;
+      } else {
         failed.set(entry.envelope.id, entry.attempts + 1);
-        if (result === "stop") {
+        if (result.kind === "stop") {
           stopped = true;
           break;
         }
@@ -430,7 +500,7 @@ export async function flushEvents(
             entry.attempts = attempts;
             entry.nextAt = backoff(attempts);
           } else if (deferred.has(entry.envelope.id)) {
-            entry.nextAt = backoff(1);
+            entry.nextAt = rateLimitedMs > 0 ? now + rateLimitedMs : backoff(1);
           }
         }
         box.dropped += dropped.size;
