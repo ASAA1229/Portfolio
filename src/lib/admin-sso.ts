@@ -73,18 +73,33 @@ function clientAddress(request: Request): string | undefined {
   return value ? value.slice(0, 128) : undefined;
 }
 
+/**
+ * Over https the transaction cookie uses the `__Host-` prefix, which the browser only accepts when it
+ * is Secure, has Path=/ and carries no Domain, so a sibling subdomain cannot plant or overwrite it.
+ * (That prefix forbids a narrower path.) Over loopback http the plain name and a narrow path are used.
+ */
+function txCookieName(secure: boolean): string {
+  return secure ? `__Host-${TX_COOKIE}` : TX_COOKIE;
+}
+
 function txCookie(value: string, secure: boolean, maxAge: number): string {
-  return `${TX_COOKIE}=${value}; Path=${SSO_PATH}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${
+  const path = secure ? "/" : SSO_PATH;
+  return `${txCookieName(secure)}=${value}; Path=${path}; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${
     secure ? "; Secure" : ""
   }`;
 }
 
-function readTxCookie(request: Request): string | undefined {
-  return (request.headers.get("cookie") ?? "")
+/** The transaction cookie value; `duplicate` is set when the name appears more than once. */
+function readTxCookie(
+  request: Request,
+  secure: boolean,
+): { value: string | undefined; duplicate: boolean } {
+  const name = txCookieName(secure);
+  const matches = (request.headers.get("cookie") ?? "")
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith(`${TX_COOKIE}=`))
-    ?.slice(TX_COOKIE.length + 1);
+    .filter((part) => part.startsWith(`${name}=`));
+  return { value: matches[0]?.slice(name.length + 1), duplicate: matches.length > 1 };
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -196,7 +211,9 @@ export async function handleAdminSso(
 
   // Prove the caller holds a transaction we signed BEFORE touching any shared counter, so
   // unauthenticated callback noise can never lock the real administrator out.
-  const rawTx = readTxCookie(request);
+  const presented = readTxCookie(request, secure);
+  // Two cookies with the transaction name are ambiguous (one may have been planted): reject outright.
+  const rawTx = presented.duplicate ? undefined : presented.value;
   const txText = rawTx ? await verifyAdminValue(rawTx, env) : null;
   let tx: {
     s?: unknown;
@@ -233,7 +250,14 @@ export async function handleAdminSso(
       .recordFailure("noise:global");
     if (!perClient.allowed) return tooMany(perClient.retryAfterSeconds);
     if (!global.allowed) return tooMany(global.retryAfterSeconds);
-    return failedRedirect(txText ? "expired_transaction" : "missing_transaction", false);
+    return failedRedirect(
+      presented.duplicate
+        ? "duplicate_transaction"
+        : txText
+          ? "expired_transaction"
+          : "missing_transaction",
+      false,
+    );
   }
 
   const limiter = context.limiter(

@@ -904,3 +904,80 @@ describe("password-login flag parsing (fails closed)", () => {
     );
   });
 });
+
+describe("transaction cookie hardening (https)", () => {
+  const HTTPS = "https://portfolio.test";
+  const secureCall = (env: object, path: string, headers: Record<string, string> = {}) =>
+    server.fetch(
+      new Request(HTTPS + path, { headers: { "cf-connecting-ip": nextIp(), ...headers } }),
+      env,
+      {},
+    );
+
+  async function secureBegin(env: object) {
+    const response = await secureCall(env, "/api/admin/sso/start");
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get("location")!);
+    idp.pending = {
+      nonce: location.searchParams.get("nonce")!,
+      challenge: location.searchParams.get("code_challenge")!,
+      redirectUri: location.searchParams.get("redirect_uri")!,
+    };
+    const raw = response.headers.get("set-cookie")!;
+    return { raw, cookiePair: raw.split(";")[0]!, state: location.searchParams.get("state")! };
+  }
+
+  it("uses a __Host- prefixed, Secure, Path=/ cookie without a Domain over https", async () => {
+    const { raw } = await secureBegin(baseEnv());
+    expect(raw.startsWith("__Host-portfolio_sso_tx=")).toBe(true);
+    expect(raw).toContain("Secure");
+    expect(raw).toContain("Path=/;");
+    expect(raw).toContain("HttpOnly");
+    expect(raw).toContain("SameSite=Lax");
+    expect(raw.toLowerCase()).not.toContain("domain=");
+  });
+
+  it("completes a sign-in with the __Host- cookie", async () => {
+    const env = baseEnv();
+    const tx = await secureBegin(env);
+    const done = await secureCall(env, `/api/admin/sso/callback?code=good-code&state=${tx.state}`, {
+      cookie: tx.cookiePair,
+    });
+    expect(done.headers.get("location")).toBe("/admin/resumes");
+    const cookies = done.headers.getSetCookie();
+    // The clearing header uses the same prefixed name and path so the browser really drops it.
+    expect(
+      cookies.some((c) => c.startsWith("__Host-portfolio_sso_tx=;") && c.includes("Path=/;")),
+    ).toBe(true);
+  });
+
+  it("rejects duplicate transaction cookies", async () => {
+    const env = baseEnv();
+    const tx = await secureBegin(env);
+    const done = await secureCall(env, `/api/admin/sso/callback?code=good-code&state=${tx.state}`, {
+      cookie: `${tx.cookiePair}; ${tx.cookiePair.replace(/=.*/, "=planted.value")}`,
+    });
+    expect(done.headers.get("location")).toBe("/admin/login?sso=failed");
+    expect(done.headers.getSetCookie().some((c) => c.startsWith("portfolio_admin_session="))).toBe(
+      false,
+    );
+  });
+
+  it("ignores a planted unprefixed cookie over https", async () => {
+    const env = baseEnv();
+    const tx = await secureBegin(env);
+    const plain = tx.cookiePair.replace("__Host-", "");
+    const done = await secureCall(env, `/api/admin/sso/callback?code=good-code&state=${tx.state}`, {
+      cookie: plain,
+    });
+    expect(done.headers.get("location")).toBe("/admin/login?sso=failed");
+  });
+
+  it("keeps the plain narrow-path cookie over loopback http", async () => {
+    const { response } = await begin(baseEnv(), nextIp());
+    const cookie = response.headers.get("set-cookie")!;
+    expect(cookie.startsWith("portfolio_sso_tx=")).toBe(true);
+    expect(cookie).toContain("Path=/api/admin/sso");
+    expect(cookie).not.toContain("Secure");
+  });
+});
