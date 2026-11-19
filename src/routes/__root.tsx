@@ -14,6 +14,10 @@ import { SiteShell } from "@/components/SiteShell";
 import { Button } from "@/components/ui/button";
 
 import appCss from "../styles.css?url";
+import sora400 from "@fontsource/sora/files/sora-latin-400-normal.woff2?url";
+import barlow700 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2?url";
+import barlow800 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-800-normal.woff2?url";
+import jetbrains400 from "@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -90,12 +94,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Sora:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap",
-      },
+      // Preload the fonts used above the fold so they arrive with the first paint.
+      ...[sora400, barlow700, barlow800, jetbrains400].map((href) => ({
+        rel: "preload" as const,
+        href,
+        as: "font" as const,
+        type: "font/woff2",
+        crossOrigin: "anonymous" as const,
+      })),
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
     ],
   }),

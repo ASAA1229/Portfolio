@@ -1,0 +1,375 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
+import server from "@/server";
+import { MemoryR2 } from "./helpers/memory-r2";
+import { extractResumeText } from "@/lib/resume-extraction";
+
+const PDF = "application/pdf";
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const encoder = new TextEncoder();
+
+describe("resume parser failures", () => {
+  it("rejects empty, unsupported, image-only PDF and corrupt DOCX input with clear errors", async () => {
+    await expect(extractResumeText(new Uint8Array(), PDF)).rejects.toThrow(/empty/);
+    await expect(extractResumeText(encoder.encode("hello"), "text/plain")).rejects.toThrow(
+      /Only PDF and DOCX/,
+    );
+    await expect(
+      extractResumeText(encoder.encode("%PDF-1.4\n1 0 obj <<>> endobj\n%%EOF"), PDF),
+    ).rejects.toThrow(/No extractable text/);
+    await expect(
+      extractResumeText(new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4, 5]), DOCX),
+    ).rejects.toThrow();
+  });
+});
+
+/** Disk bucket whose public feed writes can be made to fail. */
+function failingBucket() {
+  // In-memory R2 model: the partial-persistence logic under test does not depend on disk speed.
+  const disk = new MemoryR2();
+  const state = {
+    failFeed: false,
+    failFeedAfterWrite: false,
+    failHistoryAfterWrite: false,
+    failIndexAfterWrite: false,
+    failResumeDeleteAfterWrite: false,
+  };
+  const bucket = new Proxy(disk, {
+    get(target, property) {
+      if (property === "put") {
+        return async (key: string, ...rest: unknown[]) => {
+          if (state.failFeed && key === "public/approved-resumes.json") {
+            // Model a transient provider failure: the failed write is rejected,
+            // but a compensating restore is allowed to reach the object store.
+            state.failFeed = false;
+            throw new Error("simulated storage outage");
+          }
+          const result = await (target.put as (...args: unknown[]) => Promise<unknown>)(
+            key,
+            ...rest,
+          );
+          if (state.failFeedAfterWrite && key === "public/approved-resumes.json") {
+            state.failFeedAfterWrite = false;
+            throw new Error("simulated ambiguous write failure after persistence");
+          }
+          if (state.failHistoryAfterWrite && key.startsWith("private-admin/resumes/history/")) {
+            state.failHistoryAfterWrite = false;
+            throw new Error("simulated ambiguous history write failure after persistence");
+          }
+          if (state.failIndexAfterWrite && key === "private-admin/resumes/index.json") {
+            state.failIndexAfterWrite = false;
+            throw new Error("simulated ambiguous resume index write failure after persistence");
+          }
+          return result;
+        };
+      }
+      if (property === "delete") {
+        return async (key: string) => {
+          const result = await target.delete(key);
+          if (state.failResumeDeleteAfterWrite && key.startsWith("private-admin/resumes/files/")) {
+            state.failResumeDeleteAfterWrite = false;
+            throw new Error("simulated ambiguous resume original deletion after persistence");
+          }
+          return result;
+        };
+      }
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return { bucket, state };
+}
+
+const origin = "http://localhost";
+function call(env: unknown, pathname: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (init.method && init.method !== "GET") headers.set("origin", origin);
+  return server.fetch(new Request(origin + pathname, { ...init, headers }), env, {});
+}
+
+describe("resume partial persistence failures", () => {
+  it("reverts the private index when the public feed write fails during publish", async () => {
+    const { bucket, state } = failingBucket();
+    const env = {
+      ENVIRONMENT: "development",
+      PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+      RESUME_BUCKET: bucket,
+    };
+    const form = new FormData();
+    form.set("profileId", "ammu");
+    form.set(
+      "file",
+      new File([encoder.encode("%PDF-1.4 resume")], "ammu.pdf", { type: PDF }),
+      "ammu.pdf",
+    );
+    const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+    expect(uploaded.status).toBe(201);
+    const { resume } = (await uploaded.json()) as { resume: { id: string } };
+
+    state.failFeed = true;
+    const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profileId: "ammu",
+        displayName: "Ammu",
+        headline: "Engineer",
+        summary: "Summary",
+        skills: ["React"],
+      }),
+    });
+    expect(published.status).toBe(500);
+    expect(await published.json()).toMatchObject({
+      code: "RESUME_STORAGE_COMMIT_FAILED",
+      restored: true,
+    });
+
+    const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
+      resumes: Array<{ id: string; status: string }>;
+    };
+    expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
+
+    state.failFeed = false;
+    const consistency = (await (await call(env, "/api/admin/resumes/consistency")).json()) as {
+      feedInSync: boolean;
+      missingFiles: string[];
+    };
+    expect(consistency.missingFiles).toEqual([]);
+    const reconciled = await call(env, "/api/admin/resumes/reconcile", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+    expect(reconciled.status).toBe(200);
+    const after = (await (await call(env, "/api/admin/resumes/consistency")).json()) as {
+      feedInSync: boolean;
+    };
+    expect(after.feedInSync).toBe(true);
+  });
+
+  it("compensates a public-feed write that persists before reporting failure", async () => {
+    const { bucket, state } = failingBucket();
+    const env = {
+      ENVIRONMENT: "development",
+      PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+      RESUME_BUCKET: bucket,
+    };
+    const form = new FormData();
+    form.set("profileId", "bava");
+    form.set(
+      "file",
+      new File([encoder.encode("%PDF-1.4 resume")], "bava.pdf", { type: PDF }),
+      "bava.pdf",
+    );
+    const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+    expect(uploaded.status).toBe(201);
+    const { resume } = (await uploaded.json()) as { resume: { id: string } };
+
+    state.failFeedAfterWrite = true;
+    const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        profileId: "bava",
+        displayName: "Bava",
+        headline: "Engineer",
+        summary: "Summary",
+        skills: ["TypeScript"],
+      }),
+    });
+    expect(published.status).toBe(500);
+    expect(await published.json()).toMatchObject({
+      code: "RESUME_STORAGE_COMMIT_FAILED",
+      restored: true,
+    });
+
+    const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
+      resumes: Array<{ id: string; status: string }>;
+    };
+    expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
+    // Compensation restores the pre-transaction state: a feed/history that did not exist
+    // before the failed publish must not exist afterwards (or must be empty).
+    const publicFeed = await bucket.get("public/approved-resumes.json");
+    if (publicFeed) expect(await publicFeed.json()).toMatchObject({ resumes: [] });
+    const history = await bucket.get("private-admin/resumes/history/bava.json");
+    if (history) {
+      expect(await history.json<{ entries: unknown[] }>()).toMatchObject({ entries: [] });
+    }
+  });
+});
+
+it("blocks reconciliation when an indexed resume original is missing", async () => {
+  const { bucket } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "sai");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "sai.pdf", { type: PDF }),
+    "sai.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(uploaded.status).toBe(201);
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "sai",
+      displayName: "Sai",
+      headline: "Engineer",
+      summary: "Approved profile summary",
+      skills: ["JavaScript"],
+    }),
+  });
+  expect(published.status).toBe(200);
+  const feedBefore = bucket.text("public/approved-resumes.json");
+
+  await bucket.delete(`private-admin/resumes/files/${resume.id}`);
+  const consistency = (await (await call(env, "/api/admin/resumes/consistency")).json()) as {
+    missingFiles: string[];
+  };
+  expect(consistency.missingFiles).toContain(resume.id);
+
+  const reconciled = await call(env, "/api/admin/resumes/reconcile", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  expect(reconciled.status).toBe(409);
+  expect(await reconciled.json()).toMatchObject({
+    code: "RESUME_ORIGINALS_MISSING",
+    reconciled: false,
+    missingFiles: [resume.id],
+  });
+  const feedAfter = bucket.text("public/approved-resumes.json");
+  expect(feedAfter).toBe(feedBefore);
+});
+
+it("reverts index, public feed and history when the history write fails ambiguously", async () => {
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "bava");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "bava.pdf", { type: PDF }),
+    "bava.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(uploaded.status).toBe(201);
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+  state.failHistoryAfterWrite = true;
+
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "bava",
+      displayName: "Bava",
+      headline: "Engineer",
+      summary: "Summary",
+      skills: ["TypeScript"],
+    }),
+  });
+  expect(published.status).toBe(500);
+  expect(await published.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+
+  const listed = (await (await call(env, "/api/admin/resumes")).json()) as {
+    resumes: Array<{ id: string; status: string }>;
+  };
+  expect(listed.resumes.find((item) => item.id === resume.id)?.status).toBe("pending");
+  const feedObject = await bucket.get("public/approved-resumes.json");
+  const feed = feedObject ? await feedObject.json<{ resumes: unknown[] }>() : { resumes: [] };
+  expect(feed.resumes).toEqual([]);
+  expect(await bucket.get("private-admin/resumes/history/bava.json")).toBeNull();
+});
+
+it("rolls back a resume upload when the index write persists and then rejects", async () => {
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  state.failIndexAfterWrite = true;
+  const form = new FormData();
+  form.set("profileId", "ammu");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "ammu.pdf", { type: PDF }),
+    "ammu.pdf",
+  );
+
+  const response = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+  expect(bucket.keys("private-admin/resumes/files/")).toEqual([]);
+  expect(await bucket.get("private-admin/recovery/active.json")).toBeNull();
+});
+
+it("restores the private original and published state when resume deletion fails ambiguously", async () => {
+  const { bucket, state } = failingBucket();
+  const env = {
+    ENVIRONMENT: "development",
+    PORTFOLIO_ADMIN_AUTH_BYPASS: "true",
+    RESUME_BUCKET: bucket,
+  };
+  const form = new FormData();
+  form.set("profileId", "sai");
+  form.set(
+    "file",
+    new File([encoder.encode("%PDF-1.4 resume")], "sai.pdf", { type: PDF }),
+    "sai.pdf",
+  );
+  const uploaded = await call(env, "/api/admin/resumes", { method: "POST", body: form });
+  const { resume } = (await uploaded.json()) as { resume: { id: string } };
+  const published = await call(env, `/api/admin/resumes/${resume.id}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileId: "sai",
+      displayName: "Sai",
+      headline: "Engineer",
+      summary: "Approved",
+      skills: ["TypeScript"],
+    }),
+  });
+  expect(published.status).toBe(200);
+
+  state.failResumeDeleteAfterWrite = true;
+  const deleted = await call(env, `/api/admin/resumes/${resume.id}`, { method: "DELETE" });
+  expect(deleted.status).toBe(500);
+  expect(await deleted.json()).toMatchObject({
+    code: "RESUME_STORAGE_COMMIT_FAILED",
+    restored: true,
+  });
+
+  const records = (await (await call(env, "/api/admin/resumes")).json()) as {
+    resumes: Array<{ id: string; status: string }>;
+  };
+  expect(records.resumes).toContainEqual(
+    expect.objectContaining({ id: resume.id, status: "approved" }),
+  );
+  expect(await bucket.get(`private-admin/resumes/files/${resume.id}`)).not.toBeNull();
+  const feed = await (await bucket.get("public/approved-resumes.json"))!.json<{
+    resumes: Array<{ id: string }>;
+  }>();
+  expect(feed.resumes.map((item) => item.id)).toContain(resume.id);
+  expect(await bucket.get("private-admin/recovery/active.json")).toBeNull();
+});

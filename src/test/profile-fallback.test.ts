@@ -17,7 +17,11 @@ describe("profile-grounded AI fallback", () => {
   });
 
   it("creates an introduction without claiming to be the person", () => {
-    const answer = fallbackProfileAnswer(PERSON_PORTFOLIOS.ammu, "Introduce this portfolio", "intro");
+    const answer = fallbackProfileAnswer(
+      PERSON_PORTFOLIOS.ammu,
+      "Introduce this portfolio",
+      "intro",
+    );
     expect(answer).toContain("AI assistant presenting Dudala Amulya");
     expect(answer).toContain("not the person speaking");
   });

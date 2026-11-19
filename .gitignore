@@ -36,3 +36,42 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local development uploads (admin resumes/images when no R2 binding)
+.local-storage/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Jenkins/CI scratch output
+.jenkins-temp/
+portfolio-*.sha256
+.nexus-verify/
+.manifest-ignore-public.pem
+customer-release-report.json
+portfolio-build.tar.gz
+portfolio-manifest*.json
+portfolio-dependencies.cdx.json
+portfolio-manifest-ignore.sig
+
+# Local production runner state (secrets, R2 emulation, releases)
+.local-prod/
+
+# npm dependency lockfile (repository policy)
+package-lock.json
+
+# Organization policy
+build/
+coverage/
+*.pem
+*.key
+secrets/
+credentials/
+*.db
+*.sqlite3
+Thumbs.db
+*.zip
+*.tar.gz
+*.sha256
+*.cdx.json

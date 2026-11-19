@@ -162,3 +162,21 @@ Testing and validation work is paused by user request. Continue feature implemen
 Approved planning/governance reference for the four ASAA projects and shared ecosystem capabilities. Round 6 consolidation is complete at framework level. Individual requirement mapping, full source reconciliation, branch/runtime verification, named owners, dependency validation, acceptance criteria, evidence-based gaps and delivery estimates remain pending. Approval does not authorize implementation, testing, deployment, paid services or merges.
 
 See `docs/ASAA_MASTER_REQUIREMENTS_BASELINE.md`, `docs/PROJECT_SCOPE.md` and `docs/EPIC_STATUS.md` for the current project scope and epic tracker.
+
+
+## Baseline alignment — 2026-11-14
+
+This roadmap is subordinate to the approved ASAA Master Requirements Baseline v1.0. Round 6 is complete at framework level; detailed requirement population, applicability, ownership, dependencies, evidence-based gap scoring and delivery estimates remain pending. See the project scope and epic register documents in this branch. Do not infer completion from plans or source presence. No implementation, testing, deployment, paid-service, merge or release authorization is implied.
+
+
+---
+
+## Discovery reconciliation work — 2026-11-19
+
+Next planning sequence (not a delivery commitment):
+1. Reconcile Sets 1–12 answers against the approved Master Requirements Baseline v1.0.
+2. Map applicable requirements to existing epics/sub-epics/features/stories/tasks and identify duplicates, conflicts and omissions.
+3. Verify repository/source/test/CI/integration/runtime evidence for every existing status; retain unknowns as NOT ASSESSED.
+4. Assign accountable owners, dependencies, measurable acceptance criteria and evidence expectations.
+5. Prioritize and estimate only after scope and dependencies are validated; prepare a proposed roadmap for approval.
+6. Keep implementation, testing, deployment and release behind separate explicit authorization gates.

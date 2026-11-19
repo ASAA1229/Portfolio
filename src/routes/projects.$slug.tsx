@@ -1,35 +1,76 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useAbhishekContent } from "@/lib/abhishek-content";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, Github } from "lucide-react";
 import { PageIntro } from "@/components/PageIntro";
 import { ProjectVisual } from "@/components/ProjectVisual";
 import { TechnologyList } from "@/components/TechLogo";
 import { Button } from "@/components/ui/button";
 import { getProject, PROJECT_PAGES } from "@/lib/project-pages";
+import { LEGACY_PROJECT_SLUGS } from "@/lib/site-data";
+import { seoHead } from "@/lib/seo-head";
+import { usePublishedProjectImages } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/projects/$slug")({
   beforeLoad: ({ params }) => {
-    if (!getProject(params.slug)) throw notFound();
+    const current = LEGACY_PROJECT_SLUGS[params.slug];
+    if (current) {
+      throw redirect({
+        to: "/projects/$slug",
+        params: { slug: current },
+        replace: true,
+        statusCode: 301,
+      });
+    }
   },
   head: ({ params }) => {
     const project = getProject(params.slug);
-    return {
-      meta: [
-        { title: `${project?.title ?? "Project not found"} — Guda Abhishek` },
-        {
-          name: "description",
-          content: project?.overview ?? "Project overview, approach, and technology details.",
-        },
-      ],
-    };
+    return seoHead({
+      title: `${project?.title ?? "Project not found"} — Guda Abhishek`,
+      description: project?.overview ?? "Project overview, approach, and technology details.",
+      path: `/projects/${params.slug}`,
+      noindex: !project,
+    });
   },
   component: ProjectDetailPage,
 });
 
 function ProjectDetailPage() {
   const { slug } = Route.useParams();
-  const project = getProject(slug);
-  if (!project) return null;
-  const index = PROJECT_PAGES.findIndex((item) => item.slug === slug);
+  const projectImages = usePublishedProjectImages("abhishek", slug);
+  const { overrides } = useAbhishekContent();
+  const base = getProject(slug);
+  // Only published CMS edits are available here; archived and unknown slugs are not found.
+  const edit = overrides?.projects?.find((item) => item.slug === slug);
+  if (edit?.archived || (!base && !edit)) throw notFound();
+  const project = base
+    ? edit
+      ? {
+          ...base,
+          title: edit.title,
+          overview: edit.overview,
+          ...(edit.context ? { problem: edit.context } : {}),
+          ...(edit.points?.length ? { role: edit.points.join(" ") } : {}),
+          ...(edit.tech?.length ? { tech: edit.tech } : {}),
+        }
+      : base
+    : {
+        title: edit!.title,
+        category: "Owner published",
+        badge: "Project",
+        hue: "primary",
+        overview: edit!.overview,
+        problem: edit!.context ?? "",
+        role: edit!.points?.join(" ") ?? "",
+        flow: [],
+        tech: edit!.tech ?? [],
+        slug,
+        github: null,
+        demo: null,
+      };
+  const index = Math.max(
+    0,
+    PROJECT_PAGES.findIndex((item) => item.slug === slug),
+  );
   return (
     <article className="page-content project-detail">
       <Button asChild variant="ghost" className="mb-8 min-h-11 px-0">
@@ -42,9 +83,30 @@ function ProjectDetailPage() {
         title={project.title}
         description={project.overview}
       />
-      <div className="project-detail-art">
-        <ProjectVisual index={index} />
-      </div>
+      {projectImages.length > 0 ? (
+        <section
+          className="mt-8 grid gap-4 sm:grid-cols-2"
+          aria-label={`Images for ${project.title}`}
+        >
+          {projectImages.map((image) => (
+            <figure
+              key={image.id}
+              className="overflow-hidden rounded-lg border border-white/10 bg-card"
+            >
+              <img
+                src={image.src}
+                alt={image.alt}
+                loading="lazy"
+                className="aspect-video w-full object-cover"
+              />
+            </figure>
+          ))}
+        </section>
+      ) : (
+        <div className="project-detail-art">
+          <ProjectVisual index={index} />
+        </div>
+      )}
       <div className="project-detail-grid">
         <section className="detail-copy">
           <p className="section-kicker">THE PROBLEM</p>
@@ -96,6 +158,23 @@ function ProjectDetailPage() {
           </Button>
         )}
       </div>
+    </article>
+  );
+}
+
+function ProjectArchived() {
+  return (
+    <article className="page-content">
+      <PageIntro
+        eyebrow="Projects"
+        title="Project not available"
+        description="This project is no longer part of the portfolio."
+      />
+      <Button asChild variant="ghost" className="min-h-11 px-0">
+        <Link to="/projects">
+          <ArrowLeft /> All projects
+        </Link>
+      </Button>
     </article>
   );
 }

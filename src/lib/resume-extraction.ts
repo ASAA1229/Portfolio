@@ -26,13 +26,20 @@ function decodeXml(value: string): string {
 }
 
 function normalizeExtractedText(value: string): string {
-  return value
-    .replace(/\u0000/g, "")
-    .replace(/[\t ]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim()
-    .slice(0, MAX_EXTRACTED_CHARS);
+  return (
+    value
+      // Strip NUL bytes left by PDF/DOCX text extraction; matching them is intentional.
+      // eslint-disable-next-line no-control-regex
+      .replace(/\u0000/g, "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/[\t ]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/([a-z])-[ \t]*\n([a-z])/g, "$1$2")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim()
+      .slice(0, MAX_EXTRACTED_CHARS)
+  );
 }
 
 async function decompress(
@@ -44,7 +51,8 @@ async function decompress(
     throw new Error("The document contains an oversized compressed section.");
   }
 
-  const stream = new Blob([bytes])
+  // Blob accepts only ArrayBuffer-backed views; inputs here are never SharedArrayBuffer-backed.
+  const stream = new Blob([bytes as Uint8Array<ArrayBuffer>])
     .stream()
     .pipeThrough(new DecompressionStream(format));
   const reader = stream.getReader();
@@ -112,7 +120,10 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     if (expandedSize > MAX_EXPANDED_BYTES || compressedSize > MAX_DOCUMENT_BYTES) {
       throw new Error("The DOCX document body exceeds the extraction limit.");
     }
-    if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) {
+    if (
+      localHeaderOffset + 30 > bytes.length ||
+      view.getUint32(localHeaderOffset, true) !== 0x04034b50
+    ) {
       throw new Error("The DOCX document body has an invalid archive header.");
     }
 
@@ -120,7 +131,8 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
     const dataOffset = localHeaderOffset + 30 + localNameLength + localExtraLength;
     const compressed = bytes.slice(dataOffset, dataOffset + compressedSize);
-    if (compressed.length !== compressedSize) throw new Error("The DOCX document body is incomplete.");
+    if (compressed.length !== compressedSize)
+      throw new Error("The DOCX document body is incomplete.");
 
     let xmlBytes: Uint8Array;
     if (method === 0) xmlBytes = compressed;
@@ -128,13 +140,27 @@ async function extractDocx(bytes: Uint8Array): Promise<string> {
     else throw new Error("This DOCX compression method is not supported.");
 
     const xml = decoder.decode(xmlBytes);
-    const text = xml
-      .replace(/<w:tab\b[^>]*\/>/g, "\t")
-      .replace(/<w:br\b[^>]*\/>/g, "\n")
-      .replace(/<\/w:p>/g, "\n")
-      .replace(/<\/w:tr>/g, "\n")
-      .replace(/<[^>]+>/g, "");
-    return normalizeExtractedText(decodeXml(text));
+    const paragraphs: string[] = [];
+    for (const paragraph of xml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g)) {
+      const body = paragraph[1] ?? ""; // Capture group 1 always participates in a match.
+      const style = body.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] ?? "";
+      const isHeading = /^(?:title|subtitle|heading[1-6])$/i.test(style);
+      const isList = /<w:numPr\b|<w:ilvl\b|<w:numId\b/.test(body);
+      const content = body
+        .replace(/<w:tab\b[^>]*\/>/g, "    ")
+        .replace(/<w:br\b[^>]*\/>/g, "\n")
+        .replace(/<w:cr\b[^>]*\/>/g, "\n")
+        .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/g, "")
+        .replace(/<[^>]+>/g, "");
+      const decoded = decodeXml(content)
+        .replace(/[ \t]+/g, " ")
+        .trim();
+      if (!decoded) continue;
+      paragraphs.push(isList ? "• " + decoded : decoded);
+      if (isHeading) paragraphs.push("");
+    }
+    // Paragraph extraction retains document order, including paragraphs in table cells.
+    return normalizeExtractedText(paragraphs.join("\n"));
   }
 
   throw new Error("The DOCX file does not contain word/document.xml.");
@@ -144,11 +170,14 @@ function decodePdfString(token: string): string {
   if (token.startsWith("<")) {
     const hex = token.slice(1, -1).replace(/\s/g, "");
     const normalized = hex.length % 2 ? `${hex}0` : hex;
-    const bytes = new Uint8Array(normalized.match(/.{2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? []);
+    const bytes = new Uint8Array(
+      normalized.match(/.{2}/g)?.map((pair) => Number.parseInt(pair, 16)) ?? [],
+    );
     if (bytes[0] === 0xfe && bytes[1] === 0xff) {
       const units: number[] = [];
       for (let index = 2; index + 1 < bytes.length; index += 2) {
-        units.push((bytes[index] << 8) | bytes[index + 1]);
+        // Loop bounds keep both indices within the array.
+        units.push(((bytes[index] ?? 0) << 8) | (bytes[index + 1] ?? 0));
       }
       let decoded = "";
       for (let offset = 0; offset < units.length; offset += 8192) {
@@ -176,9 +205,9 @@ function decodePdfString(token: string): string {
     else if (next === "\r") {
       if (token[index + 1] === "\n") index += 1;
     } else if (/[0-7]/.test(next ?? "")) {
-      let octal = next;
+      let octal = next ?? "";
       for (let count = 0; count < 2 && /[0-7]/.test(token[index + 1] ?? ""); count += 1) {
-        octal += token[++index];
+        octal += token[++index] ?? "";
       }
       output += String.fromCharCode(Number.parseInt(octal, 8));
     } else {
@@ -189,36 +218,123 @@ function decodePdfString(token: string): string {
 }
 
 function extractPdfTextFromContent(content: string): string[] {
-  const results: string[] = [];
-  const textBlocks = content.match(/BT[\s\S]*?ET/g) ?? [];
-  const tokenPattern = /\((?:\\.|[^\\)])*\)|<[\da-f\s]*>/gi;
-
-  for (const block of textBlocks) {
-    const singleTextPattern = /(\((?:\\.|[^\\)])*\)|<[\da-f\s]*>)\s*Tj\b/gi;
-    for (const match of block.matchAll(singleTextPattern)) {
-      results.push(decodePdfString(match[1]));
-    }
-
-    const arrayPattern = /\[([\s\S]*?)\]\s*TJ\b/gi;
-    for (const match of block.matchAll(arrayPattern)) {
-      for (const token of match[1].matchAll(tokenPattern)) {
-        results.push(decodePdfString(token[0]));
+  type PositionedText = { text: string; x: number; y: number; order: number };
+  const positioned: PositionedText[] = [];
+  const blocks = content.match(/BT[\s\S]*?ET/g) ?? [];
+  const n = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)";
+  const tokenPattern = new RegExp(
+    "(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+Tm|(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+Td|(" +
+      n +
+      ")\\s+(" +
+      n +
+      ")\\s+TD|(" +
+      n +
+      ")\\s+TL|(" +
+      n +
+      ")\\s+Tf|(\\((?:\\\\.|[^\\\\)])*\\)|<[\\da-f\\s]*>)\\s*Tj|\\[([\\s\\S]*?)\\]\\s*TJ|T(\\*)",
+    "gi",
+  );
+  let order = 0;
+  for (const block of blocks) {
+    let x = 0,
+      y = 0,
+      lineX = 0,
+      lineY = 0,
+      leading = 0,
+      fontSize = 10;
+    for (const match of block.matchAll(tokenPattern)) {
+      if (match[1] !== undefined) {
+        lineX = x = Number(match[5]);
+        lineY = y = Number(match[6]);
+      } else if (match[7] !== undefined) {
+        lineX += Number(match[7]);
+        lineY += Number(match[8]);
+        x = lineX;
+        y = lineY;
+      } else if (match[9] !== undefined) {
+        const tx = Number(match[9]),
+          ty = Number(match[10]);
+        leading = -ty;
+        lineX += tx;
+        lineY += ty;
+        x = lineX;
+        y = lineY;
+      } else if (match[11] !== undefined) leading = Number(match[11]);
+      else if (match[12] !== undefined) fontSize = Math.abs(Number(match[12])) || fontSize;
+      else if (match[13] !== undefined) {
+        const text = decodePdfString(match[13]);
+        if (text.trim()) positioned.push({ text, x, y, order: order++ });
+        x += text.length * fontSize * 0.48;
+      } else if (match[14] !== undefined) {
+        const tokens =
+          match[14].match(/\((?:\\.|[^\\)])*\)|<[\da-f\s]*>|[-+]?(?:\d+\.?\d*|\.\d+)/gi) ?? [];
+        let combined = "";
+        const startX = x;
+        for (const token of tokens) {
+          if (/^(?:\(|<)/.test(token)) {
+            const decoded = decodePdfString(token);
+            combined += decoded;
+            x += decoded.length * fontSize * 0.48;
+          } else x -= (Number(token) / 1000) * fontSize;
+        }
+        if (combined.trim()) positioned.push({ text: combined, x: startX, y, order: order++ });
+      } else if (match[15] !== undefined) {
+        lineY -= leading || fontSize * 1.2;
+        x = lineX;
+        y = lineY;
       }
     }
   }
-  return results;
+  if (!positioned.length) return [];
+  const lines: { y: number; fragments: PositionedText[] }[] = [];
+  for (const fragment of positioned.sort((a, b) => b.y - a.y || a.x - b.x || a.order - b.order)) {
+    let line = lines.find((candidate) => Math.abs(candidate.y - fragment.y) <= 2.5);
+    if (!line) {
+      line = { y: fragment.y, fragments: [] };
+      lines.push(line);
+    }
+    line.fragments.push(fragment);
+  }
+  return lines
+    .sort((a, b) => b.y - a.y)
+    .map((line) =>
+      line.fragments
+        .sort((a, b) => a.x - b.x || a.order - b.order)
+        .map((fragment) => fragment.text)
+        .join(" ")
+        .trim(),
+    )
+    .filter(Boolean);
 }
 
-async function extractPdf(bytes: Uint8Array): Promise<string> {
+async function extractPdf(bytes: Uint8Array): Promise<{ text: string; skippedStreams: number }> {
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
   if (!binary.startsWith("%PDF-")) throw new Error("The PDF header is invalid.");
 
   const chunks: string[] = [];
   let totalCharacters = 0;
+  let skippedStreams = 0;
   const streamPattern = /(<<[\s\S]*?>>)\s*stream\r?\n([\s\S]*?)\r?\nendstream/g;
   for (const match of binary.matchAll(streamPattern)) {
-    const dictionary = match[1];
-    const raw = match[2];
+    // Both capture groups always participate in a stream match.
+    const dictionary = match[1] ?? "";
+    const raw = match[2] ?? "";
     let content = raw;
 
     if (/\/FlateDecode\b/.test(dictionary)) {
@@ -226,9 +342,11 @@ async function extractPdf(bytes: Uint8Array): Promise<string> {
       try {
         content = new TextDecoder("windows-1252").decode(await decompress(streamBytes, "deflate"));
       } catch {
+        skippedStreams += 1;
         continue;
       }
     } else if (/\/Filter\b/.test(dictionary)) {
+      skippedStreams += 1;
       continue;
     }
 
@@ -240,7 +358,10 @@ async function extractPdf(bytes: Uint8Array): Promise<string> {
     if (totalCharacters >= MAX_EXTRACTED_CHARS) break;
   }
 
-  return normalizeExtractedText(chunks.join("\n"));
+  return {
+    text: normalizeExtractedText(chunks.join("\n")),
+    skippedStreams,
+  };
 }
 
 export async function extractResumeText(
@@ -258,14 +379,24 @@ export async function extractResumeText(
   }
 
   if (contentType === "application/pdf") {
-    const text = await extractPdf(bytes);
+    const extraction = await extractPdf(bytes);
+    const text = extraction.text;
     if (!text) {
-      throw new Error("No extractable text was found. This PDF may be scanned, image-only, or use unsupported font encoding; OCR is not available in this local extractor.");
+      throw new Error(
+        "No extractable text was found. This PDF may be scanned, image-only, or use unsupported font encoding; OCR is not available in this local extractor.",
+      );
     }
     return {
       text,
       method: "pdf-text",
-      warning: "PDF extraction is best-effort. Scanned pages, complex font encodings, and some compressed PDF structures may not be readable. Verify every extracted field against the original.",
+      warning: [
+        "PDF extraction is a best-effort first pass. Scanned pages need OCR, and complex font encodings or multi-column layouts may be incomplete or appear in the wrong reading order. Verify every extracted field and its order against the original.",
+        extraction.skippedStreams > 0
+          ? `${extraction.skippedStreams} PDF stream(s) used unsupported filters or could not be decompressed; content from those streams may be missing.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
     };
   }
 

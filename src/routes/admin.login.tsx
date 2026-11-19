@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 
@@ -12,10 +12,44 @@ export const Route = createFileRoute("/admin/login")({
   component: AdminLogin,
 });
 
+/** Plain explanations for the fixed failure codes the server may attach (never provider text). */
+const SSO_FAILURE_MESSAGES: Record<string, string> = {
+  auth_time_missing:
+    "The identity provider did not report when you authenticated (auth_time claim missing). The portfolio-admin client needs the basic scope so ID tokens include auth_time.",
+  stale_authentication:
+    "Your sign-in at the identity provider was not recent enough. Sign in again.",
+  mfa_required:
+    "The identity provider did not report multi-factor authentication (amr/acr). Sign in with your authenticator code.",
+  role_required: "Your account does not hold the portfolio-admin role.",
+  bad_audience: "The identity provider issued a token for a different client.",
+  bad_issuer: "The identity provider issued a token from an unexpected issuer.",
+  bad_nonce: "The sign-in response did not match this browser session. Retry.",
+  expired: "The sign-in response had already expired. Retry.",
+};
+
 function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Sign-in methods offered by the server (SSO is optional; the password form is the default).
+  const [methods, setMethods] = useState({ sso: false, password: true });
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("sso") === "failed") {
+      setError(
+        SSO_FAILURE_MESSAGES[query.get("reason") ?? ""] ??
+          "SSO sign-in was not completed. Check your authenticator code and role, then retry.",
+      );
+    }
+    fetch("/api/admin/login/options", { credentials: "same-origin" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((options: { sso?: boolean; password?: boolean } | null) => {
+        if (options)
+          setMethods({ sso: options.sso === true, password: options.password !== false });
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,7 +62,7 @@ function AdminLogin() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const payload = await response.json().catch(() => ({})) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
         setError(payload.error ?? "Unable to sign in.");
         return;
@@ -42,40 +76,65 @@ function AdminLogin() {
   }
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-[#09090d] px-4 py-12 text-white">
-      <div className="w-full max-w-md border border-white/10 bg-white/[0.03] p-7 shadow-2xl sm:p-9">
+    <section className="admin-login-backdrop flex min-h-screen items-center justify-center bg-[#09090d] px-4 py-12 text-white">
+      <div className="admin-login-card w-full max-w-md border border-white/10 bg-white/[0.03] p-7 shadow-2xl sm:p-9">
         <div className="mb-8 flex size-12 items-center justify-center border border-violet-400/30 bg-violet-400/10 text-violet-200">
           <LockKeyhole className="size-5" />
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-300">Restricted workspace</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-violet-300">
+          Restricted workspace
+        </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">Private admin access</h1>
         <p className="mt-3 text-sm leading-6 text-white/60">
-          Sign in to manage private resume records. This area is not linked from the public portfolio.
+          Sign in to manage private resume records. This area is not linked from the public
+          portfolio.
         </p>
-        <form onSubmit={submit} className="mt-8 space-y-4">
-          <label htmlFor="admin-password" className="block text-xs font-medium text-white/75">Admin password</label>
-          <input
-            id="admin-password"
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={1024}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="min-h-12 w-full border border-white/15 bg-black/30 px-4 text-sm outline-none transition focus:border-violet-300"
-            placeholder="Enter your admin password"
-          />
-          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-          <button
-            type="submit"
-            disabled={busy || password.length === 0}
-            className="flex min-h-12 w-full items-center justify-center gap-2 bg-violet-300 px-4 text-sm font-semibold text-black transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+        {methods.sso && (
+          <a
+            href="/api/admin/sso/start"
+            className="mt-8 flex min-h-12 w-full items-center justify-center gap-2 bg-violet-300 px-4 text-sm font-semibold text-black transition hover:bg-violet-200"
           >
-            <ShieldCheck className="size-4" /> {busy ? "Verifying…" : "Authenticate"}
-          </button>
-        </form>
-        <p className="mt-6 border-t border-white/10 pt-5 text-[11px] leading-5 text-white/40">
-          Eight-hour signed session · HttpOnly cookie · server-side authorization
+            <ShieldCheck className="size-4" /> Sign in with ASAA SSO
+          </a>
+        )}
+        {methods.sso && !methods.password && error && (
+          <p role="alert" className="mt-4 text-sm text-red-300">
+            {error}
+          </p>
+        )}
+        {methods.password && (
+          <form onSubmit={submit} className="mt-8 space-y-4">
+            <label htmlFor="admin-password" className="block text-xs font-medium text-white/75">
+              Admin password
+            </label>
+            <input
+              id="admin-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              maxLength={1024}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="min-h-12 w-full border border-white/15 bg-black/30 px-4 text-sm outline-none transition focus:border-violet-300"
+              placeholder="Enter your admin password"
+            />
+            {error && (
+              <p role="alert" className="text-sm text-red-300">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={busy || Array.from(password).length < 12}
+              className="flex min-h-12 w-full items-center justify-center gap-2 bg-violet-300 px-4 text-sm font-semibold text-black transition hover:bg-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ShieldCheck className="size-4" /> {busy ? "Verifying…" : "Authenticate"}
+            </button>
+          </form>
+        )}
+        <p className="mt-6 border-t border-white/10 pt-5 text-[11px] leading-5 text-white/65">
+          Minimum 12-character password · eight-hour signed session · HttpOnly cookie · server-side
+          authorization
         </p>
       </div>
     </section>
