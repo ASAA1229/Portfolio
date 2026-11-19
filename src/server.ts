@@ -3229,9 +3229,20 @@ export default {
       const who: AdminActor =
         ssoOutcome?.kind === "login"
           ? { actor: ssoOutcome.identity.sub, label: ssoOutcome.identity.username }
-          : requestPath === "/api/admin/login"
-            ? { actor: adminAuthBypassed(env) ? "local-dev" : "password-admin" }
-            : (preActor ?? { actor: "unknown" });
+          : ssoOutcome?.kind === "login-failed"
+            ? { actor: "anonymous" }
+            : requestPath === "/api/admin/login"
+              ? {
+                  // Only a successful password login is the password admin; a rejected attempt has no
+                  // identity at all.
+                  actor:
+                    securedResponse.status !== 200
+                      ? "anonymous"
+                      : adminAuthBypassed(env)
+                        ? "local-dev"
+                        : "password-admin",
+                }
+              : (preActor ?? { actor: "unknown" });
       const auditId = await auditAdminMutation(
         auditRequest,
         env,

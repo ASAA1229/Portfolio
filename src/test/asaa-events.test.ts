@@ -446,6 +446,8 @@ describe("producer wired into the Worker", () => {
     expect((login.body["data"] as Record<string, unknown>)["actor"]).toBe("password-admin");
     const failed = received.find((call) => call.body["type"] === "portfolio.admin.login-failed")!;
     expect(failed.body["severity"]).toBe("warning");
+    // A rejected attempt has no identity: it is "anonymous", never the password admin.
+    expect((failed.body["data"] as Record<string, unknown>)["actor"]).toBe("anonymous");
     const text = JSON.stringify(received.map((call) => call.body));
     expect(text).not.toContain("wrong-password-value");
     expect(text).not.toContain("test-admin-password");

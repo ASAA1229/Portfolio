@@ -1213,3 +1213,39 @@ describe("Keycloak-shaped tokens and diagnosable failures", () => {
     expect(noise.headers.get("location")).toBe("/admin/login?sso=failed");
   });
 });
+
+describe("failed sign-ins are anonymous", () => {
+  it("reports a failed SSO callback with actor anonymous (events) and writes no audit entry", async () => {
+    const received: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith("http://127.0.0.1:8101")) {
+        received.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(null, { status: 201 });
+      }
+      return idp.handle(String(url), init);
+    });
+    const pending: Promise<unknown>[] = [];
+    const ctx = { waitUntil: (p: Promise<unknown>) => void pending.push(p) };
+    const env = baseEnv({
+      ASAA_EVENTS_URL: "http://127.0.0.1:8101",
+      ASAA_EVENTS_TOKEN: "mock-events-token-not-real",
+      ASAA_ORG_ID: "org-1",
+    });
+    const ip = nextIp();
+    const tx = await begin(env, ip);
+    const response = await server.fetch(
+      new Request(`${ORIGIN}/api/admin/sso/callback?code=good-code&state=wrong`, {
+        headers: { cookie: tx.txCookie, "cf-connecting-ip": ip },
+      }),
+      env,
+      ctx,
+    );
+    expect(response.headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
+    await Promise.all(pending);
+    const event = received.find((e) => e["type"] === "portfolio.admin.login-failed")!;
+    expect((event["data"] as Record<string, unknown>)["actor"]).toBe("anonymous");
+    expect((await readAuditLog(r2)).entries.some((e) => e.action.includes("sso/callback"))).toBe(
+      false,
+    );
+  });
+});
