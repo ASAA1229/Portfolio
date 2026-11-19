@@ -1,0 +1,16 @@
+{
+  "$comment": "Budgets for the production build. Static budgets are checked by scripts/bundle-budget.mjs on every CI run; runtime budgets by scripts/browser-audit.mjs against a locally served build (no network throttling, so they are regression guards, not field Web Vitals).",
+  "static": {
+    "clientJsGzipKbTotal": 450,
+    "clientJsGzipKbLargestChunk": 180,
+    "clientCssGzipKbTotal": 40,
+    "serverEntryGzipKbMax": 900
+  },
+  "runtime": {
+    "lcpMsMax": 4000,
+    "clsMax": 0.1,
+    "inpMsMax": 200,
+    "jsDecodedKbMax": 1200,
+    "totalBlockingLikeLongTaskMsMax": 1500
+  }
+}

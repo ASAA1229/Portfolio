@@ -5,6 +5,8 @@ import { PageBody } from "@/components/SitePrimitives";
 import { Reveal } from "@/components/Reveal";
 import { pageHead } from "@/lib/site-data";
 import { CONTACT } from "@/lib/portfolio-data";
+import { usePublishedProfileResume } from "@/lib/published-resume";
+import { useAbhishekContent } from "@/lib/abhishek-content";
 
 export const Route = createFileRoute("/contact")({
   head: () =>
@@ -16,6 +18,9 @@ export const Route = createFileRoute("/contact")({
   component: Contact,
 });
 function Contact() {
+  const published = usePublishedProfileResume("abhishek");
+  const { contact: cmsContact } = useAbhishekContent();
+  const email = published?.contact?.email || cmsContact.email || CONTACT.email;
   return (
     <>
       <section className="chapter-hero contact-hero">
@@ -46,8 +51,8 @@ function Contact() {
             <p className="chapter-kicker">A GOOD STORY STARTS SOMEWHERE</p>
             <h2>Have a project in mind?</h2>
             <p>Send a note and I’ll get back to you through email.</p>
-            <a href={`mailto:${CONTACT.email}`} className="contact-email">
-              {CONTACT.email}
+            <a href={`mailto:${email}`} className="contact-email inline-flex min-h-6 items-center">
+              {email}
             </a>
           </div>
           <span className="endcard-mark" aria-hidden="true">

@@ -1,0 +1,35 @@
+import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useMergedPersonPortfolio } from "@/lib/published-content";
+import { getPersonPortfolio, isPerson, personHead } from "@/lib/person-portfolios";
+import { PersonContent, PersonUnavailable } from "@/components/PersonPortfolio";
+
+// Keep Education as an explicit route as well as a supported section slug.
+// This prevents the static Education destination from depending solely on the
+// catch-all $section route when the generated route manifest is refreshed.
+export const Route = createFileRoute("/people/$person/education")({
+  beforeLoad: ({ params }) => {
+    if (params.person === "abhishek") throw notFound();
+    if (!isPerson(params.person)) throw notFound();
+  },
+  // Same helper as every other section so canonical, Open Graph and social image are emitted.
+  head: ({ params }) =>
+    personHead(
+      params.person,
+      "Education",
+      "Academic education and training for this portfolio profile.",
+      `/people/${params.person}/education`,
+    ),
+  notFoundComponent: () => <PersonUnavailable missing />,
+  component: EducationSection,
+});
+
+function EducationSection() {
+  const { person } = Route.useParams();
+  // Curated data with owner-published CMS overrides (PORT-US-035).
+  const profile = useMergedPersonPortfolio(getPersonPortfolio(person));
+  return profile ? (
+    <PersonContent profile={profile} section="education" />
+  ) : (
+    <PersonUnavailable missing />
+  );
+}

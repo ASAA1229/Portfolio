@@ -1,0 +1,61 @@
+name: Verify portfolio
+
+on:
+  # Run automatically when changes enter the integration branch, rather than
+  # generating a failed-run email for every feature-branch push.
+  push:
+    branches:
+      - dev
+      - test
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+
+# If several commits arrive close together, keep only the latest run for the
+# same branch/PR. This reduces duplicate work; it does not replace GitHub's
+# account-level email notification preferences.
+concurrency:
+  group: verify-portfolio-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Package manager authority (npm)
+        run: npm run check:pm
+      - name: Dependency vulnerability gate (high or critical fails)
+        run: npm run audit:deps
+      - name: Generate CycloneDX dependency SBOM
+        continue-on-error: true # Keep functional/security tests running if npm cannot create a PURL for the private root package.
+        run: npm sbom --sbom-format=cyclonedx --output-file=portfolio-dependencies.cdx.json
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Bundle size budget
+        run: npm run check:budget
+      - name: Upload dependency SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-dependencies-${{ github.run_number }}
+          path: portfolio-dependencies.cdx.json
+          if-no-files-found: warn
+          retention-days: 7

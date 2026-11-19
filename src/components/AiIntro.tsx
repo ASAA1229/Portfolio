@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { Bot, Pause, Play, RotateCcw, ArrowRight, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,18 +12,22 @@ import {
 } from "@/components/ui/dialog";
 import { DeveloperMark } from "@/components/DeveloperMark";
 import { AI_INTRO_SEGMENTS } from "@/lib/ai-intro";
-import my1 from "@/assets/my_1.jpeg";
+import { usePublishedProfileImages } from "@/lib/published-resume";
 import videoSet from "@/assets/video_set.mp4";
 
 /** Verified offline introduction used when the live AI service is unreachable. */
 const OFFLINE_INTRO = AI_INTRO_SEGMENTS.map((segment) => segment.text).join(" ");
 
 function DynamicIntroPlayer() {
+  const publishedPortrait = [...usePublishedProfileImages("abhishek")]
+    .reverse()
+    .find((image) => image.slot === "portrait");
   const [intro, setIntro] = useState("");
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
   const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -53,7 +58,9 @@ function DynamicIntroPlayer() {
           text += decoder.decode(value, { stream: true });
           setIntro(text);
         }
+        text += decoder.decode();
         if (!text.trim()) throw new Error("Empty AI intro");
+        setIntro(text);
       } catch {
         if (!controller.signal.aborted) {
           setOffline(true);
@@ -73,19 +80,27 @@ function DynamicIntroPlayer() {
   useEffect(() => {
     const element = video.current;
     if (!element) return;
+    if (shouldReduceMotion) {
+      element.pause();
+      return;
+    }
     const played = element.play?.();
     if (played && typeof played.catch === "function") played.catch(() => undefined);
     return () => element.pause();
-  }, []);
+  }, [shouldReduceMotion]);
 
   function playVoice() {
     if (!intro.trim() || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(intro.replace(/[*#`]/g, ""));
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find((item) => /male|david|guy|ryan|george|mark|daniel/i.test(item.name) && item.lang.startsWith("en"))
-      ?? voices.find((item) => item.lang === "en-IN")
-      ?? voices.find((item) => item.lang.startsWith("en"));
+    const voice =
+      voices.find(
+        (item) =>
+          /male|david|guy|ryan|george|mark|daniel/i.test(item.name) && item.lang.startsWith("en"),
+      ) ??
+      voices.find((item) => item.lang === "en-IN") ??
+      voices.find((item) => item.lang.startsWith("en"));
     if (voice) utterance.voice = voice;
     utterance.lang = voice?.lang ?? "en-IN";
     utterance.rate = 1.02;
@@ -118,11 +133,13 @@ function DynamicIntroPlayer() {
               muted
               playsInline
               loop
-              autoPlay
+              autoPlay={!shouldReduceMotion}
               preload="metadata"
               aria-label="AI portfolio host video"
               className="h-full w-full object-contain"
-              onError={(event) => { event.currentTarget.hidden = true; }}
+              onError={(event) => {
+                event.currentTarget.hidden = true;
+              }}
             />
             <DeveloperMark className="hidden h-28 w-28" />
           </div>
@@ -130,22 +147,32 @@ function DynamicIntroPlayer() {
             <Bot className="size-4 text-primary" /> AI portfolio host
           </p>
           <figure>
-            <img src={my1} alt="Portrait of Guda Abhishek" className="aspect-square w-16 rounded object-cover" />
-            <figcaption className="mt-1 text-xs text-muted-foreground">Guda Abhishek · portfolio owner</figcaption>
+            <img
+              src={publishedPortrait?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
+              alt={publishedPortrait?.alt ?? "Portrait of Guda Abhishek"}
+              className="aspect-square w-16 rounded object-cover"
+            />
+            <figcaption className="mt-1 text-xs text-muted-foreground">
+              Guda Abhishek · portfolio owner
+            </figcaption>
           </figure>
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <div>
-            <p className="mb-3 text-[10px] uppercase text-primary">LIVE PORTFOLIO CONTEXT · AI INTRODUCTION</p>
+            <p className="mb-3 text-[10px] uppercase text-primary">
+              LIVE PORTFOLIO CONTEXT · AI INTRODUCTION
+            </p>
             <p className="whitespace-pre-wrap text-sm leading-7" aria-live="polite">
-              {loading && !intro ? "Building an introduction from the latest published portfolio information…" : intro || "The live introduction is unavailable right now."}
+              {loading && !intro
+                ? "Building an introduction from the latest published portfolio information…"
+                : intro || "The live introduction is unavailable right now."}
             </p>
             {offline && (
               <div role="status" className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
                 <p>
-                  The live AI service could not be reached, so this is the offline introduction built
-                  from the same verified portfolio facts — not a live AI response. The portfolio
-                  itself remains available.
+                  The live AI service could not be reached, so this is the offline introduction
+                  built from the same verified portfolio facts — not a live AI response. The
+                  portfolio itself remains available.
                 </p>
                 <Button
                   variant="outline"
@@ -163,40 +190,111 @@ function DynamicIntroPlayer() {
             <Button onClick={speaking ? pauseVoice : playVoice} disabled={!intro.trim() || loading}>
               {speaking ? <Pause /> : <Play />} {speaking ? "Pause voice" : "Play introduction"}
             </Button>
-            <Button variant="outline" className="min-h-11" onClick={playVoice} disabled={!intro.trim() || loading}>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={playVoice}
+              disabled={!intro.trim() || loading}
+            >
               <RotateCcw /> Replay
             </Button>
-            <span className="flex items-center gap-2 text-xs text-muted-foreground"><Volume2 className="size-4" /> Optional device voice</span>
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Volume2 className="size-4" /> Optional device voice
+            </span>
           </div>
         </div>
       </div>
       <p className="border-y border-border py-3 text-xs leading-5 text-muted-foreground">
-        The introduction is generated from the current published portfolio data each time this panel opens. Browser narration uses an available device voice; it is not a cloned voice.
+        The introduction is generated from the current published portfolio data each time this panel
+        opens. Browser narration uses an available device voice; it is not a cloned voice.
       </p>
     </>
   );
 }
 
-export function AiIntro({ compact = false }: { compact?: boolean }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Opening the dialog must paint immediately (INP). The player mounts a video, starts a streaming
+ * request and re-renders per chunk, so it is mounted one frame after the dialog frame, as a transition.
+ */
+function DeferredIntroPlayer() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const schedule =
+      typeof window.requestAnimationFrame === "function"
+        ? (callback: () => void) => window.requestAnimationFrame(() => callback())
+        : (callback: () => void) => window.setTimeout(callback, 16);
+    const cancel =
+      typeof window.cancelAnimationFrame === "function"
+        ? (id: number) => window.cancelAnimationFrame(id)
+        : (id: number) => window.clearTimeout(id);
+    const id = schedule(() => startTransition(() => setReady(true)));
+    return () => cancel(id);
+  }, []);
+  return ready ? (
+    <DynamicIntroPlayer />
+  ) : (
+    <p role="status" className="py-8 text-sm text-muted-foreground">
+      Preparing the introduction…
+    </p>
+  );
+}
+
+export function AiIntro({
+  compact = false,
+  controlledOpen,
+  onControlledOpenChange,
+}: {
+  compact?: boolean;
+  controlledOpen?: boolean;
+  onControlledOpenChange?: (open: boolean) => void;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  // The dialog can be opened from elsewhere (navbar button, custom event) rather than its own trigger;
+  // remember whatever had focus so closing returns it there (WCAG 2.4.3). A layout effect runs before
+  // Radix moves focus into the dialog.
+  const returnFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (open && document.activeElement instanceof HTMLElement) {
+      returnFocus.current = document.activeElement;
+    }
+  }, [open]);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onControlledOpenChange?.(next);
+    if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(next) => {
-      setOpen(next);
-      if (!next && "speechSynthesis" in window) window.speechSynthesis.cancel();
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className={`min-h-11 ${compact ? "text-xs" : "px-5"}`}>
           <Bot /> Meet my AI intro
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90svh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg p-5 sm:p-7">
-        <DialogTitle className="pr-9 font-display text-3xl leading-tight">Meet Abhishek</DialogTitle>
+      <DialogContent
+        className="max-h-[90svh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-lg p-5 sm:p-7"
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus.current;
+          if (target && target.isConnected && target !== document.body) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
+        <DialogTitle className="pr-9 font-display text-3xl leading-tight">
+          Meet Abhishek
+        </DialogTitle>
         <DialogDescription className="pr-4 text-xs leading-5">
           A live, profile-aware introduction generated from verified portfolio information.
         </DialogDescription>
-        {open && <DynamicIntroPlayer />}
+        {open && <DeferredIntroPlayer />}
         <DialogClose asChild>
-          <Button variant="ghost" className="min-h-11"><ArrowRight /> Close introduction</Button>
+          <Button variant="ghost" className="min-h-11">
+            <ArrowRight /> Close introduction
+          </Button>
         </DialogClose>
       </DialogContent>
     </Dialog>

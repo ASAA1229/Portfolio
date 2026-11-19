@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "asaa.ecosystem/v1/service-manifest.schema.json",
+  "title": "ASAA ecosystem service manifest v1",
+  "description": "Unauthenticated, secret-free self-description served at GET /.well-known/asaa-service by every ASAA ecosystem service.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "service", "project", "version", "status", "checkedAt", "checks", "capabilities"],
+  "properties": {
+    "schema": { "const": "asaa.service-manifest.v1" },
+    "service": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,39}$", "description": "Service id, e.g. asaa-api, jarvis, templates-api, portfolio" },
+    "project": { "enum": ["ASAA", "JARVIS", "TEMPLATES", "PORTFOLIO"], "description": "Canonical ASAA project code (matches the ASAA project register code)" },
+    "version": { "type": "string", "maxLength": 64 },
+    "commit": { "type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$", "description": "Build commit SHA when known, else null" },
+    "environment": { "enum": ["development", "test", "staging", "production", "local-prod"] },
+    "status": { "enum": ["ok", "degraded", "down"] },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "object",
+      "description": "Named dependency checks; values only, never connection strings or secrets",
+      "additionalProperties": { "enum": ["ok", "degraded", "down", "disabled"] }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,63}$" },
+      "description": "e.g. ai.chat-completions, templates.generation, events.produce, events.ingest"
+    },
+    "contracts": {
+      "type": "object",
+      "description": "Ecosystem contract versions this service implements",
+      "additionalProperties": { "type": "string", "pattern": "^v[0-9]+$" }
+    }
+  }
+}

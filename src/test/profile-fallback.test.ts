@@ -17,14 +17,20 @@ describe("profile-grounded AI fallback", () => {
   });
 
   it("creates an introduction without claiming to be the person", () => {
-    const answer = fallbackProfileAnswer(PERSON_PORTFOLIOS.ammu, "Introduce this portfolio", "intro");
+    const answer = fallbackProfileAnswer(
+      PERSON_PORTFOLIOS.ammu,
+      "Introduce this portfolio",
+      "intro",
+    );
     expect(answer).toContain("AI assistant presenting Dudala Amulya");
     expect(answer).toContain("not the person speaking");
   });
 
   it("does not invent contact handles when they are absent", () => {
     const answer = fallbackProfileAnswer(PERSON_PORTFOLIOS.sai, "How can I contact you?");
-    expect(answer).toContain("No social profile handles are listed");
+    expect(answer).toContain("LinkedIn: not provided");
+    expect(answer).toContain("GitHub: not provided");
+    expect(answer).not.toMatch(/LinkedIn: https?:|GitHub: https?:/);
   });
 
   it("offers useful guidance for questions outside known sections", () => {

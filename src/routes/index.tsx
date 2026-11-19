@@ -1,11 +1,12 @@
+import { useAbhishekContent } from "@/lib/abhishek-content";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ArrowUpRight, MapPin, Code2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AiIntro } from "@/components/AiIntro";
 import { Reveal } from "@/components/Reveal";
 import { ProjectCard, ResumeAction, SocialLinks } from "@/components/SitePrimitives";
-import { pageHead, siteProjects } from "@/lib/site-data";
-import portrait from "@/assets/my_1.jpeg";
+import { pageHead } from "@/lib/site-data";
+import { usePublishedProfileImages, usePublishedProfileResume } from "@/lib/published-resume";
 
 export const Route = createFileRoute("/")({
   head: () =>
@@ -17,12 +18,32 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 function Home() {
+  const publishedResume = usePublishedProfileResume("abhishek");
+  const publishedImages = usePublishedProfileImages("abhishek");
+  const publishedPortrait = [...publishedImages]
+    .reverse()
+    .find((image) => image.slot === "portrait");
+  // Owner CMS edits (headline, summary, projects) over curated content.
+  const content = useAbhishekContent();
+  const resumeEducation = publishedResume?.structuredSections?.education?.find(
+    (entry) => typeof entry === "object",
+  );
+  const educationTitle = resumeEducation?.title || content.education?.qualification || "B.Tech IT";
+  const educationPeriod =
+    [resumeEducation?.startDate, resumeEducation?.endDate].filter(Boolean).join(" – ") ||
+    content.education?.period ||
+    "2022–2026";
+  const educationLocation =
+    resumeEducation?.location ||
+    content.education?.location ||
+    content.contact.location ||
+    "Hyderabad, India";
   return (
     <>
       <section className="home-hero">
         <img
-          src={portrait}
-          alt="Existing AI-stylized portrait of Guda Abhishek"
+          src={publishedPortrait?.src ?? "/images/profiles/abhishek/abhishek_main.jpeg"}
+          alt={publishedPortrait?.alt ?? "Portrait of Guda Abhishek"}
           width={768}
           height={768}
           fetchPriority="high"
@@ -42,14 +63,18 @@ function Home() {
                 <span className="text-primary">.</span>
               </h1>
               <p className="mt-6 max-w-md text-lg font-semibold leading-7">
-                Software Engineer
-                <br />
-                <span className="text-violet">AI & Full-Stack Developer</span>
+                {content.headline || publishedResume?.headline || (
+                  <>
+                    Software Engineer
+                    <br />
+                    <span className="text-violet">AI & Full-Stack Developer</span>
+                  </>
+                )}
               </p>
               <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-                Building practical products with React, Java, REST APIs and Generative AI.
-                Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to
-                real experiences.
+                {content.summary ||
+                  publishedResume?.summary ||
+                  "Building practical products with React, Java, REST APIs and Generative AI. Thoughtful interfaces. Reliable integrations. Engineering that connects ideas to real experiences."}
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Button asChild className="min-h-11 px-5">
@@ -66,11 +91,14 @@ function Home() {
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-4">
                 <AiIntro compact />
-                <SocialLinks />
+                <SocialLinks
+                  github={publishedResume?.contact?.github || content.contact.github}
+                  linkedin={publishedResume?.contact?.linkedin || content.contact.linkedin}
+                />
               </div>
               <p className="mt-7 flex items-center gap-2 text-xs text-muted-foreground">
-                <MapPin className="size-3 text-violet" /> Hyderabad, India{" "}
-                <span className="mx-1">/</span> B.Tech IT · 2026
+                <MapPin className="size-3 text-violet" /> {educationLocation}{" "}
+                <span className="mx-1">/</span> {educationTitle} · {educationPeriod}
               </p>
             </div>
           </Reveal>
@@ -86,7 +114,7 @@ function Home() {
           ].map(([number, title, sub, Icon]) => {
             const Symbol = Icon as typeof Code2;
             return (
-              <div key={String(number)} className="flex items-start gap-4">
+              <div key={String(number)} className="discipline-card flex items-start gap-4">
                 <span className="font-mono text-xs text-primary">{String(number)}</span>
                 <div>
                   <p className="text-sm font-semibold">{String(title)}</p>
@@ -111,11 +139,9 @@ function Home() {
           </Button>
         </div>
         <div className="grid gap-6 md:grid-cols-2">
-          {siteProjects
-            .filter((p) => p.index === 0 || p.index === 2)
-            .map((p) => (
-              <ProjectCard key={p.slug} project={p} />
-            ))}
+          {content.projects.slice(0, 2).map((p) => (
+            <ProjectCard key={p.slug} project={p} />
+          ))}
         </div>
       </section>
       <section className="home-about">
@@ -123,10 +149,9 @@ function Home() {
           <h2 className="text-4xl font-semibold">Beyond the interface.</h2>
           <div>
             <p className="max-w-xl text-sm leading-7 text-muted-foreground">
-              From enterprise finance workflows at Paves Technologies to AI product interfaces at
-              Bilvantis, I focus on responsive software, clear communication and purposeful
-              integration. My foundation is a B.Tech in Information Technology from TKR College of
-              Engineering & Technology.
+              {content.story ||
+                content.summary ||
+                "From enterprise finance workflows to AI product interfaces, I focus on responsive software, clear communication and purposeful integration."}
             </p>
             <Button asChild variant="bare" className="mt-4 px-0">
               <Link to="/experience">

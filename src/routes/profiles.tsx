@@ -1,32 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePublishedImageFeed } from "@/lib/published-resume";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { PEOPLE } from "@/lib/person-portfolios";
+import { seoHead } from "@/lib/seo-head";
 import { MOTION_TOKENS } from "@/lib/motion";
 
 export const Route = createFileRoute("/profiles")({
-  head: () => ({
-    meta: [
-      { title: "Who's Watching? — Choose Your Portfolio" },
-      {
-        name: "description",
-        content:
-          "Choose Abhishek, Amulya (Ammu), Anjini (Bava), or Sai (Darling) and explore their individual portfolios.",
-      },
-      { property: "og:title", content: "Who's Watching? — Choose Your Portfolio" },
-      {
-        property: "og:description",
-        content: "Four people. Individual stories. Explore Abhishek, Amulya, Anjini, and Sai.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: "Who's Watching? — Choose Your Portfolio",
+      description:
+        "Choose Abhishek, Amulya (Ammu), Anjini (Bava), or Sai (Darling) and explore their individual portfolios.",
+      path: "/profiles",
+      image: "/images/profiles/abhishek/abhishek_main.jpeg",
+      imageAlt: "ABHISHEK: THE SERIES profile selector",
+    }),
   component: ProfileSelect,
 });
 
 function ProfileSelect() {
+  const publishedImages = usePublishedImageFeed();
+  const portraitOverrides = new Map<string, string>();
+  for (const image of publishedImages) {
+    if (image.slot === "portrait") portraitOverrides.set(image.profileId, image.src);
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -52,14 +51,24 @@ function ProfileSelect() {
   };
 
   return (
-    <div className="relative flex min-h-svh flex-col bg-background px-5 py-8 sm:px-12">
-      <header className="flex items-center justify-between">
-        <span className="series-logo text-3xl">
+    <div className="profile-selector-page relative flex min-h-svh flex-col bg-background px-5 py-8 sm:px-12">
+      <header className="profile-selector-header flex items-center justify-between gap-4">
+        <Link
+          to="/"
+          aria-label="ABHISHEK THE SERIES: return to Abhishek's portfolio home"
+          className="series-logo rounded-sm text-3xl transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4"
+        >
           ABHISHEK{" "}
           <span className="ml-2 align-middle font-sans text-[9px] font-normal text-muted-foreground">
             THE SERIES
           </span>
-        </span>
+        </Link>
+        <Link
+          to="/"
+          className="min-h-11 inline-flex items-center rounded border border-border px-3 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Back to portfolio
+        </Link>
       </header>
       <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center py-14">
         <motion.div
@@ -88,18 +97,20 @@ function ProfileSelect() {
                 asChild
                 variant="bare"
                 size="auto"
-                className="group block text-center"
+                className="profile-selector-card group block text-center"
               >
                 <Link to="/people/$person" params={{ person: profile.id }} className="min-w-0">
-                  <span className="block rounded ring-2 ring-transparent transition-all duration-200 group-hover:scale-[1.04] group-hover:ring-foreground group-focus-visible:ring-foreground group-active:scale-95">
+                  <span className="block rounded-lg ring-2 ring-transparent transition-all duration-200 group-hover:ring-primary/50 group-focus-visible:ring-primary/70 group-active:scale-[0.985]">
                     <span
                       aria-hidden="true"
-                      className={`${profile.color} relative flex aspect-square w-full items-center justify-center overflow-hidden rounded font-display text-6xl text-primary-foreground shadow-2xl ring-1 ring-white/10 sm:text-7xl`}
+                      className={`profile-selector-portrait ${profile.color} relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg font-display text-6xl text-primary-foreground shadow-2xl ring-1 ring-white/10 sm:text-7xl`}
                     >
-                      <span className="absolute inset-0 flex items-center justify-center">{profile.initials}</span>
-                      {profile.avatar && (
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        {profile.initials}
+                      </span>
+                      {(portraitOverrides.get(profile.id) ?? profile.avatar) && (
                         <img
-                          src={profile.avatar}
+                          src={portraitOverrides.get(profile.id) ?? profile.avatar}
                           alt=""
                           loading="eager"
                           decoding="async"
@@ -115,7 +126,7 @@ function ProfileSelect() {
                       <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent" />
                     </span>
                   </span>
-                  <span className="mt-4 block min-h-10 text-sm text-foreground transition-colors group-hover:text-primary sm:text-base">
+                  <span className="profile-selector-meta mt-2 block min-h-10 text-sm text-foreground transition-colors group-hover:text-primary sm:text-base">
                     {profile.name}
                     {profile.nickname && (
                       <span className="mt-1 block text-xs text-muted-foreground">
@@ -132,8 +143,14 @@ function ProfileSelect() {
           </motion.div>
         </motion.div>
       </div>
-      <footer className="text-center text-[10px] text-muted-foreground">
-        GUDA ABHISHEK · SOFTWARE ENGINEER & AI DEVELOPER
+      <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-[10px] text-muted-foreground">
+        <span>GUDA ABHISHEK · SOFTWARE ENGINEER & AI DEVELOPER</span>
+        <Link
+          to="/privacy"
+          className="inline-flex min-h-6 items-center underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Privacy
+        </Link>
       </footer>
     </div>
   );
