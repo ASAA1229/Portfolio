@@ -86,14 +86,17 @@ export function r2Adapter(bucket: R2BucketLike): StorageAdapter {
       if (!bucket.list) throw new Error("This R2 binding does not support listing.");
       const keys: string[] = [];
       let cursor: string | undefined;
-      // Bounded paging: the admin data set is small; stop at 10k keys.
+      // Bounded paging: fail closed rather than silently return a partial index at 10k keys.
       for (let page = 0; page < 10; page += 1) {
         const result = await bucket.list({ prefix, limit: 1000, ...(cursor ? { cursor } : {}) });
         keys.push(...result.objects.map((object) => object.key));
-        if (!result.truncated || !result.cursor) break;
+        if (!result.truncated) return keys.sort();
+        if (!result.cursor) {
+          throw new Error("R2 listing was truncated without a continuation cursor.");
+        }
         cursor = result.cursor;
       }
-      return keys.sort();
+      throw new Error("R2 listing exceeded the 10,000-key safety limit; refusing a partial result.");
     },
   };
 }
