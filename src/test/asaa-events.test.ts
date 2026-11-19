@@ -7,9 +7,11 @@ import { z } from "zod";
 import {
   buildEnvelope,
   classifyAdminEvent,
+  emissionAllowed,
   enqueueEvent,
   eventsCheck,
   flushEvents,
+  LOGIN_FAILED_MAX,
   OUTBOX_KEY,
   OUTBOX_MAX,
   parseRetryAfter,
@@ -573,5 +575,77 @@ describe("rate limiting and contention", () => {
     expect(stored.entries.map((entry) => entry.envelope.id).sort()).toEqual(
       events.map((event) => event.id).sort(),
     );
+  });
+});
+
+describe("login-failed lane, emission cap and manifest read cache", () => {
+  const failedEvent = () =>
+    buildEnvelope(config, { type: "portfolio.admin.login-failed", severity: "warning", data: {} });
+
+  it("keeps login-failed in its own capped lane that never evicts other security events", async () => {
+    const r2 = new MemoryR2();
+    const securityEvents = Array.from({ length: 5 }, () =>
+      buildEnvelope(config, {
+        type: "portfolio.admin.backup-restored",
+        severity: "warning",
+        data: {},
+      }),
+    );
+    for (const event of securityEvents) await enqueueEvent(r2, event);
+    for (let i = 0; i < LOGIN_FAILED_MAX + 50; i++) await enqueueEvent(r2, failedEvent());
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { priority?: string; envelope: { id: string } }[];
+    }>();
+    const lane = stored.entries.filter((entry) => entry.priority === "login-failed");
+    expect(lane).toHaveLength(LOGIN_FAILED_MAX);
+    for (const event of securityEvents)
+      expect(stored.entries.some((entry) => entry.envelope.id === event.id)).toBe(true);
+  });
+
+  it("evicts routine, then login-failed, and only then security events when the outbox is full", async () => {
+    const r2 = new MemoryR2();
+    const security = buildEnvelope(config, {
+      type: "portfolio.admin.logout-all",
+      severity: "warning",
+      data: {},
+    });
+    await enqueueEvent(r2, security);
+    for (let i = 0; i < LOGIN_FAILED_MAX; i++) await enqueueEvent(r2, failedEvent());
+    for (let i = 0; i < OUTBOX_MAX + 20; i++)
+      await enqueueEvent(r2, envelope("portfolio.admin.login"));
+    const stored = await (await r2.get(OUTBOX_KEY))!.json<{
+      entries: { priority?: string; envelope: { id: string } }[];
+    }>();
+    expect(stored.entries).toHaveLength(OUTBOX_MAX);
+    expect(stored.entries.some((entry) => entry.envelope.id === security.id)).toBe(true);
+    expect(stored.entries.filter((entry) => entry.priority === "login-failed").length).toBeLessThan(
+      LOGIN_FAILED_MAX + 1,
+    );
+  });
+
+  it("caps events accepted per process per minute", () => {
+    let accepted = 0;
+    for (let i = 0; i < 500; i++) if (emissionAllowed(1_000_000)) accepted++;
+    expect(accepted).toBe(120);
+    expect(emissionAllowed(1_000_000 + 61_000)).toBe(true); // a new window opens
+  });
+
+  it("serves unauthenticated manifest probes from a 20 s read cache", async () => {
+    const r2 = new MemoryR2();
+    const env = { ENVIRONMENT: "test", RESUME_BUCKET: r2, ...EVENTS_ENV };
+    const probe = () => server.fetch(new Request(`${ORIGIN}/.well-known/asaa-service`), env, {});
+    await probe();
+    const reads = () => r2.log.filter((entry) => entry.op === "get").length;
+    const afterFirst = reads();
+    expect(afterFirst).toBeGreaterThan(0);
+    for (let i = 0; i < 25; i++) await probe();
+    expect(reads()).toBe(afterFirst); // no storage access for the cached probes
+    vi.useFakeTimers({ now: Date.now() + 21_000, toFake: ["Date"] });
+    try {
+      await probe();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(reads()).toBeGreaterThan(afterFirst); // refreshed after the TTL
   });
 });

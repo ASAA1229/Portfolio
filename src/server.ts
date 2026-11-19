@@ -84,6 +84,7 @@ import {
   enqueueEvent,
   eventsCheck,
   aggregateLoginFailure,
+  emissionAllowed,
   flushEvents,
   probeFlushDue,
   resolveEventsConfig,
@@ -3062,6 +3063,7 @@ function reportAdminEvent(input: {
   const bucket = resolvePrivateBucket(input.env);
   if (!bucket) return;
   const { request, config, path, status, who, auditId, ssoOutcome } = input;
+  if (!emissionAllowed()) return;
   let type: string;
   let severity: "info" | "warning" | "critical";
   let subject: string | undefined;
@@ -3347,6 +3349,12 @@ async function handleSeoRoutes(request: Request, env: unknown): Promise<Response
   });
 }
 
+const MANIFEST_CACHE_MS = 20_000;
+const manifestReadCache = new WeakMap<
+  object,
+  { at: number; storage: CheckState; asaaEvents: CheckState }
+>();
+
 /**
  * GET/HEAD /.well-known/asaa-service: unauthenticated, secret-free ASAA service manifest (contract v1).
  * Storage is probed with one read of a key that never exists (no writes); the AI check only inspects
@@ -3360,14 +3368,28 @@ async function handleServiceManifest(
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   if (normalizedPath(request) !== "/.well-known/asaa-service") return null;
   const bucket = resolvePrivateBucket(env);
-  let storage: CheckState = "disabled";
-  if (bucket) {
-    try {
-      await bucket.get("private-admin/.health-probe");
-      storage = "ok";
-    } catch {
-      storage = "down";
+  const eventsConfig = resolveEventsConfig(env);
+  // Unauthenticated probes must not hit storage every time: the storage and event-outbox reads are
+  // cached per bucket for 20 s (a clock that moved backwards invalidates the entry).
+  const cacheKey = bucket as object | undefined;
+  const cached = cacheKey ? manifestReadCache.get(cacheKey) : undefined;
+  const age = cached ? Date.now() - cached.at : -1;
+  let storage: CheckState;
+  let asaaEvents: CheckState;
+  if (cached && age >= 0 && age < MANIFEST_CACHE_MS) {
+    ({ storage, asaaEvents } = cached);
+  } else {
+    storage = "disabled";
+    if (bucket) {
+      try {
+        await bucket.get("private-admin/.health-probe");
+        storage = "ok";
+      } catch {
+        storage = "down";
+      }
     }
+    asaaEvents = await eventsCheck(bucket, eventsConfig);
+    if (cacheKey) manifestReadCache.set(cacheKey, { at: Date.now(), storage, asaaEvents });
   }
   const bindings = (env ?? {}) as Record<string, unknown>;
   const ai: CheckState = resolveAiProvider(
@@ -3379,10 +3401,8 @@ async function handleServiceManifest(
     bindings["ENVIRONMENT"] ??
     (typeof process !== "undefined" ? process.env["ENVIRONMENT"] : undefined);
   // ASAA polls this endpoint, so it also retries any queued events (no separate cron required).
-  const eventsConfig = resolveEventsConfig(env);
   if (eventsConfig && bucket && probeFlushDue())
     runInBackground(ctx, flushEvents(bucket, eventsConfig));
-  const asaaEvents = await eventsCheck(bucket, eventsConfig);
   const manifest = buildServiceManifest({
     version: typeof __PORTFOLIO_VERSION__ !== "undefined" ? __PORTFOLIO_VERSION__ : undefined,
     commit: typeof __PORTFOLIO_BUILD_COMMIT__ !== "undefined" ? __PORTFOLIO_BUILD_COMMIT__ : null,

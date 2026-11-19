@@ -194,7 +194,7 @@ interface OutboxEntry {
   attempts: number;
   nextAt: number;
   /** Security events are evicted only after every routine event has been. Absent = routine. */
-  priority?: "security" | "routine";
+  priority?: "security" | "login-failed" | "routine";
 }
 interface Outbox {
   version: 1;
@@ -279,22 +279,39 @@ async function mutateOutbox(bucket: OutboxBucket, change: (outbox: Outbox) => vo
  * Security-relevant events (anything above info severity, and content/persona changes) outrank routine
  * noise such as ordinary logins when the outbox is full.
  */
-export function eventPriority(envelope: EventEnvelope): "security" | "routine" {
+export function eventPriority(envelope: EventEnvelope): "security" | "login-failed" | "routine" {
+  // Failed sign-ins are the one security-ish event anyone can provoke, so they get their own small
+  // lane (LOGIN_FAILED_MAX) that can never push out other security events.
+  if (envelope.type === "portfolio.admin.login-failed") return "login-failed";
   return envelope.severity !== "info" || /^portfolio\.admin\.(persona|content)-/.test(envelope.type)
     ? "security"
     : "routine";
 }
 
+export const LOGIN_FAILED_MAX = 20;
+
 export async function enqueueEvent(bucket: OutboxBucket, envelope: EventEnvelope): Promise<void> {
   try {
     await mutateOutbox(bucket, (outbox) => {
       if (outbox.entries.some((entry) => entry.envelope.id === envelope.id)) return;
-      outbox.entries.push({ envelope, attempts: 0, nextAt: 0, priority: eventPriority(envelope) });
+      const priority = eventPriority(envelope);
+      if (priority === "login-failed") {
+        // The lane is capped on its own: the oldest login-failed entry makes room, nothing else does.
+        const lane = outbox.entries.filter((entry) => entry.priority === "login-failed");
+        if (lane.length >= LOGIN_FAILED_MAX) {
+          const oldest = outbox.entries.findIndex((entry) => entry.priority === "login-failed");
+          outbox.entries.splice(oldest, 1);
+          outbox.dropped += 1;
+        }
+      }
+      outbox.entries.push({ envelope, attempts: 0, nextAt: 0, priority });
       while (outbox.entries.length > OUTBOX_MAX) {
-        // Evict the oldest routine event first; only when every entry is a security event does the
-        // oldest security event go.
-        const routine = outbox.entries.findIndex((entry) => entry.priority !== "security");
-        outbox.entries.splice(routine >= 0 ? routine : 0, 1);
+        // Eviction order: routine, then login-failed, and only then the oldest security event.
+        const victim = (kind: string) =>
+          outbox.entries.findIndex((e) => (e.priority ?? "routine") === kind);
+        const routine = victim("routine");
+        const failed = victim("login-failed");
+        outbox.entries.splice(routine >= 0 ? routine : failed >= 0 ? failed : 0, 1);
         outbox.dropped += 1;
       }
     });
@@ -338,6 +355,21 @@ export function aggregateLoginFailure(
   return { report: FAILURE_REPORT_AT.includes(entry.count), attempts: entry.count };
 }
 
+const EMISSION_WINDOW_MS = 60_000;
+const EMISSION_MAX_PER_WINDOW = 120;
+let emissionWindow = { start: 0, count: 0 };
+
+/**
+ * Global per-process cap on events accepted for the outbox (120 per minute). Anything above it is
+ * dropped before it costs a storage write, so no traffic pattern can turn into unbounded writes.
+ */
+export function emissionAllowed(now = Date.now()): boolean {
+  if (now - emissionWindow.start >= EMISSION_WINDOW_MS || now < emissionWindow.start)
+    emissionWindow = { start: now, count: 0 };
+  emissionWindow.count += 1;
+  return emissionWindow.count <= EMISSION_MAX_PER_WINDOW;
+}
+
 const PROBE_FLUSH_MIN_MS = 30_000;
 let lastProbeFlush = 0;
 
@@ -353,6 +385,7 @@ export function resetEventThrottles(): void {
   failureCounts.clear();
   lastProbeFlush = 0;
   pendingLost = 0;
+  emissionWindow = { start: 0, count: 0 };
 }
 
 /** Health of event delivery for the service manifest. */
