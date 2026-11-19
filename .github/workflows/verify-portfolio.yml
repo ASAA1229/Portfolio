@@ -9,6 +9,7 @@ on:
       - test
   pull_request:
     branches:
+      - new
       - dev
   workflow_dispatch:
 
