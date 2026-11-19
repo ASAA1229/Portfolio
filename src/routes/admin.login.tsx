@@ -12,6 +12,21 @@ export const Route = createFileRoute("/admin/login")({
   component: AdminLogin,
 });
 
+/** Plain explanations for the fixed failure codes the server may attach (never provider text). */
+const SSO_FAILURE_MESSAGES: Record<string, string> = {
+  auth_time_missing:
+    "The identity provider did not report when you authenticated (auth_time claim missing). The portfolio-admin client needs the basic scope so ID tokens include auth_time.",
+  stale_authentication:
+    "Your sign-in at the identity provider was not recent enough. Sign in again.",
+  mfa_required:
+    "The identity provider did not report multi-factor authentication (amr/acr). Sign in with your authenticator code.",
+  role_required: "Your account does not hold the portfolio-admin role.",
+  bad_audience: "The identity provider issued a token for a different client.",
+  bad_issuer: "The identity provider issued a token from an unexpected issuer.",
+  bad_nonce: "The sign-in response did not match this browser session. Retry.",
+  expired: "The sign-in response had already expired. Retry.",
+};
+
 function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,9 +35,11 @@ function AdminLogin() {
   const [methods, setMethods] = useState({ sso: false, password: true });
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("sso") === "failed") {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("sso") === "failed") {
       setError(
-        "SSO sign-in was not completed. Check your authenticator code and role, then retry.",
+        SSO_FAILURE_MESSAGES[query.get("reason") ?? ""] ??
+          "SSO sign-in was not completed. Check your authenticator code and role, then retry.",
       );
     }
     fetch("/api/admin/login/options", { credentials: "same-origin" })

@@ -205,8 +205,13 @@ export async function handleAdminSso(
   }
 
   // ---- callback ----
-  const failedRedirect = (reason: string, provenTx: boolean) => ({
-    response: redirect("/admin/login?sso=failed", [txCookie("", secure, 0)]),
+  // Only fixed, non-sensitive verification codes (never provider text) are shown on the login page, and
+  // only to a caller that presented a valid transaction, so a misconfigured realm is diagnosable.
+  const failedRedirect = (reason: string, provenTx: boolean, publicReason?: string) => ({
+    response: redirect(
+      publicReason ? `/admin/login?sso=failed&reason=${publicReason}` : "/admin/login?sso=failed",
+      [txCookie("", secure, 0)],
+    ),
     outcome: { kind: "login-failed", reason, provenTx } satisfies SsoOutcome,
   });
 
@@ -272,14 +277,14 @@ export async function handleAdminSso(
   } catch {
     return unavailable();
   }
-  const fail = async (reason: string) => {
+  const fail = async (reason: string, publicReason?: string) => {
     try {
       await limiter.recordFailure(key);
     } catch (error) {
       console.error("SSO throttle could not record a failed attempt.", error);
     }
     console.error("Admin SSO sign-in rejected.", { reason });
-    return failedRedirect(reason, true);
+    return failedRedirect(reason, true, publicReason);
   };
 
   const params = url.searchParams;
@@ -304,11 +309,9 @@ export async function handleAdminSso(
     // Long subjects are replaced by a stable pseudonym so the session cookie and audit key agree.
     identity = { ...verified, sub: await compactSubject(verified.sub) };
   } catch (error) {
-    return fail(
-      error instanceof OidcVerificationError
-        ? error.reason
-        : `exchange_failed:${error instanceof Error ? error.message.slice(0, 40) : "unknown"}`,
-    );
+    return error instanceof OidcVerificationError
+      ? fail(error.reason, error.reason)
+      : fail(`exchange_failed:${error instanceof Error ? error.message.slice(0, 40) : "unknown"}`);
   }
 
   let epoch: string | null;

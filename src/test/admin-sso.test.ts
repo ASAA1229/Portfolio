@@ -393,7 +393,7 @@ describe("successful sign-in", () => {
 describe("callback validation", () => {
   const failed = (response: Response) => {
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/admin/login?sso=failed");
+    expect(response.headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
     expect(
       response.headers.getSetCookie().some((c) => c.startsWith("portfolio_admin_session=")),
     ).toBe(false);
@@ -495,7 +495,7 @@ describe("unauthenticated callback noise cannot lock out sign-in", () => {
     for (let i = 0; i < 10; i++) {
       const noise = await call(env, "/api/admin/sso/callback?error=x", {}, ip);
       expect(noise.status).toBe(302);
-      expect(noise.headers.get("location")).toBe("/admin/login?sso=failed");
+      expect(noise.headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
     }
     const tx = await begin(env, ip);
     const response = await finish(env, tx, {}, ip);
@@ -563,7 +563,7 @@ describe("configurable MFA and role policy", () => {
 
     tx = await begin(env, nextIp());
     idp.claims = () => ({ amr: ["otp"] }); // default values no longer accepted
-    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+    expect((await finish(env, tx)).headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
   });
 
   it("supports a custom role claim path and required role (groups with a leading slash)", async () => {
@@ -577,7 +577,7 @@ describe("configurable MFA and role policy", () => {
 
     tx = await begin(env, nextIp());
     idp.claims = () => ({ groups: ["/others"] });
-    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+    expect((await finish(env, tx)).headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
   });
 });
 
@@ -641,7 +641,9 @@ describe("fresh authentication (max_age)", () => {
     expect((await finish(env, tx)).headers.get("location")).toBe("/admin/resumes");
     const stale = await begin(env, nextIp());
     idp.claims = () => ({ auth_time: Math.floor(Date.now() / 1000) - 3600 });
-    expect((await finish(env, stale)).headers.get("location")).toBe("/admin/login?sso=failed");
+    expect((await finish(env, stale)).headers.get("location")).toMatch(
+      /^\/admin\/login\?sso=failed/,
+    );
   });
 
   it.each([
@@ -654,7 +656,7 @@ describe("fresh authentication (max_age)", () => {
     const env = baseEnv();
     const tx = await begin(env, nextIp());
     idp.claims = () => claims;
-    expect((await finish(env, tx)).headers.get("location")).toBe("/admin/login?sso=failed");
+    expect((await finish(env, tx)).headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
   });
 });
 
@@ -1016,7 +1018,7 @@ describe("transaction cookie hardening (https)", () => {
     const done = await secureCall(env, `/api/admin/sso/callback?code=good-code&state=${tx.state}`, {
       cookie: `${tx.cookiePair}; ${tx.cookiePair.replace(/=.*/, "=planted.value")}`,
     });
-    expect(done.headers.get("location")).toBe("/admin/login?sso=failed");
+    expect(done.headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
     expect(done.headers.getSetCookie().some((c) => c.startsWith("portfolio_admin_session="))).toBe(
       false,
     );
@@ -1029,7 +1031,7 @@ describe("transaction cookie hardening (https)", () => {
     const done = await secureCall(env, `/api/admin/sso/callback?code=good-code&state=${tx.state}`, {
       cookie: plain,
     });
-    expect(done.headers.get("location")).toBe("/admin/login?sso=failed");
+    expect(done.headers.get("location")).toMatch(/^\/admin\/login\?sso=failed/);
   });
 
   it("keeps the plain narrow-path cookie over loopback http", async () => {
@@ -1140,4 +1142,74 @@ describe("JWKS refetch cooldown and issuer-origin pinning", () => {
       expect(response.headers.get("location")).toBeNull();
     },
   );
+});
+
+describe("Keycloak-shaped tokens and diagnosable failures", () => {
+  // Claims as Keycloak 26 emits them for a client that has the `basic` scope (sub, auth_time, sid,
+  // acr, amr) plus the realm roles and preferred_username mappers. Generated in the test, not captured.
+  const keycloakClaims = (): Record<string, unknown> => {
+    const now = Math.floor(Date.now() / 1000);
+    return {
+      exp: now + 300,
+      iat: now,
+      auth_time: now,
+      jti: "6c2a1d1e-0f0b-4a63-9c0e-5d3f7c1d2e11",
+      typ: "ID",
+      sid: "0b7b8d2c-6f4f-4e53-9d0d-1f1f6a9b7c10",
+      acr: "1",
+      amr: ["pwd", "otp"],
+      email_verified: false,
+      realm_access: { roles: ["default-roles-asaa", "offline_access", "portfolio-admin"] },
+      preferred_username: "owner",
+      sub: "9d3c0a58-2b1e-4a8f-8c55-7a1d3b6f9e42",
+    };
+  };
+
+  it("accepts a Keycloak-shaped ID token and attributes audit entries to its sub", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = keycloakClaims;
+    const response = await finish(env, tx);
+    expect(response.headers.get("location")).toBe("/admin/resumes");
+    const cookie = sessionCookie(response);
+    await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+    const entry = (await readAuditLog(r2)).entries.find((e) => e.action === "POST session/renew")!;
+    expect(entry.actor).toBe("9d3c0a58-2b1e-4a8f-8c55-7a1d3b6f9e42");
+    expect(entry.actorLabel).toBe("owner");
+  });
+
+  it("names the failure on the login redirect when auth_time is missing (realm without the basic scope)", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => {
+      const { auth_time: _omit, ...rest } = keycloakClaims();
+      return { ...rest, auth_time: undefined };
+    };
+    const location = (await finish(env, tx)).headers.get("location")!;
+    expect(location).toBe("/admin/login?sso=failed&reason=auth_time_missing");
+    expect(errors.join("\n")).toContain("auth_time_missing");
+  });
+
+  it.each([
+    ["mfa_required", { amr: ["pwd"] }],
+    ["role_required", { realm_access: { roles: ["offline_access"] } }],
+    ["stale_authentication", { auth_time: Math.floor(Date.now() / 1000) - 7200 }],
+  ])("exposes the fixed code %s but no provider text", async (code, claims) => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    idp.claims = () => ({ ...keycloakClaims(), ...claims });
+    expect((await finish(env, tx)).headers.get("location")).toBe(
+      `/admin/login?sso=failed&reason=${code}`,
+    );
+  });
+
+  it("exposes no reason for exchange failures or noise", async () => {
+    const env = baseEnv();
+    const tx = await begin(env, nextIp());
+    expect((await finish(env, tx, { code: "bad-code" })).headers.get("location")).toBe(
+      "/admin/login?sso=failed",
+    );
+    const noise = await call(env, "/api/admin/sso/callback?error=access_denied", {}, nextIp());
+    expect(noise.headers.get("location")).toBe("/admin/login?sso=failed");
+  });
 });
