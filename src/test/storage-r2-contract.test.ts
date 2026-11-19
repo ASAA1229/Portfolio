@@ -54,6 +54,41 @@ describe("in-memory R2 model", () => {
   });
 });
 
+describe("R2 listing safety limit", () => {
+  it("rejects a partial result when the provider still has more than 10,000 keys", async () => {
+    let calls = 0;
+    const bucket = {
+      get: async () => null,
+      put: async () => undefined,
+      delete: async () => undefined,
+      list: async () => {
+        calls += 1;
+        return {
+          objects: [{ key: `private-admin/${calls}` }],
+          truncated: true,
+          cursor: `cursor-${calls}`,
+        };
+      },
+    };
+    await expect(r2Adapter(bucket).list("private-admin/")).rejects.toThrow(
+      "exceeded the 10,000-key safety limit",
+    );
+    expect(calls).toBe(10);
+  });
+
+  it("rejects a truncated page without a continuation cursor", async () => {
+    const bucket = {
+      get: async () => null,
+      put: async () => undefined,
+      delete: async () => undefined,
+      list: async () => ({ objects: [{ key: "private-admin/one" }], truncated: true }),
+    };
+    await expect(r2Adapter(bucket).list("private-admin/")).rejects.toThrow(
+      "without a continuation cursor",
+    );
+  });
+});
+
 describe("cross-isolate storage lease", () => {
   it("serializes multi-object transactions issued from different isolates", async () => {
     const r2 = new MemoryR2();
