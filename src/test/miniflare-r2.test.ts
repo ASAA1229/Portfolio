@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Miniflare } from "miniflare";
-import { emptyContentDocument } from "@/lib/cms-content";
+import { contentKey, emptyContentDocument } from "@/lib/cms-content";
 import { emptyPersonaDocument } from "@/lib/persona";
 import { emptyHistory } from "@/lib/resume-publish-history";
 import {
@@ -276,8 +276,23 @@ describe("real R2: backup, restore and Admin API", () => {
 
   it("returns 409 to stale concurrent content writers (etag precondition on real R2)", async () => {
     const bucket = await fresh();
-    const slowReads = handle(bucket, async (op) => {
-      if (op === "get") await new Promise((resolve) => setTimeout(resolve, 40));
+    const key = contentKey("sai");
+    await bucket.put(key, JSON.stringify(emptyContentDocument("sai")), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    // Hold all four readers at the same barrier so every writer uses the same
+    // starting etag. A delay alone permits a later request to read a newer
+    // version and correctly succeed as a sequential update.
+    let readers = 0;
+    let releaseReaders!: () => void;
+    const allReaders = new Promise<void>((resolve) => {
+      releaseReaders = resolve;
+    });
+    const slowReads = handle(bucket, async (op, requestedKey) => {
+      if (op !== "get" || requestedKey !== key) return;
+      readers += 1;
+      if (readers === 4) releaseReaders();
+      await allReaders;
     });
     const responses = await Promise.all(
       ["a", "b", "c", "d"].map((tag) =>
