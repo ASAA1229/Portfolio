@@ -474,18 +474,16 @@ async function handleAdminAuth(request: Request, env: unknown): Promise<Response
     try {
       const epoch = await readSessionEpoch(bucket);
       const current = adminAuthBypassed(env) ? null : await readAdminSession(request, env, epoch);
-      // SSO sessions have an absolute lifetime from the original sign-in: renewal never extends it.
+      // Every session has an absolute lifetime from the original sign-in: renewal never extends it.
       if (
-        current?.identity &&
+        current &&
         current.issuedAt !== null &&
         current.issuedAt + ADMIN_SESSION_SECONDS <= Math.floor(Date.now() / 1000)
       ) {
         return jsonResponse(
           { error: "This session reached its maximum lifetime. Sign in again." },
           401,
-          {
-            "set-cookie": clearAdminCookieHeader(new URL(request.url).protocol === "https:"),
-          },
+          { "set-cookie": clearAdminCookieHeader(new URL(request.url).protocol === "https:") },
         );
       }
       const cookie = await createAdminCookie(

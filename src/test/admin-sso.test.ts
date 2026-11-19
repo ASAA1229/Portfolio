@@ -690,26 +690,79 @@ describe("absolute SSO session lifetime and SSO-only enforcement", () => {
     ).toBe(404);
   });
 
-  it("keeps password sessions on the normal sliding renewal", async () => {
-    const env = baseEnv();
-    const login = await call(
-      env,
-      "/api/admin/login",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password: "test-admin-password" }),
-      },
-      nextIp(),
+  const passwordLogin = async (env: object) =>
+    sessionCookie(
+      await call(
+        env,
+        "/api/admin/login",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ password: "test-admin-password" }),
+        },
+        nextIp(),
+      ),
     );
-    const cookie = sessionCookie(login);
-    const first = expiryOf(cookie);
-    vi.useFakeTimers({ now: Date.now() + 3600_000, toFake: ["Date"] });
-    const renewed = await call(env, "/api/admin/session/renew", {
+
+  it("caps password sessions at eight hours from the original login too", async () => {
+    const env = baseEnv();
+    const start = Date.now();
+    let cookie = await passwordLogin(env);
+    const original = expiryOf(cookie);
+    expect(cookie.split("=")[1]).toMatch(/^\d+~p\d+\./); // sign-in time is in the signed payload
+    vi.useFakeTimers({ now: start + 3600_000, toFake: ["Date"] });
+    let renewed = await call(env, "/api/admin/session/renew", {
       method: "POST",
       headers: { cookie },
     });
-    expect(expiryOf(sessionCookie(renewed))).toBeGreaterThan(first);
+    expect(renewed.status).toBe(200);
+    cookie = sessionCookie(renewed);
+    expect(expiryOf(cookie)).toBe(original); // no sliding extension past the absolute maximum
+    vi.setSystemTime(start + 7.9 * 3600_000);
+    renewed = await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } });
+    expect(expiryOf(sessionCookie(renewed))).toBe(original);
+    vi.setSystemTime(start + 8 * 3600_000 + 5_000);
+    expect((await call(env, "/api/admin/session", { headers: { cookie } })).status).toBe(404);
+    expect(
+      (await call(env, "/api/admin/session/renew", { method: "POST", headers: { cookie } })).status,
+    ).toBe(404);
+  });
+
+  it("treats a legacy password cookie (no sign-in time) as started one lifetime before its expiry", async () => {
+    const env = baseEnv();
+    const expiry = Math.floor(Date.now() / 1000) + 3600; // as if issued 7 hours ago
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(SESSION_SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const signature = Buffer.from(
+      await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(String(expiry))),
+    ).toString("base64url");
+    const legacy = `portfolio_admin_session=${expiry}.${signature}`;
+    expect((await call(env, "/api/admin/session", { headers: { cookie: legacy } })).status).toBe(
+      200,
+    );
+    const renewed = await call(env, "/api/admin/session/renew", {
+      method: "POST",
+      headers: { cookie: legacy },
+    });
+    expect(renewed.status).toBe(200);
+    expect(expiryOf(sessionCookie(renewed))).toBe(expiry); // cannot be stretched beyond its original window
+  });
+
+  it("rejects a password cookie whose sign-in time was tampered with", async () => {
+    const env = baseEnv();
+    const cookie = await passwordLogin(env);
+    const [name, value] = cookie.split("=") as [string, string];
+    const [payload, signature] = value.split(".") as [string, string];
+    const [expiry] = payload.split("~") as [string];
+    const forged = `${expiry}~p${Math.floor(Date.now() / 1000) + 99999}.${signature}`;
+    expect(
+      (await call(env, "/api/admin/session", { headers: { cookie: `${name}=${forged}` } })).status,
+    ).toBe(404);
   });
 
   it("rejects password/legacy cookies once the password form is disabled and SSO is live", async () => {

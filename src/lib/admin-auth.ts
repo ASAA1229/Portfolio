@@ -160,23 +160,22 @@ export async function createAdminCookie(
   env?: unknown,
   epoch = "0",
   identity?: AdminIdentity,
-  /** Original sign-in time (seconds) when renewing an SSO session; defaults to now. */
+  /** Original sign-in time (seconds) when renewing a session; defaults to now. */
   issuedAt?: number,
 ): Promise<string | null> {
   const secretValue = secret("PORTFOLIO_ADMIN_SESSION_SECRET", env);
   if (!secretValue || !hasStrongSessionSecret(env) || !isValidSessionEpoch(epoch)) return null;
   const key = sessionKey(secretValue, epoch);
   const now = Math.floor(Date.now() / 1000);
-  // SSO sessions have an absolute lifetime measured from the original sign-in: renewal never
-  // extends past it, and a renewal after it returns null.
-  const issued = identity ? (issuedAt ?? now) : now;
-  const expires = identity
-    ? Math.min(now + SESSION_SECONDS, issued + SESSION_SECONDS)
-    : now + SESSION_SECONDS;
+  // Every session (SSO and password) has an absolute lifetime measured from the original sign-in:
+  // renewal never extends past it, and a renewal after it returns null. The sign-in time is part of
+  // the signed payload: `~<identity>` for SSO sessions, `~p<issuedAt>` for password sessions.
+  const issued = issuedAt ?? now;
+  const expires = Math.min(now + SESSION_SECONDS, issued + SESSION_SECONDS);
   if (expires <= now) return null;
   const payload = identity
     ? `${expires}~${await encodeIdentity(identity, issued)}`
-    : String(expires);
+    : `${expires}~p${issued}`;
   return `${payload}.${bytesToBase64Url(await hmac(payload, key))}`;
 }
 
@@ -189,8 +188,8 @@ export async function isAdminRequest(
 }
 
 /**
- * Verified session for the request, or null. `identity` is null for password sessions; SSO sessions
- * also report `issuedAt` (the original sign-in time), which bounds their absolute lifetime.
+ * Verified session for the request, or null. `identity` is null for password sessions. Every session
+ * reports `issuedAt` (the original sign-in time), which bounds its absolute lifetime.
  */
 export async function readAdminSession(
   request: Request,
@@ -227,7 +226,18 @@ export async function readAdminSession(
   )
     return null;
   if (!constantTimeEqual(signature, await hmac(payload, key))) return null;
-  if (encodedIdentity === undefined) return { identity: null, issuedAt: null };
+  if (encodedIdentity === undefined) {
+    // Password cookies minted before sign-in times were recorded: assume they started one lifetime
+    // before expiry, which is when they were issued.
+    return { identity: null, issuedAt: expiry - SESSION_SECONDS };
+  }
+  const passwordSession = encodedIdentity.match(/^p(\d{10,16})$/);
+  if (passwordSession?.[1]) {
+    const issued = Number(passwordSession[1]);
+    if (!Number.isSafeInteger(issued) || issued + SESSION_SECONDS <= Math.floor(Date.now() / 1000))
+      return null;
+    return { identity: null, issuedAt: issued };
+  }
   const decoded = decodeIdentity(encodedIdentity);
   if (!decoded) return null;
   // Cookies minted before issue times were recorded: the session started one lifetime before expiry.
