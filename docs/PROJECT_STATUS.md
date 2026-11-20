@@ -141,3 +141,18 @@ Corrected stale statements to match command output and the coordinator's reruns:
 ## 2026-11-15 reconciliation (documentation owner)
 
 Head at time of writing: `d36d9f6` ("make the suite resilient to load": concurrent sweeps, cheaper axe, worker cap). This is agent-pushed. The proof that the flaky image/resume lifecycle tests are fixed is in progress, and INP work (still over the 200 ms target) is in progress; neither is claimed. Until the test phase runs, the Vitest figure stays "472 passed / 1 skipped, flaky". PORT-GAP-001 stays PARTIALLY COMPLETE. Hosted/staging and CI items are deferred to the deployment and test phases.
+
+
+## Organization verification update — 2026-11-20
+
+**Assessed branch:** `new`. Portfolio CI and Artifact Integrity passed on the observed `new` run [44727824158](https://github.com/ASAA1229/Portfolio/actions/runs/44727824158). The observed `dev` runs 44589114817, 44585802361 and 44585802292 included Verify Portfolio and/or Artifact Integrity failures; re-run the current `dev` head and resolve before promotion. The green `new` run does not establish `dev` or `main` health.
+
+### Repository governance
+- Standard branches `main`, `dev`, `new`, `fix`, and `test` exist. Repository visibility remains public by owner decision.
+- Standard branches were observed without branch protection (`protected: false`) in the 2026-11-20 organization audit. Protection is approved but not yet applied/verified.
+- Promotion policy: working branches → `new`; only `new` → `dev`; only `dev` → `main`. No merge or promotion was performed.
+
+### Product and release status
+CI and artifact-integrity checks on `new` do not establish full profile-page and profile-switching acceptance, admin image/resume upload security, AI intro/chat runtime and API-key handling, responsive/accessibility acceptance, or hosting/deployment operations. These remain subject to exact-commit, runtime and owner validation.
+
+**Release status: NO-GO / NOT ACCEPTED** until current `dev` failures are resolved and all mandatory application, security, operational and owner-acceptance gates are evidenced.
