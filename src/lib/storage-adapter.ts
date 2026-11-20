@@ -96,7 +96,9 @@ export function r2Adapter(bucket: R2BucketLike): StorageAdapter {
         }
         cursor = result.cursor;
       }
-      throw new Error("R2 listing exceeded the 10,000-key safety limit; refusing a partial result.");
+      throw new Error(
+        "R2 listing exceeded the 10,000-key safety limit; refusing a partial result.",
+      );
     },
   };
 }
