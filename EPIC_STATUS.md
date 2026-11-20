@@ -22,3 +22,18 @@
 - Sets 1–12 selections (“all of the above”) add candidate requirements to be mapped; they do not change the status cells above.
 - See [PENDING_WORK_REGISTER.md](PENDING_WORK_REGISTER.md) for carried-forward and cross-project reconciliation work.
 - The approved ASAA Master Requirements Baseline v1.0 remains unchanged. Documentation/planning only; no implementation, testing, deployment, merge, paid services or release is authorized.
+
+
+## Evidence reconciliation — 2026-11-20
+
+| Area | Current verified state | Remaining evidence |
+|---|---|---|
+| CI / artifact integrity on `new` | Passed, run 44727824158 | Re-run on exact candidate SHA |
+| Verify Portfolio / artifact integrity on `dev` | Failures observed in runs 44589114817, 44585802361 and 44585802292 | Diagnose and rerun current head |
+| Profile pages and profile switching | Implementation exists | Full route, data, responsive and device acceptance |
+| Admin uploads | Implementation exists | Security, authorization, file validation and storage tests |
+| AI intro/chat | Implementation exists/planned integration | End-to-end runtime and API-key security verification |
+| Deployment and operations | Not release-verified | Hosting, monitoring, backup/recovery and owner acceptance |
+| Release acceptance | Not accepted; NO-GO | Close current CI, security, runtime and owner gates |
+
+A green `new` workflow must not be generalized to `dev`, `main`, physical devices or production acceptance. See [Project Status](docs/PROJECT_STATUS.md) and [Pending Work](PENDING_WORK_REGISTER.md).
