@@ -60,3 +60,10 @@ The active documentation/source branch is `new` (observed head: `14f94a194c6bfcb
 Approved planning/governance reference for the four ASAA projects and shared ecosystem capabilities. Round 6 consolidation is complete at framework level. Individual requirement mapping, full source reconciliation, branch/runtime verification, named owners, dependency validation, acceptance criteria, evidence-based gaps and delivery estimates remain pending. Approval does not authorize implementation, testing, deployment, paid services or merges.
 
 See `docs/ASAA_MASTER_REQUIREMENTS_BASELINE.md`, `docs/PROJECT_SCOPE.md` and `docs/EPIC_STATUS.md` for the current project scope and epic tracker.
+
+
+## Status and evidence — 2026-11-20
+
+Portfolio remains **NOT ACCEPTED / NO-GO**. The observed `new` CI and Artifact Integrity run passed (44727824158); `dev` verification/artifact-integrity failures require current-head reruns. Runtime, upload-security, AI, accessibility and deployment acceptance remain open.
+
+See [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) for the dated evidence, outstanding gates and next actions. Workflow results are specific to their recorded run and commit; missing runs are not passes.
