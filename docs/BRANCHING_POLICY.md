@@ -36,3 +36,8 @@ Configure GitHub branch protection/rulesets for both `dev` and `main`: require p
 ## Scope and approval
 
 This policy governs repository change routing. Approval of the ASAA Master Requirements Baseline v1.0 is for planning/governance and does not itself authorize implementation, testing, deployment, paid services, merging or release.
+
+
+## Organization branch promotion policy — 2026-11-20
+
+Required flow across ASAA1229 repositories: task/working branches (including `fix` and `test`) → `new`; only `new` → `dev`; only `dev` → `main`. Do not open direct PRs from working branches to `dev` or `main`, or from `new` directly to `main`. All five standard branches exist in the organization snapshot, but were observed without branch protection; enforcement is approved and remains pending application/verification. No merge or promotion is performed by this documentation update.
