@@ -322,3 +322,8 @@ Local validation on branch new (see PROJECT_STATUS.md for commands and counts). 
 - Real 404 for unknown/archived root project pages and a published-only sitemap (PORT-US-044).
 - Skip link and landmark repair (PORT-US-053 keyboard and structure criteria).
 - Public chat rate limiting (PORT-US-034/037 acceptance names rate limiting).
+
+
+## Story evidence reconciliation — 2026-11-20
+
+The observed `new` CI and Artifact Integrity run passed (44727824158), while the observed `dev` verification/artifact-integrity runs failed. Profile switching, secure admin uploads, AI intro/chat runtime and API-key handling, responsive/accessibility, deployment and owner-acceptance stories require their own end-to-end evidence. Do not mark a story accepted or released based only on the `new` workflow result. See [Project Status](PROJECT_STATUS.md) and [Pending Work](../PENDING_WORK_REGISTER.md).
