@@ -1,5 +1,5 @@
 import { describeChatFailure } from "@/lib/ai-chat-errors";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { memo, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { ChatPrivacyNotice } from "@/components/ChatPrivacyNotice";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Minus, Send, X, Volume2, VolumeX } from "lucide-react";
@@ -12,7 +12,8 @@ const time = (t: number) =>
   new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 /** Light markdown: **bold** and "- " bullets, rendered safely as React nodes. */
-function Rich({ text }: { text: string }) {
+const Rich = memo(function Rich({ text }: { text: string }) {
+  // Memoized: while a reply streams only the last message's text changes, so earlier messages are not re-parsed.
   return (
     <>
       {text.split("\n").map((line, i) => {
@@ -38,7 +39,7 @@ function Rich({ text }: { text: string }) {
       })}
     </>
   );
-}
+});
 
 async function askAi(
   history: ChatMessage[],

@@ -87,7 +87,23 @@ type AuditEntry = {
   outcome: string;
   status: string;
 };
+type MonitoringData = {
+  storage: { configured: boolean; reachable: boolean };
+  recovery: { pending: boolean; state: string | null } | null;
+  ai: {
+    provider: "jarvis" | "openai" | "offline";
+    jarvisEnabled: boolean;
+    dailyLimit: number | null;
+    pendingUnsaved: number;
+    usage: {
+      day: string;
+      total: number;
+      byOutcome: Record<string, number>;
+    }[];
+  };
+};
 type DashboardData = {
+  monitoring: MonitoringData | null;
   resumes: ResumeRecord[];
   images: ImageRecord[];
   content: Record<string, VersionedDocument | null>;
@@ -134,6 +150,7 @@ function AdminHome() {
       readJson<{ available?: string[] }>("/api/admin/storage", signal),
       readJson<{ entries: AuditEntry[] }>("/api/admin/audit", signal),
       ...profileRequests,
+      readJson<MonitoringData>("/api/admin/monitoring", signal),
     ]);
     if (signal.aborted) return;
     const unavailable: string[] = [];
@@ -157,7 +174,9 @@ function AdminHome() {
         take<{ persona: VersionedDocument }>(5 + index * 2, `${profile.label} AI persona`)
           ?.persona ?? null;
     });
+    const monitoring = take<MonitoringData>(4 + PROFILES.length * 2, "Monitoring");
     setData({
+      monitoring,
       resumes: resumePayload?.resumes ?? [],
       images: imagePayload?.images ?? [],
       content,
@@ -393,6 +412,51 @@ function AdminHome() {
           >
             Open backup & restore
           </Link>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <Bot className="size-5 text-primary" aria-hidden="true" />
+            <h2 className="text-lg font-semibold">AI service and usage</h2>
+          </div>
+          {data?.monitoring ? (
+            <div className="mt-3 text-sm text-muted-foreground">
+              <p>
+                Live AI:{" "}
+                {data.monitoring.ai.provider === "offline"
+                  ? "off (visitors see profile answers)"
+                  : data.monitoring.ai.provider}
+                . JARVIS gateway {data.monitoring.ai.jarvisEnabled ? "enabled" : "disabled"}. Daily
+                cap: {data.monitoring.ai.dailyLimit ?? "none"}.
+              </p>
+              {data.monitoring.recovery?.pending ? (
+                <p className="mt-2 text-amber-300">
+                  An interrupted storage write needs recovery ({data.monitoring.recovery.state}).
+                </p>
+              ) : null}
+              {data.monitoring.ai.usage.length ? (
+                <ul className="mt-3 divide-y divide-border">
+                  {data.monitoring.ai.usage.slice(0, 4).map((day) => (
+                    <li key={day.day} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+                      <span>{day.day}</span>
+                      <span>
+                        {day.total} requests, {day.byOutcome["ok"] ?? 0} answered,{" "}
+                        {(day.byOutcome["upstream_error"] ?? 0) +
+                          (day.byOutcome["not_configured"] ?? 0)}{" "}
+                        failed, {day.byOutcome["rate_limited"] ?? 0} throttled,{" "}
+                        {day.byOutcome["budget_exhausted"] ?? 0} over the daily cap
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2">No AI usage has been recorded yet.</p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {data ? "AI monitoring is unavailable." : "Checking AI service…"}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between gap-3">
