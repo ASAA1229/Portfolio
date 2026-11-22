@@ -138,7 +138,7 @@ export class AiUsageTracker {
   private local: { day: string; count: number } = { day: "", count: 0 };
 
   constructor(
-    private readonly bucket: ObjectBucket,
+    private readonly bucket: ObjectBucket | null,
     private readonly options: { flushIntervalMs?: number; maxPending?: number } = {},
   ) {}
 
@@ -160,9 +160,17 @@ export class AiUsageTracker {
     const pendingToday = this.pending.filter(
       (e) => e.outcome === "ok" || e.outcome === "upstream_error",
     ).length;
+    const bucket = this.bucket;
+    if (!bucket) {
+      // No storage bound: the cap still applies, to the requests this isolate has served today.
+      const seen = this.local.day === day ? this.local.count : 0;
+      return seen >= limit
+        ? { allowed: false, retryAfterSeconds: secondsUntilNextUtcDay(now) }
+        : { allowed: true };
+    }
     try {
       if (!this.cachedTotal || this.cachedTotal.day !== day || now - this.cachedTotal.at > 10_000) {
-        const { doc } = await readDay(this.bucket, day);
+        const { doc } = await readDay(bucket, day);
         this.cachedTotal = { day, total: this.billable(doc), at: now };
       }
     } catch (error) {
@@ -208,20 +216,25 @@ export class AiUsageTracker {
 
   private async doFlush(now: number): Promise<void> {
     this.lastFlush = now;
+    const bucket = this.bucket;
+    if (!bucket) {
+      this.pending = [];
+      return;
+    }
     const batch = this.pending;
     if (batch.length === 0) return;
     this.pending = [];
     const day = usageDayKey(now);
     try {
       for (let attempt = 0; attempt < 8; attempt += 1) {
-        const { doc, etag } = await readDay(this.bucket, day);
+        const { doc, etag } = await readDay(bucket, day);
         for (const event of batch) {
           doc.total += 1;
           doc.byOutcome[event.outcome] += 1;
           doc.byProfile[event.profile] += 1;
         }
         doc.updatedAt = new Date(now).toISOString();
-        const written = await this.bucket.put(
+        const written = await bucket.put(
           `${AI_USAGE_PREFIX}${day}.json`,
           JSON.stringify(doc),
           {
@@ -248,10 +261,14 @@ export class AiUsageTracker {
   }
 }
 
+/** Storage-less tracker: counts per isolate only, so a missing binding never means unlimited AI. */
+const unboundTracker = new AiUsageTracker(null);
+
 const trackers = new WeakMap<object, AiUsageTracker>();
 
 /** One tracker per bucket object so batching spans requests within an isolate. */
-export function usageTrackerFor(bucket: ObjectBucket): AiUsageTracker {
+export function usageTrackerFor(bucket: ObjectBucket | null | undefined): AiUsageTracker {
+  if (!bucket) return unboundTracker;
   let tracker = trackers.get(bucket as object);
   if (!tracker) {
     tracker = new AiUsageTracker(bucket);

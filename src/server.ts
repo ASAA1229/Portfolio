@@ -3654,7 +3654,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       request = contextualRequest;
       const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
       const usageBucket = resolvePrivateBucket(env);
-      const tracker = usageBucket ? usageTrackerFor(usageBucket) : undefined;
+      const tracker = usageTrackerFor(usageBucket);
       const usageProfile = await chatUsageProfile(request);
       if (tracker && resolveAiProvider(aiEnv)) {
         const budget = await tracker.checkBudget(
