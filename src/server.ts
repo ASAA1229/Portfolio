@@ -74,13 +74,19 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
-import { aiEnvFrom, describeAiProvider, resolveAiProvider } from "./lib/ai-provider";
+import {
+  aiEnvFrom,
+  correlationRequestId,
+  describeAiProvider,
+  resolveAiProvider,
+} from "./lib/ai-provider";
 import {
   outcomeForChatStatus,
   parseDailyLimit,
   readAiUsage,
   usageDayKey,
   usageTrackerFor,
+  AI_USAGE_PROFILES,
   type AiUsageProfile,
 } from "./lib/ai-usage";
 import { summarizeAiBudget, summarizeProfileStorage } from "./lib/profile-storage";
@@ -2649,6 +2655,13 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
       billableToday: isolate.billable,
       remaining: limit === null ? null : Math.max(0, limit - isolate.billable),
       byProfile: isolate.byProfile,
+      byProfileBilled: isolate.byProfileBilled,
+      byProfileRefused: Object.fromEntries(
+        AI_USAGE_PROFILES.map((p) => [
+          p,
+          Math.max(0, isolate.byProfile[p] - isolate.byProfileBilled[p]),
+        ]),
+      ),
       scope: "isolate",
     };
   }
@@ -3226,6 +3239,8 @@ function reportAdminEvent(input: {
   who: AdminActor;
   auditId: string | undefined;
   ssoOutcome: SsoOutcome | undefined;
+  /** Correlation id of the request (X-Request-ID); falls back to the request header. */
+  requestId?: string | undefined;
 }): void {
   const bucket = resolvePrivateBucket(input.env);
   if (!bucket) return;
@@ -3279,7 +3294,7 @@ function reportAdminEvent(input: {
     type,
     severity,
     ...(subject ? { subject } : {}),
-    correlationId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+    correlationId: input.requestId ?? correlationRequestId(request.headers.get("x-request-id")),
     data,
   });
   runInBackground(
@@ -3431,6 +3446,7 @@ export default {
           who,
           auditId,
           ssoOutcome,
+          requestId: securedResponse.headers.get("x-request-id") ?? undefined,
         });
       }
     }
@@ -3610,7 +3626,49 @@ async function handleServiceManifest(
   return jsonResponse(manifest, 200, { "cache-control": "no-store" });
 }
 
-async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+/**
+ * ASAA correlation contract (E2:D0.4): every response carries X-Request-ID. A valid incoming value is
+ * reused, otherwise one is generated, and the same id is placed on the request the handlers see so
+ * the AI provider call and any ASAA event raised by this request carry it too. Immutable static
+ * assets (cache-control: immutable) are left untouched so a per-request id never lands in a cache.
+ */
+async function routeRequest(
+  request: Request,
+  env: unknown,
+  ctx: unknown,
+): Promise<Response> {
+  const incoming = request.headers.get("x-request-id");
+  const requestId = correlationRequestId(incoming);
+  let correlated = request;
+  if (incoming !== requestId) {
+    const headers = new Headers(request.headers);
+    headers.set("x-request-id", requestId);
+    correlated = new Request(request, { headers });
+    const runtime = (request as unknown as { runtime?: unknown }).runtime;
+    if (runtime !== undefined) {
+      (correlated as unknown as { runtime?: unknown }).runtime = runtime;
+    }
+  }
+  const response = await routeRequestInner(correlated, env, ctx);
+  if ((response.headers.get("cache-control") ?? "").toLowerCase().includes("immutable")) {
+    return response;
+  }
+  const wrapped = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+  wrapped.headers.set("x-request-id", requestId);
+  const sso = ssoOutcomes.get(response);
+  if (sso) ssoOutcomes.set(wrapped, sso);
+  return wrapped;
+}
+
+async function routeRequestInner(
+  request: Request,
+  env: unknown,
+  ctx: unknown,
+): Promise<Response> {
   {
     const path = normalizedPath(request);
     const seoResponse = await handleSeoRoutes(request, env);
