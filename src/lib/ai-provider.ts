@@ -56,6 +56,8 @@ const AI_ENV_KEYS = [
   "JARVIS_AI_KEY",
   "OPENAI_API_KEY",
   "PORTFOLIO_AI_ALLOW_PAID_FALLBACK",
+  "JARVIS_AI_ENABLED",
+  "PORTFOLIO_AI_DAILY_LIMIT",
 ] as const;
 
 /**
@@ -85,7 +87,10 @@ export function correlationRequestId(incoming: string | null | undefined): strin
 export function resolveAiProvider(env: Env): AiProvider | null {
   const jarvisUrl = normalizeJarvisUrl(env["JARVIS_AI_URL"]);
   const jarvisKey = env["JARVIS_AI_KEY"];
-  if (jarvisUrl && jarvisKey && JARVIS_KEY_PATTERN.test(jarvisKey)) {
+  // The JARVIS gateway is optional and independently switchable: JARVIS_AI_ENABLED=false turns it off
+  // without removing its settings. It is never used unless the URL and a valid key are configured.
+  const jarvisEnabled = env["JARVIS_AI_ENABLED"] !== "false";
+  if (jarvisEnabled && jarvisUrl && jarvisKey && JARVIS_KEY_PATTERN.test(jarvisKey)) {
     return {
       name: "jarvis",
       endpoint: `${jarvisUrl}/v1/chat/completions`,
@@ -165,5 +170,9 @@ export function describeAiProvider(env: Env): {
   };
 }
 
+/**
+ * Public response when no provider is active. Deliberately generic: setting names and provider details
+ * belong in the owner-only monitoring view, never in a response a visitor can read.
+ */
 export const AI_NOT_CONFIGURED_MESSAGE =
-  "AI is not configured. Set JARVIS_AI_URL and JARVIS_AI_KEY (your JARVIS personal AI gateway) in the server-side environment, then restart or redeploy. A paid provider is used only if you explicitly enable PORTFOLIO_AI_ALLOW_PAID_FALLBACK.";
+  "Live AI is not available right now. Showing answers from the published profile instead.";

@@ -87,7 +87,39 @@ type AuditEntry = {
   outcome: string;
   status: string;
 };
+type MonitoringData = {
+  storage: { configured: boolean; reachable: boolean; kind?: string };
+  recovery: { pending: boolean; state: string | null } | null;
+  profiles?: {
+    profiles: Record<
+      string,
+      {
+        images: { count: number; bytes: number; published: number; cap: number };
+        resumes: { count: number; bytes: number; published: number; cap: number };
+      }
+    >;
+    unassignedResumes: { count: number; bytes: number };
+  } | null;
+  ai: {
+    budget?: {
+      limit: number | null;
+      billableToday: number;
+      remaining: number | null;
+      byProfile: Record<string, number>;
+    };
+    provider: "jarvis" | "openai" | "offline";
+    jarvisEnabled: boolean;
+    dailyLimit: number | null;
+    pendingUnsaved: number;
+    usage: {
+      day: string;
+      total: number;
+      byOutcome: Record<string, number>;
+    }[];
+  };
+};
 type DashboardData = {
+  monitoring: MonitoringData | null;
   resumes: ResumeRecord[];
   images: ImageRecord[];
   content: Record<string, VersionedDocument | null>;
@@ -134,6 +166,7 @@ function AdminHome() {
       readJson<{ available?: string[] }>("/api/admin/storage", signal),
       readJson<{ entries: AuditEntry[] }>("/api/admin/audit", signal),
       ...profileRequests,
+      readJson<MonitoringData>("/api/admin/monitoring", signal),
     ]);
     if (signal.aborted) return;
     const unavailable: string[] = [];
@@ -157,7 +190,9 @@ function AdminHome() {
         take<{ persona: VersionedDocument }>(5 + index * 2, `${profile.label} AI persona`)
           ?.persona ?? null;
     });
+    const monitoring = take<MonitoringData>(4 + PROFILES.length * 2, "Monitoring");
     setData({
+      monitoring,
       resumes: resumePayload?.resumes ?? [],
       images: imagePayload?.images ?? [],
       content,
@@ -393,6 +428,82 @@ function AdminHome() {
           >
             Open backup & restore
           </Link>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <div className="flex items-center gap-3">
+            <Bot className="size-5 text-primary" aria-hidden="true" />
+            <h2 className="text-lg font-semibold">AI service and usage</h2>
+          </div>
+          {data?.monitoring ? (
+            <div className="mt-3 text-sm text-muted-foreground">
+              <p>
+                Live AI:{" "}
+                {data.monitoring.ai.provider === "offline"
+                  ? "off (visitors see profile answers)"
+                  : data.monitoring.ai.provider}
+                . JARVIS gateway {data.monitoring.ai.jarvisEnabled ? "enabled" : "disabled"}. Daily
+                cap: {data.monitoring.ai.dailyLimit ?? "none"}.
+              </p>
+              {data.monitoring.ai.budget ? (
+                <p className="mt-2 text-xs">
+                  Today: {data.monitoring.ai.budget.billableToday} live requests
+                  {data.monitoring.ai.budget.remaining === null
+                    ? ""
+                    : `, ${data.monitoring.ai.budget.remaining} left under the cap`}
+                  . By profile:{" "}
+                  {Object.entries(data.monitoring.ai.budget.byProfile)
+                    .map(([profile, count]) => `${profile} ${count}`)
+                    .join(", ")}
+                  .
+                </p>
+              ) : null}
+              {data.monitoring.profiles ? (
+                <ul className="mt-3 divide-y divide-border">
+                  {Object.entries(data.monitoring.profiles.profiles).map(([profile, usage]) => (
+                    <li key={profile} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+                      <span>
+                        {profile}
+                        {data.monitoring?.storage.kind ? ` (${data.monitoring.storage.kind})` : ""}
+                      </span>
+                      <span>
+                        {usage.images.count}/{usage.images.cap} images ({usage.images.published}{" "}
+                        published, {Math.round(usage.images.bytes / 1024)} KB),{" "}
+                        {usage.resumes.count}/{usage.resumes.cap} resumes ({usage.resumes.published}{" "}
+                        published, {Math.round(usage.resumes.bytes / 1024)} KB)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {data.monitoring.recovery?.pending ? (
+                <p className="mt-2 text-amber-300">
+                  An interrupted storage write needs recovery ({data.monitoring.recovery.state}).
+                </p>
+              ) : null}
+              {data.monitoring.ai.usage.length ? (
+                <ul className="mt-3 divide-y divide-border">
+                  {data.monitoring.ai.usage.slice(0, 4).map((day) => (
+                    <li key={day.day} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+                      <span>{day.day}</span>
+                      <span>
+                        {day.total} requests, {day.byOutcome["ok"] ?? 0} answered,{" "}
+                        {(day.byOutcome["upstream_error"] ?? 0) +
+                          (day.byOutcome["not_configured"] ?? 0)}{" "}
+                        failed, {day.byOutcome["rate_limited"] ?? 0} throttled,{" "}
+                        {day.byOutcome["budget_exhausted"] ?? 0} over the daily cap
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2">No AI usage has been recorded yet.</p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {data ? "AI monitoring is unavailable." : "Checking AI service…"}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between gap-3">

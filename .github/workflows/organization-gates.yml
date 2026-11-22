@@ -1,0 +1,18 @@
+name: Organization gates
+
+on:
+  pull_request:
+    branches: [new, dev, main]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  change-control:
+    name: Change control
+    uses: ASAA1229/organization/.github/workflows/change-control.yml@new
+  policy:
+    name: Organization policy
+    if: contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action)
+    uses: ASAA1229/Configuration/.github/workflows/organization-policy-ci.yml@new

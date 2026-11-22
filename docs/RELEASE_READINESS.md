@@ -137,3 +137,10 @@ Decision remains <badge>NOT READY — RELEASE BLOCKED</badge>. The engineering g
 Newly checked in Gate 3: locked install, typecheck, lint, build, unit/integration/API/UI tests, dependency audit (0 high; production 0), SEO/robots/404 checks, image audit (1 missing reference, 9 unreferenced files), four-profile isolation tests. Still unchecked: screen-reader acceptance, device review, field Web Vitals, hosted checks of Gates 1 and 4, Gate 5.
 
 Update 2026-11-14 (documentation owner): E2E, Miniflare and INP evidence added above; manifest count corrected to 208. The Vitest suite is flaky (image/resume lifecycle timeouts), so "Engineering CI" stays a local-only, unstable pass. Decision unchanged: NO-GO. No hosted CI, Jenkins or staging evidence exists.
+
+
+## Release gate reassessment — 2026-11-20
+
+**Decision: NO-GO.** Portfolio CI and Artifact Integrity passed on the observed `new` run 44727824158. The observed `dev` runs 44589114817, 44585802361 and 44585802292 included verification failures and must be diagnosed and rerun on the current `dev` head.
+
+Production release remains blocked pending exact-SHA green checks, complete profile and admin-upload acceptance, AI intro/chat runtime and API-key security validation, accessibility and responsive/device acceptance, hosting/deployment evidence, monitoring, backup/recovery, and owner sign-off. Do not promote or deploy solely because the `new` run passed.

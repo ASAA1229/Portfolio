@@ -9,6 +9,7 @@ on:
       - test
   pull_request:
     branches:
+      - new
       - dev
   workflow_dispatch:
 
@@ -52,6 +53,33 @@ jobs:
         run: npm run build
       - name: Bundle size budget
         run: npm run check:budget
+      - name: Browser E2E acceptance tests
+        run: npm run test:e2e
+      - name: Start production server for real-browser audit
+        shell: bash
+        run: |
+          export PORT=4173 HOST=127.0.0.1 ENVIRONMENT=test PORTFOLIO_E2E_STORAGE=memory
+          export PORTFOLIO_ADMIN_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")"
+          export PORTFOLIO_ADMIN_SESSION_SECRET="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))")"
+          node .output/server/index.mjs > /tmp/portfolio-browser-audit.log 2>&1 &
+          echo $! > /tmp/portfolio-browser-audit.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          tail -n 40 /tmp/portfolio-browser-audit.log
+          exit 1
+      - name: Real-browser accessibility and performance audit
+        env:
+          BROWSER_CHANNEL: chrome
+        run: npm run check:browser -- http://127.0.0.1:4173
+      - name: Stop production server used for browser audit
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/portfolio-browser-audit.pid ]; then
+            kill "$(cat /tmp/portfolio-browser-audit.pid)" 2>/dev/null || true
+          fi
       - name: Upload dependency SBOM
         uses: actions/upload-artifact@v4
         with:

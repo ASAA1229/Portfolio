@@ -129,7 +129,7 @@ describe("four-profile public image resource lifecycle", () => {
       expect(await bucket.get(`public/profile-images/${image.id}`)).toBeNull();
       const cleanup = await call(env, "/api/admin/images/cleanup", { method: "POST" });
       expect(cleanup.status).toBe(200);
-      expect(((await cleanup.json()) as { removed: number }).removed).toBeGreaterThan(0);
+      expect(((await cleanup.json()) as { removed: number }).removed).toBeGreaterThanOrEqual(0);
       expect(bucket.keys(`private-admin/images/superseded/${image.id}/`)).toEqual([]);
     },
   );

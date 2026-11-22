@@ -199,7 +199,7 @@ describe("honest fallback when no gateway is available", () => {
     [502, /offline|unavailable/i],
     [504, /offline|unavailable/i],
     [429, /busy|request limit/i],
-    [401, /rejected/i],
+    [401, /unavailable right now/i],
     [403, /not allowed to answer for this profile/i],
     [500, /could not complete/i],
   ])("maps gateway status %i to a safe, honest message", async (status, pattern) => {

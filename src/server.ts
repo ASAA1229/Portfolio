@@ -74,7 +74,16 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
-import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
+import { aiEnvFrom, describeAiProvider, resolveAiProvider } from "./lib/ai-provider";
+import {
+  outcomeForChatStatus,
+  parseDailyLimit,
+  readAiUsage,
+  usageDayKey,
+  usageTrackerFor,
+  type AiUsageProfile,
+} from "./lib/ai-usage";
+import { summarizeAiBudget, summarizeProfileStorage } from "./lib/profile-storage";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
 import { passwordLoginAllowed, resolveOidcConfig, ssoOnly } from "./lib/oidc";
@@ -1092,6 +1101,25 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     }
   }
 
+  // Owner-only recovery: remove stored resume originals that no index record references (for
+  // example bytes left behind by an interrupted upload). Indexed resumes are never touched.
+  if (path === "/api/admin/resumes/cleanup" && request.method === "POST") {
+    let removed = 0;
+    try {
+      const ids = new Set((await readResumeIndex(bucket)).map((item) => item.id));
+      const prefix = "private-admin/resumes/files/";
+      for (const key of await listBucketKeys(bucket, prefix)) {
+        if (!ids.has(key.slice(prefix.length))) {
+          await bucket.delete(key);
+          removed += 1;
+        }
+      }
+    } catch (error) {
+      return storageFailure(error, "clean up");
+    }
+    return jsonResponse({ removed }, 200);
+  }
+
   if (path === "/api/admin/resumes" && request.method === "GET") {
     return jsonResponse({ resumes: await readResumeIndex(bucket) }, 200);
   }
@@ -1157,6 +1185,17 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const key = `private-admin/resumes/files/${id}`;
     try {
       const records = await readResumeIndex(bucket);
+      if (
+        records.filter((item) => item.profileId === requestedProfile).length >=
+        MAX_RESUMES_PER_PROFILE
+      ) {
+        return jsonResponse(
+          {
+            error: `This profile already has ${MAX_RESUMES_PER_PROFILE} resumes. Delete unused resumes before uploading more.`,
+          },
+          409,
+        );
+      }
       const record: ResumeRecord = {
         id,
         filename: safeName,
@@ -1664,6 +1703,9 @@ type PortfolioImageRecord = {
 };
 const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+/** Storage bound per profile so repeated uploads cannot grow private storage without limit. */
+const MAX_IMAGES_PER_PROFILE = 100;
+const MAX_RESUMES_PER_PROFILE = 50;
 const IMAGE_TYPES = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -1930,6 +1972,14 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const publicKey = `public/profile-images/${id}`;
     try {
       const records = await readImageIndex(bucket);
+      if (records.filter((item) => item.profileId === profileId).length >= MAX_IMAGES_PER_PROFILE) {
+        return jsonResponse(
+          {
+            error: `This profile already has ${MAX_IMAGES_PER_PROFILE} images. Delete unused images before uploading more.`,
+          },
+          409,
+        );
+      }
       const record: PortfolioImageRecord = {
         id,
         filename,
@@ -2356,6 +2406,15 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
       } catch (error) {
         return imageStorageFailure(error, "delete");
       }
+      // Superseded versions belong to the deleted image: remove them too so no orphaned bytes remain.
+      // Best effort; the cleanup action also sweeps anything left behind.
+      try {
+        for (const key of await listBucketKeys(bucket, `private-admin/images/superseded/${id}/`)) {
+          await bucket.delete(key);
+        }
+      } catch (error) {
+        console.error("Superseded image versions could not be removed after delete.", error);
+      }
       return jsonResponse({ ok: true }, 200);
     }
   }
@@ -2548,6 +2607,72 @@ async function loadPublishedPersona(
     console.error("Could not load the published persona for portfolio chat.", error);
     return null;
   }
+}
+
+/**
+ * Owner-only operational view (D4.12 / D4.18): storage reachability, interrupted-write recovery
+ * state, which AI provider is active (never its key or URL), the daily AI cap and recent usage
+ * counters. Counters only; no prompts, answers or visitor identifiers exist in this data.
+ */
+async function handleMonitoringApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (path !== "/api/admin/monitoring") return null;
+  if (request.method !== "GET") return privateNotFound();
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+  const bucket = resolvePrivateBucket(env);
+  const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
+  const provider = describeAiProvider(aiEnv);
+  const report: Record<string, unknown> = {
+    generatedAt: new Date().toISOString(),
+    storage: { configured: Boolean(bucket), reachable: false },
+    recovery: null,
+    profiles: null,
+    ai: {
+      provider: provider.provider,
+      jarvisEnabled: aiEnv["JARVIS_AI_ENABLED"] !== "false",
+      paidFallbackApproved: provider.paidFallbackApproved,
+      dailyLimit: parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]),
+      pendingUnsaved: 0,
+      usage: [],
+    },
+  };
+  if (bucket) {
+    const tracker = usageTrackerFor(bucket);
+    try {
+      await tracker.flush();
+      await bucket.get("private-admin/.health-probe");
+      report["storage"] = {
+        configured: true,
+        reachable: true,
+        kind: isLocalDevelopmentBucket(bucket)
+          ? "local-disk"
+          : bucket === e2eMemoryBucket
+            ? "memory"
+            : "r2",
+      };
+      report["recovery"] = await storageRecoveryStatus(bucket);
+      const usage = await readAiUsage(bucket, 7);
+      const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
+      report["ai"] = {
+        ...(report["ai"] as Record<string, unknown>),
+        pendingUnsaved: tracker.pendingCount(),
+        usage,
+        budget: summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
+      };
+      // Media and documents per profile, from the private indexes (the source of truth).
+      const [imageIndex, resumeIndex] = await Promise.all([
+        readImageIndex(bucket),
+        readResumeIndex(bucket),
+      ]);
+      report["profiles"] = summarizeProfileStorage(imageIndex, resumeIndex, {
+        imagesPerProfile: MAX_IMAGES_PER_PROFILE,
+        resumesPerProfile: MAX_RESUMES_PER_PROFILE,
+      });
+    } catch (error) {
+      console.error("Monitoring read failed.", error);
+    }
+  }
+  return jsonResponse(report, 200, { "cache-control": "no-store" });
 }
 
 async function handlePersonaApi(request: Request, env: unknown): Promise<Response | null> {
@@ -3330,6 +3455,21 @@ async function withPublishedSeo(
  * /sitemap.xml and /robots.txt are served here (not by the SSR routes) so the sitemap can use the
  * published CMS state: archived or unpublished projects are omitted, published additions listed.
  */
+const USAGE_PROFILES: readonly string[] = ["abhishek", "ammu", "bava", "sai"];
+
+/** Profile the chat request is scoped to, for usage counters only (defaults to the root profile). */
+async function chatUsageProfile(request: Request): Promise<AiUsageProfile> {
+  try {
+    const payload = (await request.clone().json()) as { person?: unknown };
+    if (typeof payload.person === "string" && USAGE_PROFILES.includes(payload.person)) {
+      return payload.person as AiUsageProfile;
+    }
+  } catch {
+    // Unparseable bodies are rejected by the chat route itself.
+  }
+  return "abhishek";
+}
+
 async function handleSeoRoutes(request: Request, env: unknown): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const path = normalizedPath(request);
@@ -3443,8 +3583,16 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
     }
     const authResponse = await handleAdminAuth(request, env);
     if (authResponse) return authResponse;
+    // One authorization boundary for every admin page and API (resumes, images, content, personas,
+    // backup, monitoring, cleanup): nothing below runs for an unauthenticated admin request, so a
+    // handler cannot answer before auth (for example with a storage-not-configured error).
+    if (isAdmin && path !== "/admin/login" && !(await isAdminAuthorized(request, env))) {
+      return privateNotFound();
+    }
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
+    const monitoringResponse = await handleMonitoringApi(request, env);
+    if (monitoringResponse) return monitoringResponse;
     const personaResponse = await handlePersonaApi(request, env);
     if (personaResponse) return personaResponse;
     const contentResponse = await handleContentApi(request, env);
@@ -3504,6 +3652,52 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       const contextualRequest = await attachPublishedResumeContext(request, env);
       if (contextualRequest instanceof Response) return contextualRequest;
       request = contextualRequest;
+      const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
+      const usageBucket = resolvePrivateBucket(env);
+      const tracker = usageBucket ? usageTrackerFor(usageBucket) : undefined;
+      const usageProfile = await chatUsageProfile(request);
+      if (tracker && resolveAiProvider(aiEnv)) {
+        const budget = await tracker.checkBudget(
+          parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]),
+        );
+        if (!budget.allowed) {
+          runInBackground(
+            ctx,
+            tracker.record({ profile: usageProfile, outcome: "budget_exhausted" }) ??
+              Promise.resolve(),
+          );
+          return jsonResponse(
+            {
+              error:
+                "Live AI has reached its daily limit. Profile answers are still available; live AI returns tomorrow.",
+              code: "AI_DAILY_LIMIT",
+            },
+            429,
+            { "retry-after": String(budget.retryAfterSeconds) },
+          );
+        }
+      }
+      if (tracker) {
+        const configured = !!resolveAiProvider(aiEnv);
+        try {
+          const chatResponse = await (await getServerEntry()).fetch(request, env, ctx);
+          runInBackground(
+            ctx,
+            tracker.record({
+              profile: usageProfile,
+              outcome: outcomeForChatStatus(chatResponse.status, configured),
+            }) ?? Promise.resolve(),
+          );
+          return await normalizeCatastrophicSsrResponse(chatResponse);
+        } catch (error) {
+          runInBackground(
+            ctx,
+            tracker.record({ profile: usageProfile, outcome: "upstream_error" }) ??
+              Promise.resolve(),
+          );
+          throw error;
+        }
+      }
     }
 
     try {

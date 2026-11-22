@@ -51,3 +51,15 @@ Reconciliation rules:
 5. The approved Master Requirements Baseline v1.0 remains unchanged; any new baseline requires separate approval.
 6. Planning/documentation only. No code, tests, deployment, merge, paid service, production change or release is authorized by this update.
 
+
+
+## Organization verification update — 2026-11-20
+
+- Re-run Portfolio Verify and Artifact Integrity workflows on the current `dev` head; resolve the failures observed in runs 44589114817, 44585802361 and 44585802292.
+- Apply and verify branch protection and required checks for `main`, `dev`, `new`, `fix` and `test`.
+- Validate all profile routes, profile switching, content consistency and responsive behavior on supported browsers/devices.
+- Security-test admin image/resume uploads, authorization, file validation, storage isolation and auditability.
+- Validate AI intro/chat end-to-end, including server-side key handling, rate limits, error handling and no client-side secret exposure.
+- Complete accessibility, performance, deployment/hosting, monitoring, backup/recovery and owner acceptance evidence.
+
+The latest observed `new` CI and Artifact Integrity run passed (44727824158). Release remains NO-GO / NOT ACCEPTED. No code, tests, deployment, merge or branch promotion was performed by this documentation refresh.
