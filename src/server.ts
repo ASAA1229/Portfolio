@@ -74,7 +74,14 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
-import { aiEnvFrom, resolveAiProvider } from "./lib/ai-provider";
+import { aiEnvFrom, describeAiProvider, resolveAiProvider } from "./lib/ai-provider";
+import {
+  outcomeForChatStatus,
+  parseDailyLimit,
+  readAiUsage,
+  usageTrackerFor,
+  type AiUsageProfile,
+} from "./lib/ai-usage";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
 import { passwordLoginAllowed, resolveOidcConfig, ssoOnly } from "./lib/oidc";
@@ -2550,6 +2557,51 @@ async function loadPublishedPersona(
   }
 }
 
+/**
+ * Owner-only operational view (D4.12 / D4.18): storage reachability, interrupted-write recovery
+ * state, which AI provider is active (never its key or URL), the daily AI cap and recent usage
+ * counters. Counters only; no prompts, answers or visitor identifiers exist in this data.
+ */
+async function handleMonitoringApi(request: Request, env: unknown): Promise<Response | null> {
+  const path = normalizedPath(request);
+  if (path !== "/api/admin/monitoring") return null;
+  if (request.method !== "GET") return privateNotFound();
+  if (!(await isAdminAuthorized(request, env))) return privateNotFound();
+  const bucket = resolvePrivateBucket(env);
+  const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
+  const provider = describeAiProvider(aiEnv);
+  const report: Record<string, unknown> = {
+    generatedAt: new Date().toISOString(),
+    storage: { configured: Boolean(bucket), reachable: false },
+    recovery: null,
+    ai: {
+      provider: provider.provider,
+      jarvisEnabled: aiEnv["JARVIS_AI_ENABLED"] !== "false",
+      paidFallbackApproved: provider.paidFallbackApproved,
+      dailyLimit: parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]),
+      pendingUnsaved: 0,
+      usage: [],
+    },
+  };
+  if (bucket) {
+    const tracker = usageTrackerFor(bucket);
+    try {
+      await tracker.flush();
+      await bucket.get("private-admin/.health-probe");
+      report["storage"] = { configured: true, reachable: true };
+      report["recovery"] = await storageRecoveryStatus(bucket);
+      report["ai"] = {
+        ...(report["ai"] as Record<string, unknown>),
+        pendingUnsaved: tracker.pendingCount(),
+        usage: await readAiUsage(bucket, 7),
+      };
+    } catch (error) {
+      console.error("Monitoring read failed.", error);
+    }
+  }
+  return jsonResponse(report, 200, { "cache-control": "no-store" });
+}
+
 async function handlePersonaApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path !== "/api/admin/personas" && !path.startsWith("/api/admin/personas/")) return null;
@@ -3330,6 +3382,21 @@ async function withPublishedSeo(
  * /sitemap.xml and /robots.txt are served here (not by the SSR routes) so the sitemap can use the
  * published CMS state: archived or unpublished projects are omitted, published additions listed.
  */
+const USAGE_PROFILES: readonly string[] = ["abhishek", "ammu", "bava", "sai"];
+
+/** Profile the chat request is scoped to, for usage counters only (defaults to the root profile). */
+async function chatUsageProfile(request: Request): Promise<AiUsageProfile> {
+  try {
+    const payload = (await request.clone().json()) as { person?: unknown };
+    if (typeof payload.person === "string" && USAGE_PROFILES.includes(payload.person)) {
+      return payload.person as AiUsageProfile;
+    }
+  } catch {
+    // Unparseable bodies are rejected by the chat route itself.
+  }
+  return "abhishek";
+}
+
 async function handleSeoRoutes(request: Request, env: unknown): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const path = normalizedPath(request);
@@ -3445,6 +3512,8 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
     if (authResponse) return authResponse;
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
+    const monitoringResponse = await handleMonitoringApi(request, env);
+    if (monitoringResponse) return monitoringResponse;
     const personaResponse = await handlePersonaApi(request, env);
     if (personaResponse) return personaResponse;
     const contentResponse = await handleContentApi(request, env);
@@ -3504,6 +3573,52 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       const contextualRequest = await attachPublishedResumeContext(request, env);
       if (contextualRequest instanceof Response) return contextualRequest;
       request = contextualRequest;
+      const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
+      const usageBucket = resolvePrivateBucket(env);
+      const tracker = usageBucket ? usageTrackerFor(usageBucket) : undefined;
+      const usageProfile = await chatUsageProfile(request);
+      if (tracker && resolveAiProvider(aiEnv)) {
+        const budget = await tracker.checkBudget(
+          parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]),
+        );
+        if (!budget.allowed) {
+          runInBackground(
+            ctx,
+            tracker.record({ profile: usageProfile, outcome: "budget_exhausted" }) ??
+              Promise.resolve(),
+          );
+          return jsonResponse(
+            {
+              error:
+                "Live AI has reached its daily limit. Profile answers are still available; live AI returns tomorrow.",
+              code: "AI_DAILY_LIMIT",
+            },
+            429,
+            { "retry-after": String(budget.retryAfterSeconds) },
+          );
+        }
+      }
+      if (tracker) {
+        const configured = !!resolveAiProvider(aiEnv);
+        try {
+          const chatResponse = await (await getServerEntry()).fetch(request, env, ctx);
+          runInBackground(
+            ctx,
+            tracker.record({
+              profile: usageProfile,
+              outcome: outcomeForChatStatus(chatResponse.status, configured),
+            }) ?? Promise.resolve(),
+          );
+          return await normalizeCatastrophicSsrResponse(chatResponse);
+        } catch (error) {
+          runInBackground(
+            ctx,
+            tracker.record({ profile: usageProfile, outcome: "upstream_error" }) ??
+              Promise.resolve(),
+          );
+          throw error;
+        }
+      }
     }
 
     try {
