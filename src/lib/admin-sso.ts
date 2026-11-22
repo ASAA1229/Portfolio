@@ -39,6 +39,22 @@ const TX_COOKIE = "portfolio_sso_tx";
 const TX_SECONDS = 600;
 const SSO_PATH = "/api/admin/sso";
 
+const SAFE_FAILURE_REASONS =
+  /^(HTTP \d{3}|Response too large|No ID token|Issuer mismatch|Insecure endpoint|Endpoint origin mismatch)$/;
+
+/**
+ * A fixed, loggable code for an exchange or discovery failure. Raw error text is never used: a
+ * JSON.parse SyntaxError quotes a fragment of the provider response (which can be a token), and a
+ * network error can quote request details.
+ */
+export function safeFailureReason(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown";
+  if (SAFE_FAILURE_REASONS.test(error.message)) return error.message;
+  if (error instanceof SyntaxError) return "invalid_response";
+  if (error.name === "TimeoutError" || error.name === "AbortError") return "timeout";
+  return "unexpected";
+}
+
 export type SsoOutcome =
   | { kind: "login"; identity: AdminIdentity }
   /** `provenTx`: the failure happened after the caller presented a valid signed transaction cookie. */
@@ -197,9 +213,7 @@ export async function handleAdminSso(
       });
       return { response: redirect(location, [txCookie(signed, secure, TX_SECONDS)]) };
     } catch (error) {
-      console.error("SSO provider discovery failed.", {
-        reason: error instanceof Error ? error.message : "unknown",
-      });
+      console.error("SSO provider discovery failed.", { reason: safeFailureReason(error) });
       return { response: context.json({ error: "The SSO provider is unavailable." }, 502) };
     }
   }
@@ -311,7 +325,7 @@ export async function handleAdminSso(
   } catch (error) {
     return error instanceof OidcVerificationError
       ? fail(error.reason, error.reason)
-      : fail(`exchange_failed:${error instanceof Error ? error.message.slice(0, 40) : "unknown"}`);
+      : fail(`exchange_failed:${safeFailureReason(error)}`);
   }
 
   let epoch: string | null;
