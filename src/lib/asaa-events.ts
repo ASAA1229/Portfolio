@@ -481,6 +481,59 @@ export async function eventsCheck(
   }
 }
 
+/**
+ * Counters-only view of the outbox for /api/admin/monitoring. `deadLettered` is the running count of
+ * events that were discarded (rejected as invalid, retries exhausted, or evicted at the cap); the
+ * envelopes themselves are not retained or exposed. Never contains URLs, tokens or event payloads.
+ */
+export async function eventsSummary(
+  bucket: OutboxBucket,
+  config: EventsConfig | null,
+): Promise<{
+  enabled: boolean;
+  pending: number;
+  retrying: number;
+  deadLettered: number;
+  lost: number;
+  capacity: number;
+  state: "ok" | "degraded" | "down" | "disabled";
+}> {
+  const state = await eventsCheck(config ? bucket : undefined, config);
+  if (!config) {
+    return {
+      enabled: false,
+      pending: 0,
+      retrying: 0,
+      deadLettered: 0,
+      lost: 0,
+      capacity: OUTBOX_MAX,
+      state,
+    };
+  }
+  try {
+    const { outbox } = await readOutbox(bucket);
+    return {
+      enabled: true,
+      pending: outbox.entries.length,
+      retrying: outbox.entries.filter((entry) => entry.attempts > 0).length,
+      deadLettered: outbox.dropped,
+      lost: (outbox.lost ?? 0) + pendingLost,
+      capacity: OUTBOX_MAX,
+      state,
+    };
+  } catch {
+    return {
+      enabled: true,
+      pending: -1,
+      retrying: 0,
+      deadLettered: 0,
+      lost: pendingLost,
+      capacity: OUTBOX_MAX,
+      state: "degraded",
+    };
+  }
+}
+
 type Delivery =
   | { kind: "delivered" | "drop" | "retry" | "stop" }
   /** 429: the receiver asked us to back off; not counted as a failed attempt. */

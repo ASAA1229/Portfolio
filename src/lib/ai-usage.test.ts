@@ -15,3 +15,17 @@ describe("AI budget without a storage binding", () => {
     expect(usageTrackerFor(null)).toBe(usageTrackerFor(undefined));
   });
 });
+
+describe("isolate fallback view (E2:D6.4 / E2:D6.8)", () => {
+  it("matches what the no-storage cap enforces and counts every outcome per profile", async () => {
+    const tracker = new AiUsageTracker(null);
+    tracker.record({ profile: "ammu", outcome: "ok" });
+    tracker.record({ profile: "ammu", outcome: "invalid" });
+    tracker.record({ profile: "sai", outcome: "upstream_error" });
+    const view = tracker.isolateToday();
+    expect(view.billable).toBe(2);
+    expect(view.byProfile).toEqual({ abhishek: 0, ammu: 2, bava: 0, sai: 1 });
+    expect((await tracker.checkBudget(2)).allowed).toBe(false);
+    expect((await tracker.checkBudget(3)).allowed).toBe(true);
+  });
+});

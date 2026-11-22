@@ -136,6 +136,11 @@ export class AiUsageTracker {
   private cachedTotal: { day: string; total: number; at: number } | null = null;
   /** Billable requests seen by this isolate today: the bounded fallback when storage is unreadable. */
   private local: { day: string; count: number } = { day: "", count: 0 };
+  /** Every request this isolate recorded today per profile (same meaning as the stored byProfile). */
+  private localProfiles: { day: string; byProfile: Record<AiUsageProfile, number> } = {
+    day: "",
+    byProfile: emptyDay("").byProfile,
+  };
 
   constructor(
     private readonly bucket: ObjectBucket | null,
@@ -194,6 +199,10 @@ export class AiUsageTracker {
   /** Queue one event; returns the flush promise when this call triggered one. */
   record(event: AiUsageEvent, now: number = Date.now()): Promise<void> | null {
     this.pending.push(event);
+    const today = usageDayKey(now);
+    if (this.localProfiles.day !== today)
+      this.localProfiles = { day: today, byProfile: emptyDay(today).byProfile };
+    this.localProfiles.byProfile[event.profile] += 1;
     if (event.outcome === "ok" || event.outcome === "upstream_error") {
       const day = usageDayKey(now);
       this.local = { day, count: (this.local.day === day ? this.local.count : 0) + 1 };
@@ -234,14 +243,10 @@ export class AiUsageTracker {
           doc.byProfile[event.profile] += 1;
         }
         doc.updatedAt = new Date(now).toISOString();
-        const written = await bucket.put(
-          `${AI_USAGE_PREFIX}${day}.json`,
-          JSON.stringify(doc),
-          {
-            httpMetadata: { contentType: "application/json; charset=utf-8" },
-            onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
-          },
-        );
+        const written = await bucket.put(`${AI_USAGE_PREFIX}${day}.json`, JSON.stringify(doc), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+          onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
+        });
         if (written !== null) {
           this.cachedTotal = { day, total: this.billable(doc), at: now };
           return;
@@ -253,6 +258,24 @@ export class AiUsageTracker {
       this.pending = batch.concat(this.pending).slice(-500);
       console.error("AI usage accounting could not be saved; will retry.", error);
     }
+  }
+
+  /**
+   * What this isolate has served today, in the same shape the stored counters use. This is the
+   * figure the cap falls back to without storage, so monitoring can show it when no bucket is bound.
+   */
+  isolateToday(now: number = Date.now()): {
+    billable: number;
+    byProfile: Record<AiUsageProfile, number>;
+  } {
+    const day = usageDayKey(now);
+    return {
+      billable: this.local.day === day ? this.local.count : 0,
+      byProfile:
+        this.localProfiles.day === day
+          ? { ...this.localProfiles.byProfile }
+          : emptyDay(day).byProfile,
+    };
   }
 
   /** Pending events not yet flushed (for the admin view so counts are not under-reported). */
