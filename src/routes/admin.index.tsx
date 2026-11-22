@@ -106,6 +106,8 @@ type MonitoringData = {
       billableToday: number;
       remaining: number | null;
       byProfile: Record<string, number>;
+      byProfileBilled?: Record<string, number> | null;
+      byProfileRefused?: Record<string, number> | null;
     };
     provider: "jarvis" | "openai" | "offline";
     jarvisEnabled: boolean;
@@ -450,10 +452,18 @@ function AdminHome() {
                   {data.monitoring.ai.budget.remaining === null
                     ? ""
                     : `, ${data.monitoring.ai.budget.remaining} left under the cap`}
-                  . By profile:{" "}
-                  {Object.entries(data.monitoring.ai.budget.byProfile)
-                    .map(([profile, count]) => `${profile} ${count}`)
-                    .join(", ")}
+                  . Counted against the cap by profile:{" "}
+                  {data.monitoring.ai.budget.byProfileBilled
+                    ? Object.entries(data.monitoring.ai.budget.byProfileBilled)
+                        .map(([profile, count]) => `${profile} ${count}`)
+                        .join(", ")
+                    : "not available for older data"}
+                  . Refused or invalid attempts (not counted):{" "}
+                  {data.monitoring.ai.budget.byProfileRefused
+                    ? Object.entries(data.monitoring.ai.budget.byProfileRefused)
+                        .map(([profile, count]) => `${profile} ${count}`)
+                        .join(", ")
+                    : "not available for older data"}
                   .
                 </p>
               ) : null}

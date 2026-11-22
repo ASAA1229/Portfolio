@@ -31,8 +31,19 @@ export interface AiUsageDay {
   day: string;
   total: number;
   byOutcome: Record<AiUsageOutcome, number>;
+  /** Every recorded attempt per profile, including refused and invalid ones. */
   byProfile: Record<AiUsageProfile, number>;
+  /**
+   * Per profile, only the requests the daily cap counts (ok + upstream_error). `null` for documents
+   * stored before this split existed: their per-profile billable share is unknown, never guessed.
+   */
+  byProfileBilled: Record<AiUsageProfile, number> | null;
   updatedAt: string;
+}
+
+/** An outcome counts against the daily cap exactly when the request reached the AI provider. */
+export function isBillableOutcome(outcome: AiUsageOutcome): boolean {
+  return outcome === "ok" || outcome === "upstream_error";
 }
 
 export interface AiUsageEvent {
@@ -57,6 +68,10 @@ function emptyDay(day: string): AiUsageDay {
       AiUsageProfile,
       number
     >,
+    byProfileBilled: Object.fromEntries(AI_USAGE_PROFILES.map((p) => [p, 0])) as Record<
+      AiUsageProfile,
+      number
+    >,
     updatedAt: new Date(0).toISOString(),
   };
 }
@@ -76,6 +91,15 @@ export function parseUsageDay(raw: unknown, day: string): AiUsageDay {
     out.byOutcome[outcome] = nonNegativeInt(byOutcome[outcome]);
   for (const profile of AI_USAGE_PROFILES)
     out.byProfile[profile] = nonNegativeInt(byProfile[profile]);
+  const billed = record["byProfileBilled"];
+  if (billed && typeof billed === "object" && !Array.isArray(billed)) {
+    const source = billed as Record<string, unknown>;
+    out.byProfileBilled = Object.fromEntries(
+      AI_USAGE_PROFILES.map((p) => [p, nonNegativeInt(source[p])]),
+    ) as Record<AiUsageProfile, number>;
+  } else {
+    out.byProfileBilled = null; // older document: no per-profile split was stored
+  }
   out.total = nonNegativeInt(record["total"]);
   if (typeof record["updatedAt"] === "string") out.updatedAt = record["updatedAt"];
   return out;
@@ -137,9 +161,14 @@ export class AiUsageTracker {
   /** Billable requests seen by this isolate today: the bounded fallback when storage is unreadable. */
   private local: { day: string; count: number } = { day: "", count: 0 };
   /** Every request this isolate recorded today per profile (same meaning as the stored byProfile). */
-  private localProfiles: { day: string; byProfile: Record<AiUsageProfile, number> } = {
+  private localProfiles: {
+    day: string;
+    byProfile: Record<AiUsageProfile, number>;
+    billed: Record<AiUsageProfile, number>;
+  } = {
     day: "",
     byProfile: emptyDay("").byProfile,
+    billed: emptyDay("").byProfile,
   };
 
   constructor(
@@ -162,9 +191,7 @@ export class AiUsageTracker {
   async checkBudget(limit: number | null, now: number = Date.now()): Promise<BudgetDecision> {
     if (limit === null) return { allowed: true };
     const day = usageDayKey(now);
-    const pendingToday = this.pending.filter(
-      (e) => e.outcome === "ok" || e.outcome === "upstream_error",
-    ).length;
+    const pendingToday = this.pending.filter((e) => isBillableOutcome(e.outcome)).length;
     const bucket = this.bucket;
     if (!bucket) {
       // No storage bound: the cap still applies, to the requests this isolate has served today.
@@ -201,9 +228,14 @@ export class AiUsageTracker {
     this.pending.push(event);
     const today = usageDayKey(now);
     if (this.localProfiles.day !== today)
-      this.localProfiles = { day: today, byProfile: emptyDay(today).byProfile };
+      this.localProfiles = {
+        day: today,
+        byProfile: emptyDay(today).byProfile,
+        billed: emptyDay(today).byProfile,
+      };
     this.localProfiles.byProfile[event.profile] += 1;
-    if (event.outcome === "ok" || event.outcome === "upstream_error") {
+    if (isBillableOutcome(event.outcome)) {
+      this.localProfiles.billed[event.profile] += 1;
       const day = usageDayKey(now);
       this.local = { day, count: (this.local.day === day ? this.local.count : 0) + 1 };
     }
@@ -241,6 +273,9 @@ export class AiUsageTracker {
           doc.total += 1;
           doc.byOutcome[event.outcome] += 1;
           doc.byProfile[event.profile] += 1;
+          // Legacy documents (null) keep no split: it cannot be reconstructed, so it stays unknown.
+          if (doc.byProfileBilled && isBillableOutcome(event.outcome))
+            doc.byProfileBilled[event.profile] += 1;
         }
         doc.updatedAt = new Date(now).toISOString();
         const written = await bucket.put(`${AI_USAGE_PREFIX}${day}.json`, JSON.stringify(doc), {
@@ -267,6 +302,7 @@ export class AiUsageTracker {
   isolateToday(now: number = Date.now()): {
     billable: number;
     byProfile: Record<AiUsageProfile, number>;
+    byProfileBilled: Record<AiUsageProfile, number>;
   } {
     const day = usageDayKey(now);
     return {
@@ -274,6 +310,10 @@ export class AiUsageTracker {
       byProfile:
         this.localProfiles.day === day
           ? { ...this.localProfiles.byProfile }
+          : emptyDay(day).byProfile,
+      byProfileBilled:
+        this.localProfiles.day === day
+          ? { ...this.localProfiles.billed }
           : emptyDay(day).byProfile,
     };
   }
