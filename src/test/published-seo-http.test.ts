@@ -168,7 +168,7 @@ describe("published SEO in server-rendered HTML", () => {
     );
     expect(first.status).toBe(200);
     expect(reads).toBe(1);
-    await r2.put(key, JSON.stringify(unpublishContent(JSON.parse(r2.text(key)!), NOW)));
+    await r2.put(key, JSON.stringify(unpublishContent(JSON.parse(r2.text(key)!))));
     const second = await server.fetch(
       new Request(ORIGIN + "/people/ammu/projects/scoped-read"),
       env(r2),
