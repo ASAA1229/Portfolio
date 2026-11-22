@@ -134,6 +134,8 @@ export class AiUsageTracker {
   private flushing: Promise<void> | null = null;
   private lastFlush = 0;
   private cachedTotal: { day: string; total: number; at: number } | null = null;
+  /** Billable requests seen by this isolate today: the bounded fallback when storage is unreadable. */
+  private local: { day: string; count: number } = { day: "", count: 0 };
 
   constructor(
     private readonly bucket: ObjectBucket,
@@ -148,7 +150,10 @@ export class AiUsageTracker {
     return this.options.maxPending ?? 25;
   }
 
-  /** Is another AI request within today's cap? Storage failures never block chat (fail open). */
+  /**
+   * Is another AI request within today's cap? A storage failure never blocks chat outright: the cap then
+   * applies approximately, to the requests this isolate has served today.
+   */
   async checkBudget(limit: number | null, now: number = Date.now()): Promise<BudgetDecision> {
     if (limit === null) return { allowed: true };
     const day = usageDayKey(now);
@@ -161,8 +166,11 @@ export class AiUsageTracker {
         this.cachedTotal = { day, total: this.billable(doc), at: now };
       }
     } catch (error) {
-      console.error("AI usage budget unavailable; allowing the request.", error);
-      return { allowed: true };
+      console.error("AI usage budget unavailable; applying the per-isolate count.", error);
+      const seen = this.local.day === day ? this.local.count : 0;
+      return seen >= limit
+        ? { allowed: false, retryAfterSeconds: secondsUntilNextUtcDay(now) }
+        : { allowed: true };
     }
     if (this.cachedTotal.total + pendingToday >= limit) {
       return { allowed: false, retryAfterSeconds: secondsUntilNextUtcDay(now) };
@@ -178,8 +186,9 @@ export class AiUsageTracker {
   /** Queue one event; returns the flush promise when this call triggered one. */
   record(event: AiUsageEvent, now: number = Date.now()): Promise<void> | null {
     this.pending.push(event);
-    if (this.cachedTotal && (event.outcome === "ok" || event.outcome === "upstream_error")) {
-      this.cachedTotal.total += 1;
+    if (event.outcome === "ok" || event.outcome === "upstream_error") {
+      const day = usageDayKey(now);
+      this.local = { day, count: (this.local.day === day ? this.local.count : 0) + 1 };
     }
     if (this.flushing) return null;
     if (this.pending.length >= this.maxPending || now - this.lastFlush >= this.flushIntervalMs) {

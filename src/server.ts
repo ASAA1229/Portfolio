@@ -1164,6 +1164,17 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
     const key = `private-admin/resumes/files/${id}`;
     try {
       const records = await readResumeIndex(bucket);
+      if (
+        records.filter((item) => item.profileId === requestedProfile).length >=
+        MAX_RESUMES_PER_PROFILE
+      ) {
+        return jsonResponse(
+          {
+            error: `This profile already has ${MAX_RESUMES_PER_PROFILE} resumes. Delete unused resumes before uploading more.`,
+          },
+          409,
+        );
+      }
       const record: ResumeRecord = {
         id,
         filename: safeName,
@@ -1671,6 +1682,9 @@ type PortfolioImageRecord = {
 };
 const IMAGE_INDEX_KEY = "private-admin/images/index.json";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+/** Storage bound per profile so repeated uploads cannot grow private storage without limit. */
+const MAX_IMAGES_PER_PROFILE = 100;
+const MAX_RESUMES_PER_PROFILE = 50;
 const IMAGE_TYPES = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -1937,6 +1951,14 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
     const publicKey = `public/profile-images/${id}`;
     try {
       const records = await readImageIndex(bucket);
+      if (records.filter((item) => item.profileId === profileId).length >= MAX_IMAGES_PER_PROFILE) {
+        return jsonResponse(
+          {
+            error: `This profile already has ${MAX_IMAGES_PER_PROFILE} images. Delete unused images before uploading more.`,
+          },
+          409,
+        );
+      }
       const record: PortfolioImageRecord = {
         id,
         filename,
@@ -2362,6 +2384,15 @@ async function handlePortfolioImageApi(request: Request, env: unknown): Promise<
         ]);
       } catch (error) {
         return imageStorageFailure(error, "delete");
+      }
+      // Superseded versions belong to the deleted image: remove them too so no orphaned bytes remain.
+      // Best effort; the cleanup action also sweeps anything left behind.
+      try {
+        for (const key of await listBucketKeys(bucket, `private-admin/images/superseded/${id}/`)) {
+          await bucket.delete(key);
+        }
+      } catch (error) {
+        console.error("Superseded image versions could not be removed after delete.", error);
       }
       return jsonResponse({ ok: true }, 200);
     }
