@@ -53,7 +53,7 @@ describe("POST /api/chat request flow", () => {
     expect(response.status).toBe(503);
     const payload = (await response.json()) as { error?: string };
     expect(Object.keys(payload)).toEqual(["error"]);
-    expect(payload.error).toMatch(/^AI is not configured\. Set JARVIS_AI_URL and JARVIS_AI_KEY/);
+    expect(payload.error).toMatch(/^Live AI is not available/);
   });
 
   it("never reports configuration errors for valid profiles without a key", async () => {
@@ -64,7 +64,7 @@ describe("POST /api/chat request flow", () => {
     });
     expect(response.status).toBe(503);
     const payload = (await response.json()) as { error?: string };
-    expect(payload.error).toMatch(/^AI is not configured/);
+    expect(payload.error).toMatch(/^Live AI is not available/);
     // Lovable AI is paused; the response must not point operators at it.
     expect(payload.error?.toLowerCase()).not.toContain("lovable");
   });
@@ -216,7 +216,7 @@ describe("POST /api/chat request flow", () => {
     const response = await post({ person: "sai", messages: [{ role: "user", content: "Hi" }] });
     expect(response.status).toBe(401);
     const payload = (await response.json()) as { error: string };
-    expect(payload.error).toMatch(/rejected its server API key/);
+    expect(payload.error).toMatch(/unavailable right now/);
     expect(payload.error).not.toContain("jrv_");
   });
 });
