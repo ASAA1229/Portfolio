@@ -2780,6 +2780,31 @@ async function readContentDocument(
   return (await readContentDocumentVersioned(bucket, profileId)).doc;
 }
 
+/**
+ * Short-lived cache for the public (published-only) content reads. A project page view otherwise reads
+ * the same profile document two or three times (existence check, SEO head, feed). Admin reads and the
+ * admin write path never use it; a content write invalidates the entry for that bucket and profile.
+ */
+const PUBLIC_CONTENT_CACHE_MS = 5_000;
+const publicContentCache = new WeakMap<
+  object,
+  Map<string, { at: number; doc: ContentDocument }>
+>();
+
+async function readPublicContentDocument(
+  bucket: PrivateBucket,
+  profileId: ContentProfileId,
+): Promise<ContentDocument> {
+  const entries = publicContentCache.get(bucket as object) ?? new Map();
+  publicContentCache.set(bucket as object, entries);
+  const hit = entries.get(profileId);
+  const now = Date.now();
+  if (hit && now >= hit.at && now - hit.at < PUBLIC_CONTENT_CACHE_MS) return hit.doc;
+  const doc = await readContentDocument(bucket, profileId);
+  entries.set(profileId, { at: now, doc });
+  return doc;
+}
+
 async function handleContentApi(request: Request, env: unknown): Promise<Response | null> {
   const path = normalizedPath(request);
   if (path === "/api/published-content" && request.method === "GET") {
@@ -2788,7 +2813,7 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
     const bucket = resolvePrivateBucket(env);
     if (!bucket) return jsonResponse({ profileId, content: null }, 200);
     try {
-      const content = publishedContent(await readContentDocument(bucket, profileId));
+      const content = publishedContent(await readPublicContentDocument(bucket, profileId));
       return jsonResponse({ profileId, content }, 200, { "cache-control": PUBLIC_FEED_CACHE });
     } catch (error) {
       console.error("Could not read published portfolio content.", error);
@@ -2890,6 +2915,7 @@ async function handleContentApi(request: Request, env: unknown): Promise<Respons
   }
   try {
     await putIfUnchanged(bucket, contentKey(profileId), JSON.stringify(next), docEtag);
+    publicContentCache.get(bucket as object)?.delete(profileId);
   } catch (error) {
     if (error instanceof ConcurrentModificationError) {
       return jsonResponse({ error: error.message, code: "CONCURRENT_MODIFICATION" }, 409);
@@ -3104,7 +3130,7 @@ async function personProjectExists(path: string, env: unknown): Promise<boolean 
   const bucket = resolvePrivateBucket(env);
   if (bucket && isContentProfileId(person)) {
     try {
-      const content = publishedContent(await readContentDocument(bucket, person));
+      const content = publishedContent(await readPublicContentDocument(bucket, person));
       const edit = content?.projects?.find((project) => project.slug === slug);
       if (edit) {
         if (edit.archived) archived = true;
@@ -3410,7 +3436,9 @@ async function withPublishedSeo(
   const bucket = resolvePrivateBucket(env);
   if (!target || !bucket) return null;
   try {
-    const published = publishedContent(await readContentDocument(bucket, target.profileId));
+    const published = publishedContent(
+      await readPublicContentDocument(bucket, target.profileId),
+    );
     const siteName =
       target.profileId === "abhishek"
         ? "Guda Abhishek"
