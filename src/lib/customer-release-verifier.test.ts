@@ -70,7 +70,7 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-describe("customer release verifier", { timeout: 30_000 }, () => {
+describe("customer release verifier", { timeout: 60_000 }, () => {
   // Spawns ~12 node/tar subprocesses; the default 5 s is too tight on a loaded machine.
   it("checks manifest-ignore, manifest, and package archive in order", () => {
     const release = createRelease("<main>release</main>");

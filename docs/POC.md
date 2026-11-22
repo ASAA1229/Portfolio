@@ -57,3 +57,8 @@ All four profiles are accurate and isolated; Admin securely manages approved con
 ## POC status — 2026-11-14
 
 The POC scope is unchanged. Success criteria met locally: four profiles isolated in content, resume, image, persona and AI context (tested); Admin manages all public person fields except curated identity; storage recovery and backup/restore proven against an R2 model; AI and SEO behave safely under tested failure modes. Not yet met: hosted storage acceptance, manual accessibility and performance acceptance on devices, and an approved staging deployment with backup and rollback rehearsal. Release remains NO-GO (see PROJECT_STATUS.md).
+
+
+## POC reassessment — 2026-11-20
+
+The Portfolio POC remains **NOT ACCEPTED**. CI and Artifact Integrity passed on the observed `new` run 44727824158; `dev` verification/artifact-integrity failures remain to be diagnosed and rerun on the current head. Full profile/admin-upload/AI runtime acceptance, upload and API-key security, accessibility, deployment/operations and owner approval remain open. The `new` run does not constitute end-to-end POC acceptance.

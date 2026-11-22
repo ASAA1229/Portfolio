@@ -56,6 +56,8 @@ const AI_ENV_KEYS = [
   "JARVIS_AI_KEY",
   "OPENAI_API_KEY",
   "PORTFOLIO_AI_ALLOW_PAID_FALLBACK",
+  "JARVIS_AI_ENABLED",
+  "PORTFOLIO_AI_DAILY_LIMIT",
 ] as const;
 
 /**
@@ -85,7 +87,10 @@ export function correlationRequestId(incoming: string | null | undefined): strin
 export function resolveAiProvider(env: Env): AiProvider | null {
   const jarvisUrl = normalizeJarvisUrl(env["JARVIS_AI_URL"]);
   const jarvisKey = env["JARVIS_AI_KEY"];
-  if (jarvisUrl && jarvisKey && JARVIS_KEY_PATTERN.test(jarvisKey)) {
+  // The JARVIS gateway is optional and independently switchable: JARVIS_AI_ENABLED=false turns it off
+  // without removing its settings. It is never used unless the URL and a valid key are configured.
+  const jarvisEnabled = env["JARVIS_AI_ENABLED"] !== "false";
+  if (jarvisEnabled && jarvisUrl && jarvisKey && JARVIS_KEY_PATTERN.test(jarvisKey)) {
     return {
       name: "jarvis",
       endpoint: `${jarvisUrl}/v1/chat/completions`,

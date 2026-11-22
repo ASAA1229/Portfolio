@@ -6,6 +6,7 @@ on:
       - new
   pull_request:
     branches:
+      - new
       - dev
   workflow_dispatch:
 
