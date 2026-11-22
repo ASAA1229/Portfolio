@@ -146,4 +146,35 @@ describe("published SEO in server-rendered HTML", () => {
     const admin = await server.fetch(new Request(`${ORIGIN}/admin`), env(r2), {});
     expect(admin.status).toBe(404);
   });
+
+  // E2:D6.7 / E2:D6.9: one storage read of the content document per project page view, and no
+  // cross-request memory, so an unpublish is visible on the very next request.
+  it("reads the content document once per project page view and never across requests", async () => {
+    const r2 = new MemoryR2();
+    await publish(r2, "ammu", {
+      projects: [{ slug: "scoped-read", title: "Scoped read", overview: "Brand new work." }],
+    } as ContentOverrides);
+    const key = contentKey("ammu");
+    const original = r2.get.bind(r2);
+    let reads = 0;
+    r2.get = ((k: string, ...rest: unknown[]) => {
+      if (k === key) reads += 1;
+      return (original as (...a: unknown[]) => unknown)(k, ...rest);
+    }) as typeof r2.get;
+    const first = await server.fetch(
+      new Request(ORIGIN + "/people/ammu/projects/scoped-read"),
+      env(r2),
+      {},
+    );
+    expect(first.status).toBe(200);
+    expect(reads).toBe(1);
+    await r2.put(key, JSON.stringify(unpublishContent(JSON.parse(r2.text(key)!), NOW)));
+    const second = await server.fetch(
+      new Request(ORIGIN + "/people/ammu/projects/scoped-read"),
+      env(r2),
+      {},
+    );
+    expect(second.status).toBe(404);
+    expect(reads).toBe(2);
+  });
 });

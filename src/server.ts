@@ -92,6 +92,7 @@ import {
   classifyAdminEvent,
   enqueueEvent,
   eventsCheck,
+  eventsSummary,
   aggregateLoginFailure,
   emissionAllowed,
   flushEvents,
@@ -2636,6 +2637,21 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
       usage: [],
     },
   };
+  {
+    // Without storage the cap applies per isolate; show that same figure so monitoring agrees with
+    // what the budget check enforces. Replaced by the stored view below when storage is readable.
+    const isolate = usageTrackerFor(bucket).isolateToday();
+    const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
+    const day = usageDayKey(Date.now());
+    (report["ai"] as Record<string, unknown>)["budget"] = {
+      day,
+      limit,
+      billableToday: isolate.billable,
+      remaining: limit === null ? null : Math.max(0, limit - isolate.billable),
+      byProfile: isolate.byProfile,
+      scope: "isolate",
+    };
+  }
   if (bucket) {
     const tracker = usageTrackerFor(bucket);
     try {
@@ -2651,13 +2667,17 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
             : "r2",
       };
       report["recovery"] = await storageRecoveryStatus(bucket);
+      report["asaaEvents"] = await eventsSummary(bucket, resolveEventsConfig(env));
       const usage = await readAiUsage(bucket, 7);
       const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
       report["ai"] = {
         ...(report["ai"] as Record<string, unknown>),
         pendingUnsaved: tracker.pendingCount(),
         usage,
-        budget: summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
+        budget: {
+          ...summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
+          scope: "storage",
+        },
       };
       // Media and documents per profile, from the private indexes (the source of truth).
       const [imageIndex, resumeIndex] = await Promise.all([
@@ -2778,6 +2798,24 @@ async function readContentDocument(
   profileId: ContentProfileId,
 ): Promise<ContentDocument> {
   return (await readContentDocumentVersioned(bucket, profileId)).doc;
+}
+
+/**
+ * Request-scoped reader: each profile's content document is read at most once per request, so a
+ * project page view does not hit storage repeatedly. The memo lives only as long as the request
+ * (no cross-request cache), so an unpublish is visible on the very next request.
+ */
+type ScopedContentReader = (profileId: ContentProfileId) => Promise<ContentDocument>;
+function createScopedContentReader(bucket: PrivateBucket): ScopedContentReader {
+  const reads = new Map<ContentProfileId, Promise<ContentDocument>>();
+  return (profileId) => {
+    let read = reads.get(profileId);
+    if (!read) {
+      read = readContentDocument(bucket, profileId);
+      reads.set(profileId, read);
+    }
+    return read;
+  };
 }
 
 async function handleContentApi(request: Request, env: unknown): Promise<Response | null> {
@@ -3094,7 +3132,11 @@ async function handleStorageMigration(request: Request, env: unknown): Promise<R
  * in neither the curated data nor the published CMS projects (or is archived)
  * returns a real 404 for crawlers and direct loads.
  */
-async function personProjectExists(path: string, env: unknown): Promise<boolean | null> {
+async function personProjectExists(
+  path: string,
+  env: unknown,
+  readContent?: ScopedContentReader,
+): Promise<boolean | null> {
   const personMatch = /^\/people\/([a-z]+)\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
   const rootMatch = /^\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
   if (!personMatch && !rootMatch) return null;
@@ -3104,7 +3146,9 @@ async function personProjectExists(path: string, env: unknown): Promise<boolean 
   const bucket = resolvePrivateBucket(env);
   if (bucket && isContentProfileId(person)) {
     try {
-      const content = publishedContent(await readContentDocument(bucket, person));
+      const content = publishedContent(
+        await (readContent ?? ((id) => readContentDocument(bucket, id)))(person),
+      );
       const edit = content?.projects?.find((project) => project.slug === slug);
       if (edit) {
         if (edit.archived) archived = true;
@@ -3403,6 +3447,7 @@ async function withPublishedSeo(
   response: Response,
   path: string,
   env: unknown,
+  readContent?: ScopedContentReader,
 ): Promise<Response | null> {
   if (!(response.headers.get("content-type") ?? "").toLowerCase().includes("text/html"))
     return null;
@@ -3410,7 +3455,9 @@ async function withPublishedSeo(
   const bucket = resolvePrivateBucket(env);
   if (!target || !bucket) return null;
   try {
-    const published = publishedContent(await readContentDocument(bucket, target.profileId));
+    const published = publishedContent(
+      await (readContent ?? ((id) => readContentDocument(bucket, id)))(target.profileId),
+    );
     const siteName =
       target.profileId === "abhishek"
         ? "Guda Abhishek"
@@ -3705,8 +3752,10 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       const response = await normalizeCatastrophicSsrResponse(
         await handler.fetch(request, env, ctx),
       );
+      const scopedBucket = resolvePrivateBucket(env);
+      const readContent = scopedBucket ? createScopedContentReader(scopedBucket) : undefined;
       if (request.method === "GET" && response.status === 200) {
-        const exists = await personProjectExists(path, env);
+        const exists = await personProjectExists(path, env, readContent);
         if (exists === false) {
           return new Response(response.body, {
             status: 404,
@@ -3716,7 +3765,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
         }
       }
       if (!isAdmin && request.method === "GET" && response.status === 200) {
-        const seoResponse = await withPublishedSeo(response, path, env);
+        const seoResponse = await withPublishedSeo(response, path, env, readContent);
         if (seoResponse) return seoResponse;
       }
       return isAdmin ? withNoindex(response) : response;
