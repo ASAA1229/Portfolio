@@ -227,11 +227,11 @@ export const Route = createFileRoute("/api/chat")({
           const message = profileScopeRejected
             ? "This site's JARVIS key is not allowed to answer for this profile. Showing profile answers instead."
             : status === 401 || status === 403
-              ? "The AI provider rejected its server API key. Check the deployment secret and provider access."
+              ? "The AI service is unavailable right now. Showing profile answers instead."
               : status === 429
                 ? provider.name === "jarvis"
                   ? "JARVIS is busy or this site reached its request limit. Please wait a moment and try again."
-                  : "The AI service is rate-limited or out of available quota. Check the API billing and usage limits."
+                  : "The AI service is busy right now. Please try again later."
                 : status === 503 || status === 502 || status === 504
                   ? provider.name === "jarvis"
                     ? "JARVIS is offline or its local model is unavailable right now. Showing profile answers instead."
@@ -272,12 +272,9 @@ export const Route = createFileRoute("/api/chat")({
               // A 200 SSE response can still fail after streaming starts. Surface a
               // useful message instead of returning an empty body that looks successful.
               const friendlyError =
-                provider.name === "openai" &&
-                (code === "credit_balance_exhausted" || code === "insufficient_quota")
-                  ? "Live AI is unavailable because the OpenAI API project has no credits remaining. Add API credits in the OpenAI Platform billing settings, then try again. Your portfolio's offline answers are still available."
-                  : code === "rate_limit_exceeded"
-                    ? "Live AI is temporarily rate-limited. Please wait a moment and try again."
-                    : "Live AI could not complete this response. Please try again later.";
+                code === "rate_limit_exceeded"
+                  ? "Live AI is temporarily rate-limited. Please wait a moment and try again."
+                  : "Live AI could not complete this response. Please try again later. Your portfolio's offline answers are still available.";
               controller.enqueue(encoder.encode("\n\n" + friendlyError));
               cleanupRequest();
               controller.terminate();
