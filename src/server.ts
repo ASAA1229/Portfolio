@@ -79,9 +79,11 @@ import {
   outcomeForChatStatus,
   parseDailyLimit,
   readAiUsage,
+  usageDayKey,
   usageTrackerFor,
   type AiUsageProfile,
 } from "./lib/ai-usage";
+import { summarizeAiBudget, summarizeProfileStorage } from "./lib/profile-storage";
 import { buildServiceManifest, type CheckState } from "./lib/service-manifest";
 import { handleAdminSso, type SsoOutcome } from "./lib/admin-sso";
 import { passwordLoginAllowed, resolveOidcConfig, ssoOnly } from "./lib/oidc";
@@ -1097,6 +1099,25 @@ async function handleResumeApi(request: Request, env: unknown): Promise<Response
         503,
       );
     }
+  }
+
+  // Owner-only recovery: remove stored resume originals that no index record references (for
+  // example bytes left behind by an interrupted upload). Indexed resumes are never touched.
+  if (path === "/api/admin/resumes/cleanup" && request.method === "POST") {
+    let removed = 0;
+    try {
+      const ids = new Set((await readResumeIndex(bucket)).map((item) => item.id));
+      const prefix = "private-admin/resumes/files/";
+      for (const key of await listBucketKeys(bucket, prefix)) {
+        if (!ids.has(key.slice(prefix.length))) {
+          await bucket.delete(key);
+          removed += 1;
+        }
+      }
+    } catch (error) {
+      return storageFailure(error, "clean up");
+    }
+    return jsonResponse({ removed }, 200);
   }
 
   if (path === "/api/admin/resumes" && request.method === "GET") {
@@ -2605,6 +2626,7 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
     generatedAt: new Date().toISOString(),
     storage: { configured: Boolean(bucket), reachable: false },
     recovery: null,
+    profiles: null,
     ai: {
       provider: provider.provider,
       jarvisEnabled: aiEnv["JARVIS_AI_ENABLED"] !== "false",
@@ -2619,13 +2641,33 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
     try {
       await tracker.flush();
       await bucket.get("private-admin/.health-probe");
-      report["storage"] = { configured: true, reachable: true };
+      report["storage"] = {
+        configured: true,
+        reachable: true,
+        kind: isLocalDevelopmentBucket(bucket)
+          ? "local-disk"
+          : bucket === e2eMemoryBucket
+            ? "memory"
+            : "r2",
+      };
       report["recovery"] = await storageRecoveryStatus(bucket);
+      const usage = await readAiUsage(bucket, 7);
+      const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
       report["ai"] = {
         ...(report["ai"] as Record<string, unknown>),
         pendingUnsaved: tracker.pendingCount(),
-        usage: await readAiUsage(bucket, 7),
+        usage,
+        budget: summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
       };
+      // Media and documents per profile, from the private indexes (the source of truth).
+      const [imageIndex, resumeIndex] = await Promise.all([
+        readImageIndex(bucket),
+        readResumeIndex(bucket),
+      ]);
+      report["profiles"] = summarizeProfileStorage(imageIndex, resumeIndex, {
+        imagesPerProfile: MAX_IMAGES_PER_PROFILE,
+        resumesPerProfile: MAX_RESUMES_PER_PROFILE,
+      });
     } catch (error) {
       console.error("Monitoring read failed.", error);
     }
@@ -3541,6 +3583,12 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
     }
     const authResponse = await handleAdminAuth(request, env);
     if (authResponse) return authResponse;
+    // One authorization boundary for every admin page and API (resumes, images, content, personas,
+    // backup, monitoring, cleanup): nothing below runs for an unauthenticated admin request, so a
+    // handler cannot answer before auth (for example with a storage-not-configured error).
+    if (isAdmin && path !== "/admin/login" && !(await isAdminAuthorized(request, env))) {
+      return privateNotFound();
+    }
     const resumeResponse = await handleResumeApi(request, env);
     if (resumeResponse) return resumeResponse;
     const monitoringResponse = await handleMonitoringApi(request, env);

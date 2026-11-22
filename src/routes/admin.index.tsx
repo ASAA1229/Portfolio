@@ -88,9 +88,25 @@ type AuditEntry = {
   status: string;
 };
 type MonitoringData = {
-  storage: { configured: boolean; reachable: boolean };
+  storage: { configured: boolean; reachable: boolean; kind?: string };
   recovery: { pending: boolean; state: string | null } | null;
+  profiles?: {
+    profiles: Record<
+      string,
+      {
+        images: { count: number; bytes: number; published: number; cap: number };
+        resumes: { count: number; bytes: number; published: number; cap: number };
+      }
+    >;
+    unassignedResumes: { count: number; bytes: number };
+  } | null;
   ai: {
+    budget?: {
+      limit: number | null;
+      billableToday: number;
+      remaining: number | null;
+      byProfile: Record<string, number>;
+    };
     provider: "jarvis" | "openai" | "offline";
     jarvisEnabled: boolean;
     dailyLimit: number | null;
@@ -428,6 +444,37 @@ function AdminHome() {
                 . JARVIS gateway {data.monitoring.ai.jarvisEnabled ? "enabled" : "disabled"}. Daily
                 cap: {data.monitoring.ai.dailyLimit ?? "none"}.
               </p>
+              {data.monitoring.ai.budget ? (
+                <p className="mt-2 text-xs">
+                  Today: {data.monitoring.ai.budget.billableToday} live requests
+                  {data.monitoring.ai.budget.remaining === null
+                    ? ""
+                    : `, ${data.monitoring.ai.budget.remaining} left under the cap`}
+                  . By profile:{" "}
+                  {Object.entries(data.monitoring.ai.budget.byProfile)
+                    .map(([profile, count]) => `${profile} ${count}`)
+                    .join(", ")}
+                  .
+                </p>
+              ) : null}
+              {data.monitoring.profiles ? (
+                <ul className="mt-3 divide-y divide-border">
+                  {Object.entries(data.monitoring.profiles.profiles).map(([profile, usage]) => (
+                    <li key={profile} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
+                      <span>
+                        {profile}
+                        {data.monitoring?.storage.kind ? ` (${data.monitoring.storage.kind})` : ""}
+                      </span>
+                      <span>
+                        {usage.images.count}/{usage.images.cap} images ({usage.images.published}{" "}
+                        published, {Math.round(usage.images.bytes / 1024)} KB),{" "}
+                        {usage.resumes.count}/{usage.resumes.cap} resumes ({usage.resumes.published}{" "}
+                        published, {Math.round(usage.resumes.bytes / 1024)} KB)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {data.monitoring.recovery?.pending ? (
                 <p className="mt-2 text-amber-300">
                   An interrupted storage write needs recovery ({data.monitoring.recovery.state}).
