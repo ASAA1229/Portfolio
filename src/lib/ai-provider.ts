@@ -170,5 +170,9 @@ export function describeAiProvider(env: Env): {
   };
 }
 
+/**
+ * Public response when no provider is active. Deliberately generic: setting names and provider details
+ * belong in the owner-only monitoring view, never in a response a visitor can read.
+ */
 export const AI_NOT_CONFIGURED_MESSAGE =
-  "AI is not configured. Set JARVIS_AI_URL and JARVIS_AI_KEY (your JARVIS personal AI gateway) in the server-side environment, then restart or redeploy. A paid provider is used only if you explicitly enable PORTFOLIO_AI_ALLOW_PAID_FALLBACK.";
+  "Live AI is not available right now. Showing answers from the published profile instead.";
