@@ -305,6 +305,32 @@ describe("gateway authentication and transport", () => {
     expect(upstreamCalls[0]!.headers["X-Request-ID"]).toMatch(/^[A-Za-z0-9._-]{8,64}$/);
   });
 
+  it("returns the same X-Request-ID on the response as it sends to the gateway (E2:D0.4)", async () => {
+    configureJarvis();
+    stubUpstream(() => new Response(sse("ok")));
+    const reused = await chat(
+      {},
+      { person: "ammu", messages: [{ role: "user", content: "hi" }] },
+      { requestId: "req-1234.abcd_EF" },
+    );
+    await reused.text();
+    expect(reused.headers.get("x-request-id")).toBe("req-1234.abcd_EF");
+    const generated = await chat(
+      {},
+      { person: "ammu", messages: [{ role: "user", content: "hi" }] },
+      { requestId: "bad id!" },
+    );
+    await generated.text();
+    const sent = upstreamCalls[1]!.headers["X-Request-ID"];
+    expect(generated.headers.get("x-request-id")).toBe(sent);
+    expect(sent).toMatch(/^[A-Za-z0-9._-]{8,64}$/);
+  });
+
+  it("puts X-Request-ID on non-chat responses such as an unknown admin path (E2:D0.4)", async () => {
+    const response = await server.fetch(new Request(`${ORIGIN}/api/admin/nope`), {}, {});
+    expect(response.headers.get("x-request-id")).toMatch(/^[A-Za-z0-9._-]{8,64}$/);
+  });
+
   it.each([
     "http://jarvis.example.test",
     "https://user:pass@jarvis.example.test",

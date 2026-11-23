@@ -31,8 +31,19 @@ export interface AiUsageDay {
   day: string;
   total: number;
   byOutcome: Record<AiUsageOutcome, number>;
+  /** Every recorded attempt per profile, including refused and invalid ones. */
   byProfile: Record<AiUsageProfile, number>;
+  /**
+   * Per profile, only the requests the daily cap counts (ok + upstream_error). `null` for documents
+   * stored before this split existed: their per-profile billable share is unknown, never guessed.
+   */
+  byProfileBilled: Record<AiUsageProfile, number> | null;
   updatedAt: string;
+}
+
+/** An outcome counts against the daily cap exactly when the request reached the AI provider. */
+export function isBillableOutcome(outcome: AiUsageOutcome): boolean {
+  return outcome === "ok" || outcome === "upstream_error";
 }
 
 export interface AiUsageEvent {
@@ -57,6 +68,10 @@ function emptyDay(day: string): AiUsageDay {
       AiUsageProfile,
       number
     >,
+    byProfileBilled: Object.fromEntries(AI_USAGE_PROFILES.map((p) => [p, 0])) as Record<
+      AiUsageProfile,
+      number
+    >,
     updatedAt: new Date(0).toISOString(),
   };
 }
@@ -76,6 +91,15 @@ export function parseUsageDay(raw: unknown, day: string): AiUsageDay {
     out.byOutcome[outcome] = nonNegativeInt(byOutcome[outcome]);
   for (const profile of AI_USAGE_PROFILES)
     out.byProfile[profile] = nonNegativeInt(byProfile[profile]);
+  const billed = record["byProfileBilled"];
+  if (billed && typeof billed === "object" && !Array.isArray(billed)) {
+    const source = billed as Record<string, unknown>;
+    out.byProfileBilled = Object.fromEntries(
+      AI_USAGE_PROFILES.map((p) => [p, nonNegativeInt(source[p])]),
+    ) as Record<AiUsageProfile, number>;
+  } else {
+    out.byProfileBilled = null; // older document: no per-profile split was stored
+  }
   out.total = nonNegativeInt(record["total"]);
   if (typeof record["updatedAt"] === "string") out.updatedAt = record["updatedAt"];
   return out;
@@ -136,9 +160,19 @@ export class AiUsageTracker {
   private cachedTotal: { day: string; total: number; at: number } | null = null;
   /** Billable requests seen by this isolate today: the bounded fallback when storage is unreadable. */
   private local: { day: string; count: number } = { day: "", count: 0 };
+  /** Every request this isolate recorded today per profile (same meaning as the stored byProfile). */
+  private localProfiles: {
+    day: string;
+    byProfile: Record<AiUsageProfile, number>;
+    billed: Record<AiUsageProfile, number>;
+  } = {
+    day: "",
+    byProfile: emptyDay("").byProfile,
+    billed: emptyDay("").byProfile,
+  };
 
   constructor(
-    private readonly bucket: ObjectBucket,
+    private readonly bucket: ObjectBucket | null,
     private readonly options: { flushIntervalMs?: number; maxPending?: number } = {},
   ) {}
 
@@ -157,12 +191,18 @@ export class AiUsageTracker {
   async checkBudget(limit: number | null, now: number = Date.now()): Promise<BudgetDecision> {
     if (limit === null) return { allowed: true };
     const day = usageDayKey(now);
-    const pendingToday = this.pending.filter(
-      (e) => e.outcome === "ok" || e.outcome === "upstream_error",
-    ).length;
+    const pendingToday = this.pending.filter((e) => isBillableOutcome(e.outcome)).length;
+    const bucket = this.bucket;
+    if (!bucket) {
+      // No storage bound: the cap still applies, to the requests this isolate has served today.
+      const seen = this.local.day === day ? this.local.count : 0;
+      return seen >= limit
+        ? { allowed: false, retryAfterSeconds: secondsUntilNextUtcDay(now) }
+        : { allowed: true };
+    }
     try {
       if (!this.cachedTotal || this.cachedTotal.day !== day || now - this.cachedTotal.at > 10_000) {
-        const { doc } = await readDay(this.bucket, day);
+        const { doc } = await readDay(bucket, day);
         this.cachedTotal = { day, total: this.billable(doc), at: now };
       }
     } catch (error) {
@@ -186,7 +226,16 @@ export class AiUsageTracker {
   /** Queue one event; returns the flush promise when this call triggered one. */
   record(event: AiUsageEvent, now: number = Date.now()): Promise<void> | null {
     this.pending.push(event);
-    if (event.outcome === "ok" || event.outcome === "upstream_error") {
+    const today = usageDayKey(now);
+    if (this.localProfiles.day !== today)
+      this.localProfiles = {
+        day: today,
+        byProfile: emptyDay(today).byProfile,
+        billed: emptyDay(today).byProfile,
+      };
+    this.localProfiles.byProfile[event.profile] += 1;
+    if (isBillableOutcome(event.outcome)) {
+      this.localProfiles.billed[event.profile] += 1;
       const day = usageDayKey(now);
       this.local = { day, count: (this.local.day === day ? this.local.count : 0) + 1 };
     }
@@ -208,27 +257,31 @@ export class AiUsageTracker {
 
   private async doFlush(now: number): Promise<void> {
     this.lastFlush = now;
+    const bucket = this.bucket;
+    if (!bucket) {
+      this.pending = [];
+      return;
+    }
     const batch = this.pending;
     if (batch.length === 0) return;
     this.pending = [];
     const day = usageDayKey(now);
     try {
       for (let attempt = 0; attempt < 8; attempt += 1) {
-        const { doc, etag } = await readDay(this.bucket, day);
+        const { doc, etag } = await readDay(bucket, day);
         for (const event of batch) {
           doc.total += 1;
           doc.byOutcome[event.outcome] += 1;
           doc.byProfile[event.profile] += 1;
+          // Legacy documents (null) keep no split: it cannot be reconstructed, so it stays unknown.
+          if (doc.byProfileBilled && isBillableOutcome(event.outcome))
+            doc.byProfileBilled[event.profile] += 1;
         }
         doc.updatedAt = new Date(now).toISOString();
-        const written = await this.bucket.put(
-          `${AI_USAGE_PREFIX}${day}.json`,
-          JSON.stringify(doc),
-          {
-            httpMetadata: { contentType: "application/json; charset=utf-8" },
-            onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
-          },
-        );
+        const written = await bucket.put(`${AI_USAGE_PREFIX}${day}.json`, JSON.stringify(doc), {
+          httpMetadata: { contentType: "application/json; charset=utf-8" },
+          onlyIf: etag ? { etagMatches: etag } : { etagDoesNotMatch: "*" },
+        });
         if (written !== null) {
           this.cachedTotal = { day, total: this.billable(doc), at: now };
           return;
@@ -242,16 +295,43 @@ export class AiUsageTracker {
     }
   }
 
+  /**
+   * What this isolate has served today, in the same shape the stored counters use. This is the
+   * figure the cap falls back to without storage, so monitoring can show it when no bucket is bound.
+   */
+  isolateToday(now: number = Date.now()): {
+    billable: number;
+    byProfile: Record<AiUsageProfile, number>;
+    byProfileBilled: Record<AiUsageProfile, number>;
+  } {
+    const day = usageDayKey(now);
+    return {
+      billable: this.local.day === day ? this.local.count : 0,
+      byProfile:
+        this.localProfiles.day === day
+          ? { ...this.localProfiles.byProfile }
+          : emptyDay(day).byProfile,
+      byProfileBilled:
+        this.localProfiles.day === day
+          ? { ...this.localProfiles.billed }
+          : emptyDay(day).byProfile,
+    };
+  }
+
   /** Pending events not yet flushed (for the admin view so counts are not under-reported). */
   pendingCount(): number {
     return this.pending.length;
   }
 }
 
+/** Storage-less tracker: counts per isolate only, so a missing binding never means unlimited AI. */
+const unboundTracker = new AiUsageTracker(null);
+
 const trackers = new WeakMap<object, AiUsageTracker>();
 
 /** One tracker per bucket object so batching spans requests within an isolate. */
-export function usageTrackerFor(bucket: ObjectBucket): AiUsageTracker {
+export function usageTrackerFor(bucket: ObjectBucket | null | undefined): AiUsageTracker {
+  if (!bucket) return unboundTracker;
   let tracker = trackers.get(bucket as object);
   if (!tracker) {
     tracker = new AiUsageTracker(bucket);

@@ -74,13 +74,19 @@ import {
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { extractResumeText } from "./lib/resume-extraction";
-import { aiEnvFrom, describeAiProvider, resolveAiProvider } from "./lib/ai-provider";
+import {
+  aiEnvFrom,
+  correlationRequestId,
+  describeAiProvider,
+  resolveAiProvider,
+} from "./lib/ai-provider";
 import {
   outcomeForChatStatus,
   parseDailyLimit,
   readAiUsage,
   usageDayKey,
   usageTrackerFor,
+  AI_USAGE_PROFILES,
   type AiUsageProfile,
 } from "./lib/ai-usage";
 import { summarizeAiBudget, summarizeProfileStorage } from "./lib/profile-storage";
@@ -92,6 +98,7 @@ import {
   classifyAdminEvent,
   enqueueEvent,
   eventsCheck,
+  eventsSummary,
   aggregateLoginFailure,
   emissionAllowed,
   flushEvents,
@@ -2636,6 +2643,28 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
       usage: [],
     },
   };
+  {
+    // Without storage the cap applies per isolate; show that same figure so monitoring agrees with
+    // what the budget check enforces. Replaced by the stored view below when storage is readable.
+    const isolate = usageTrackerFor(bucket).isolateToday();
+    const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
+    const day = usageDayKey(Date.now());
+    (report["ai"] as Record<string, unknown>)["budget"] = {
+      day,
+      limit,
+      billableToday: isolate.billable,
+      remaining: limit === null ? null : Math.max(0, limit - isolate.billable),
+      byProfile: isolate.byProfile,
+      byProfileBilled: isolate.byProfileBilled,
+      byProfileRefused: Object.fromEntries(
+        AI_USAGE_PROFILES.map((p) => [
+          p,
+          Math.max(0, isolate.byProfile[p] - isolate.byProfileBilled[p]),
+        ]),
+      ),
+      scope: "isolate",
+    };
+  }
   if (bucket) {
     const tracker = usageTrackerFor(bucket);
     try {
@@ -2651,13 +2680,17 @@ async function handleMonitoringApi(request: Request, env: unknown): Promise<Resp
             : "r2",
       };
       report["recovery"] = await storageRecoveryStatus(bucket);
+      report["asaaEvents"] = await eventsSummary(bucket, resolveEventsConfig(env));
       const usage = await readAiUsage(bucket, 7);
       const limit = parseDailyLimit(aiEnv["PORTFOLIO_AI_DAILY_LIMIT"]);
       report["ai"] = {
         ...(report["ai"] as Record<string, unknown>),
         pendingUnsaved: tracker.pendingCount(),
         usage,
-        budget: summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
+        budget: {
+          ...summarizeAiBudget(usage[0], usageDayKey(Date.now()), limit),
+          scope: "storage",
+        },
       };
       // Media and documents per profile, from the private indexes (the source of truth).
       const [imageIndex, resumeIndex] = await Promise.all([
@@ -2778,6 +2811,24 @@ async function readContentDocument(
   profileId: ContentProfileId,
 ): Promise<ContentDocument> {
   return (await readContentDocumentVersioned(bucket, profileId)).doc;
+}
+
+/**
+ * Request-scoped reader: each profile's content document is read at most once per request, so a
+ * project page view does not hit storage repeatedly. The memo lives only as long as the request
+ * (no cross-request cache), so an unpublish is visible on the very next request.
+ */
+type ScopedContentReader = (profileId: ContentProfileId) => Promise<ContentDocument>;
+function createScopedContentReader(bucket: PrivateBucket): ScopedContentReader {
+  const reads = new Map<ContentProfileId, Promise<ContentDocument>>();
+  return (profileId) => {
+    let read = reads.get(profileId);
+    if (!read) {
+      read = readContentDocument(bucket, profileId);
+      reads.set(profileId, read);
+    }
+    return read;
+  };
 }
 
 async function handleContentApi(request: Request, env: unknown): Promise<Response | null> {
@@ -3094,7 +3145,11 @@ async function handleStorageMigration(request: Request, env: unknown): Promise<R
  * in neither the curated data nor the published CMS projects (or is archived)
  * returns a real 404 for crawlers and direct loads.
  */
-async function personProjectExists(path: string, env: unknown): Promise<boolean | null> {
+async function personProjectExists(
+  path: string,
+  env: unknown,
+  readContent?: ScopedContentReader,
+): Promise<boolean | null> {
   const personMatch = /^\/people\/([a-z]+)\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
   const rootMatch = /^\/projects\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
   if (!personMatch && !rootMatch) return null;
@@ -3104,7 +3159,9 @@ async function personProjectExists(path: string, env: unknown): Promise<boolean 
   const bucket = resolvePrivateBucket(env);
   if (bucket && isContentProfileId(person)) {
     try {
-      const content = publishedContent(await readContentDocument(bucket, person));
+      const content = publishedContent(
+        await (readContent ?? ((id) => readContentDocument(bucket, id)))(person),
+      );
       const edit = content?.projects?.find((project) => project.slug === slug);
       if (edit) {
         if (edit.archived) archived = true;
@@ -3182,6 +3239,8 @@ function reportAdminEvent(input: {
   who: AdminActor;
   auditId: string | undefined;
   ssoOutcome: SsoOutcome | undefined;
+  /** Correlation id of the request (X-Request-ID); falls back to the request header. */
+  requestId?: string | undefined;
 }): void {
   const bucket = resolvePrivateBucket(input.env);
   if (!bucket) return;
@@ -3235,7 +3294,7 @@ function reportAdminEvent(input: {
     type,
     severity,
     ...(subject ? { subject } : {}),
-    correlationId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+    correlationId: input.requestId ?? correlationRequestId(request.headers.get("x-request-id")),
     data,
   });
   runInBackground(
@@ -3387,6 +3446,7 @@ export default {
           who,
           auditId,
           ssoOutcome,
+          requestId: securedResponse.headers.get("x-request-id") ?? undefined,
         });
       }
     }
@@ -3403,6 +3463,7 @@ async function withPublishedSeo(
   response: Response,
   path: string,
   env: unknown,
+  readContent?: ScopedContentReader,
 ): Promise<Response | null> {
   if (!(response.headers.get("content-type") ?? "").toLowerCase().includes("text/html"))
     return null;
@@ -3410,7 +3471,9 @@ async function withPublishedSeo(
   const bucket = resolvePrivateBucket(env);
   if (!target || !bucket) return null;
   try {
-    const published = publishedContent(await readContentDocument(bucket, target.profileId));
+    const published = publishedContent(
+      await (readContent ?? ((id) => readContentDocument(bucket, id)))(target.profileId),
+    );
     const siteName =
       target.profileId === "abhishek"
         ? "Guda Abhishek"
@@ -3563,7 +3626,49 @@ async function handleServiceManifest(
   return jsonResponse(manifest, 200, { "cache-control": "no-store" });
 }
 
-async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+/**
+ * ASAA correlation contract (E2:D0.4): every response carries X-Request-ID. A valid incoming value is
+ * reused, otherwise one is generated, and the same id is placed on the request the handlers see so
+ * the AI provider call and any ASAA event raised by this request carry it too. Immutable static
+ * assets (cache-control: immutable) are left untouched so a per-request id never lands in a cache.
+ */
+async function routeRequest(
+  request: Request,
+  env: unknown,
+  ctx: unknown,
+): Promise<Response> {
+  const incoming = request.headers.get("x-request-id");
+  const requestId = correlationRequestId(incoming);
+  let correlated = request;
+  if (incoming !== requestId) {
+    const headers = new Headers(request.headers);
+    headers.set("x-request-id", requestId);
+    correlated = new Request(request, { headers });
+    const runtime = (request as unknown as { runtime?: unknown }).runtime;
+    if (runtime !== undefined) {
+      (correlated as unknown as { runtime?: unknown }).runtime = runtime;
+    }
+  }
+  const response = await routeRequestInner(correlated, env, ctx);
+  if ((response.headers.get("cache-control") ?? "").toLowerCase().includes("immutable")) {
+    return response;
+  }
+  const wrapped = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+  wrapped.headers.set("x-request-id", requestId);
+  const sso = ssoOutcomes.get(response);
+  if (sso) ssoOutcomes.set(wrapped, sso);
+  return wrapped;
+}
+
+async function routeRequestInner(
+  request: Request,
+  env: unknown,
+  ctx: unknown,
+): Promise<Response> {
   {
     const path = normalizedPath(request);
     const seoResponse = await handleSeoRoutes(request, env);
@@ -3654,7 +3759,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       request = contextualRequest;
       const aiEnv = aiEnvFrom(env, typeof process !== "undefined" ? process.env : undefined);
       const usageBucket = resolvePrivateBucket(env);
-      const tracker = usageBucket ? usageTrackerFor(usageBucket) : undefined;
+      const tracker = usageTrackerFor(usageBucket);
       const usageProfile = await chatUsageProfile(request);
       if (tracker && resolveAiProvider(aiEnv)) {
         const budget = await tracker.checkBudget(
@@ -3705,8 +3810,10 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
       const response = await normalizeCatastrophicSsrResponse(
         await handler.fetch(request, env, ctx),
       );
+      const scopedBucket = resolvePrivateBucket(env);
+      const readContent = scopedBucket ? createScopedContentReader(scopedBucket) : undefined;
       if (request.method === "GET" && response.status === 200) {
-        const exists = await personProjectExists(path, env);
+        const exists = await personProjectExists(path, env, readContent);
         if (exists === false) {
           return new Response(response.body, {
             status: 404,
@@ -3716,7 +3823,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
         }
       }
       if (!isAdmin && request.method === "GET" && response.status === 200) {
-        const seoResponse = await withPublishedSeo(response, path, env);
+        const seoResponse = await withPublishedSeo(response, path, env, readContent);
         if (seoResponse) return seoResponse;
       }
       return isAdmin ? withNoindex(response) : response;
