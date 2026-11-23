@@ -72,7 +72,12 @@ export type AiBudgetReport = {
   /** Requests that reached the provider today, across all profiles (the cap is shared). */
   billableToday: number;
   remaining: number | null;
+  /** Every attempt per profile, including refused and invalid ones (kept for compatibility). */
   byProfile: Record<AiUsageProfile, number>;
+  /** Per profile, the requests counted against the cap; sums to billableToday. null for older data. */
+  byProfileBilled: Record<AiUsageProfile, number> | null;
+  /** Per profile, attempts the cap does not count (refused, rate-limited, invalid). null for older data. */
+  byProfileRefused: Record<AiUsageProfile, number> | null;
 };
 
 /** Today's budget position plus the per-profile request counters. */
@@ -83,6 +88,9 @@ export function summarizeAiBudget(
 ): AiBudgetReport {
   const doc = today && today.day === day ? today : undefined;
   const billableToday = doc ? doc.byOutcome.ok + doc.byOutcome.upstream_error : 0;
+  const billed: Record<AiUsageProfile, number> | null = doc
+    ? doc.byProfileBilled
+    : (Object.fromEntries(AI_USAGE_PROFILES.map((p) => [p, 0])) as Record<AiUsageProfile, number>);
   return {
     day,
     limit,
@@ -91,5 +99,11 @@ export function summarizeAiBudget(
     byProfile: Object.fromEntries(
       AI_USAGE_PROFILES.map((p) => [p, doc ? doc.byProfile[p] : 0]),
     ) as Record<AiUsageProfile, number>,
+    byProfileBilled: billed,
+    byProfileRefused: billed
+      ? (Object.fromEntries(
+          AI_USAGE_PROFILES.map((p) => [p, Math.max(0, (doc?.byProfile[p] ?? 0) - billed[p])]),
+        ) as Record<AiUsageProfile, number>)
+      : null,
   };
 }
