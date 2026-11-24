@@ -1,8 +1,9 @@
 /**
  * Producer for ASAA ecosystem events (contracts/asaa-ecosystem/v1/event-envelope.schema.json).
  *
- * DISABLED BY DEFAULT: nothing is built, stored or sent unless ASAA_EVENTS_URL, ASAA_EVENTS_TOKEN and
- * ASAA_ORG_ID are all set. The events carry action metadata only (event type, outcome, HTTP status,
+ * DISABLED BY DEFAULT: nothing is built, stored or sent unless ASAA_EVENTS_URL and ASAA_ORG_ID are set
+ * together with either ASAA_EVENTS_TOKEN or the client-credentials set (ASAA_EVENTS_TOKEN_URL,
+ * ASAA_EVENTS_CLIENT_SECRET, ASAA_EVENTS_CLIENT_ID default portfolio-events). The events carry action metadata only (event type, outcome, HTTP status,
  * resource/profile ids, an opaque actor id): never resume, image or profile content and no personal
  * data. Delivery is POST `${ASAA_EVENTS_URL}/api/v1/integration/events` with a Bearer token and an
  * X-Request-ID; the envelope id is the idempotency key, so a 409 means "already delivered".
@@ -14,9 +15,18 @@
  */
 import { isSecureOrLoopbackUrl } from "./oidc";
 
+export interface EventsClientCredentials {
+  tokenUrl: string;
+  clientId: string;
+  clientSecret: string;
+}
+
 export interface EventsConfig {
   url: string;
-  token: string;
+  /** Static bearer token: used only when no client-credentials set is configured. */
+  token: string | null;
+  /** OAuth client-credentials (service account). Wins over the static token. */
+  credentials?: EventsClientCredentials;
   orgId: string;
 }
 
@@ -50,11 +60,75 @@ function setting(env: unknown, name: string): string | undefined {
 
 export function resolveEventsConfig(env: unknown): EventsConfig | null {
   const url = setting(env, "ASAA_EVENTS_URL");
-  const token = setting(env, "ASAA_EVENTS_TOKEN");
+  const token = setting(env, "ASAA_EVENTS_TOKEN") ?? null;
   const orgId = setting(env, "ASAA_ORG_ID");
-  if (!url || !token || !orgId || orgId.length > 128) return null;
+  if (!url || !orgId || orgId.length > 128) return null;
   if (!isSecureOrLoopbackUrl(url)) return null;
-  return { url: url.replace(/\/+$/, ""), token, orgId };
+  const tokenUrl = setting(env, "ASAA_EVENTS_TOKEN_URL");
+  const clientSecret = setting(env, "ASAA_EVENTS_CLIENT_SECRET");
+  const clientId = setting(env, "ASAA_EVENTS_CLIENT_ID") ?? "portfolio-events";
+  const base = { url: url.replace(/\/+$/, ""), orgId };
+  if (tokenUrl || clientSecret) {
+    // A half-configured client-credentials set disables delivery; it never silently uses the static token.
+    if (!tokenUrl || !clientSecret || clientId.length > 128 || !isSecureOrLoopbackUrl(tokenUrl))
+      return null;
+    return { ...base, token, credentials: { tokenUrl, clientId, clientSecret } };
+  }
+  if (!token) return null;
+  return { ...base, token };
+}
+
+const TOKEN_REFRESH_SKEW_MS = 30_000;
+const TOKEN_TIMEOUT_MS = 5_000;
+const tokenCache = new Map<string, { accessToken: string; refreshAt: number }>();
+
+/** Test hook: forget cached service-account tokens. */
+export function resetEventsTokenCache(): void {
+  tokenCache.clear();
+}
+
+/**
+ * Bearer token for delivery: a cached client-credentials token (refreshed shortly before expiry),
+ * or the static token. Returns null when none can be obtained; the secret is never logged or thrown.
+ */
+async function bearerToken(
+  config: EventsConfig,
+  fetchFn: typeof fetch,
+  now: number,
+): Promise<string | null> {
+  const creds = config.credentials;
+  if (!creds) return config.token;
+  const key = `${creds.tokenUrl}|${creds.clientId}`;
+  const hit = tokenCache.get(key);
+  if (hit && now < hit.refreshAt && now >= hit.refreshAt - 86_400_000) return hit.accessToken;
+  try {
+    const response = await fetchFn(creds.tokenUrl, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+      }).toString(),
+      redirect: "error",
+      signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      return null;
+    }
+    const body = (await response.json()) as { access_token?: unknown; expires_in?: unknown };
+    if (typeof body.access_token !== "string" || !body.access_token) return null;
+    const expiresIn =
+      typeof body.expires_in === "number" && Number.isFinite(body.expires_in) && body.expires_in > 0
+        ? body.expires_in
+        : 60;
+    const refreshAt = now + Math.max(expiresIn * 1000 - TOKEN_REFRESH_SKEW_MS, 1000);
+    tokenCache.set(key, { accessToken: body.access_token, refreshAt });
+    return body.access_token;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -407,6 +481,59 @@ export async function eventsCheck(
   }
 }
 
+/**
+ * Counters-only view of the outbox for /api/admin/monitoring. `deadLettered` is the running count of
+ * events that were discarded (rejected as invalid, retries exhausted, or evicted at the cap); the
+ * envelopes themselves are not retained or exposed. Never contains URLs, tokens or event payloads.
+ */
+export async function eventsSummary(
+  bucket: OutboxBucket,
+  config: EventsConfig | null,
+): Promise<{
+  enabled: boolean;
+  pending: number;
+  retrying: number;
+  deadLettered: number;
+  lost: number;
+  capacity: number;
+  state: "ok" | "degraded" | "down" | "disabled";
+}> {
+  const state = await eventsCheck(config ? bucket : undefined, config);
+  if (!config) {
+    return {
+      enabled: false,
+      pending: 0,
+      retrying: 0,
+      deadLettered: 0,
+      lost: 0,
+      capacity: OUTBOX_MAX,
+      state,
+    };
+  }
+  try {
+    const { outbox } = await readOutbox(bucket);
+    return {
+      enabled: true,
+      pending: outbox.entries.length,
+      retrying: outbox.entries.filter((entry) => entry.attempts > 0).length,
+      deadLettered: outbox.dropped,
+      lost: (outbox.lost ?? 0) + pendingLost,
+      capacity: OUTBOX_MAX,
+      state,
+    };
+  } catch {
+    return {
+      enabled: true,
+      pending: -1,
+      retrying: 0,
+      deadLettered: 0,
+      lost: pendingLost,
+      capacity: OUTBOX_MAX,
+      state: "degraded",
+    };
+  }
+}
+
 type Delivery =
   | { kind: "delivered" | "drop" | "retry" | "stop" }
   /** 429: the receiver asked us to back off; not counted as a failed attempt. */
@@ -435,12 +562,14 @@ async function deliver(
   fetchFn: typeof fetch,
   now: number,
 ): Promise<Delivery> {
+  const bearer = await bearerToken(config, fetchFn, now);
+  if (!bearer) return { kind: "stop" }; // no credential available: keep queued and retry later
   try {
     const response = await fetchFn(`${config.url}/api/v1/integration/events`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${config.token}`,
+        authorization: `Bearer ${bearer}`,
         "x-request-id": envelope.correlationId ?? crypto.randomUUID(),
       },
       body: JSON.stringify(envelope),
@@ -457,7 +586,11 @@ async function deliver(
         retryAfterMs: parseRetryAfter(response.headers.get("retry-after"), now),
       };
     if (status === 400 || status === 413 || status === 422) return { kind: "drop" }; // never acceptable
-    if (status === 401 || status === 403 || status >= 500) return { kind: "stop" }; // endpoint or credential
+    if (status === 401 || status === 403 || status >= 500) {
+      if (config.credentials)
+        tokenCache.delete(`${config.credentials.tokenUrl}|${config.credentials.clientId}`);
+      return { kind: "stop" }; // endpoint or credential
+    }
     return { kind: "retry" };
   } catch {
     return { kind: "stop" }; // network error or timeout: stop the batch and retry later
