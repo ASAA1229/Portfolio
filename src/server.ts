@@ -162,7 +162,8 @@ function normalizedPath(request: Request): string {
   // Do not pass a still-encoded path to a downstream router with different
   // decoding behavior after the bounded canonicalization passes.
   if (/%[0-9a-f]{2}/i.test(pathname)) return "/__invalid_encoded_path__";
-  return pathname.toLowerCase().replace(/\/+$/, "") || "/";
+  // Collapse repeated slashes so "/api//admin/x" cannot slip past the admin boundary.
+  return pathname.toLowerCase().replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
 }
 
 function isAdminPath(pathname: string): boolean {
@@ -212,6 +213,35 @@ function withAdminSecurityHeaders(response: Response, requestUrl: string): Respo
   headers.append("content-security-policy", "frame-ancestors 'none'");
   if (new URL(requestUrl).protocol === "https:") {
     headers.set("strict-transport-security", "max-age=31536000");
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+// Baseline browser-security headers for public responses (the admin boundary adds stricter ones).
+// The CSP carries only directives that cannot break the app (no script-src), so it limits framing,
+// plugin content, base-tag injection and form posting without changing rendering.
+function withPublicSecurityHeaders(response: Response, requestUrl: string): Response {
+  if ((response.headers.get("cache-control") ?? "").toLowerCase().includes("immutable")) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  const setDefault = (name: string, value: string) => {
+    if (!headers.has(name)) headers.set(name, value);
+  };
+  setDefault("x-content-type-options", "nosniff");
+  setDefault("referrer-policy", "strict-origin-when-cross-origin");
+  setDefault("permissions-policy", "camera=(), microphone=(), geolocation=()");
+  setDefault("x-frame-options", "SAMEORIGIN");
+  setDefault(
+    "content-security-policy",
+    "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  );
+  if (new URL(requestUrl).protocol === "https:") {
+    setDefault("strict-transport-security", "max-age=31536000");
   }
   return new Response(response.body, {
     status: response.status,
@@ -3406,7 +3436,7 @@ export default {
     const response = await routeRequest(request, env, ctx);
     const securedResponse = isAdminPath(requestPath)
       ? withAdminSecurityHeaders(response, request.url)
-      : response;
+      : withPublicSecurityHeaders(response, request.url);
     // Unauthenticated probes return a private 404 and are not worth an audit entry.
     if (securedResponse.status !== 404) {
       const ssoOutcome = ssoOutcomes.get(response);
