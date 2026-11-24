@@ -312,9 +312,7 @@ export class AiUsageTracker {
           ? { ...this.localProfiles.byProfile }
           : emptyDay(day).byProfile,
       byProfileBilled:
-        this.localProfiles.day === day
-          ? { ...this.localProfiles.billed }
-          : emptyDay(day).byProfile,
+        this.localProfiles.day === day ? { ...this.localProfiles.billed } : emptyDay(day).byProfile,
     };
   }
 

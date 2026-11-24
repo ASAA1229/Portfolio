@@ -10,7 +10,8 @@ export function describeChatFailure(status: number, serverMessage: string): stri
     return "The portfolio's AI (JARVIS) is offline right now. Showing answers from the published profile instead.";
   }
   if (status === 403) return "This site is not allowed to answer for this profile right now.";
-  if (status === 401) return "The AI service is unavailable right now. Showing answers from the published profile instead.";
+  if (status === 401)
+    return "The AI service is unavailable right now. Showing answers from the published profile instead.";
   if (status === 429) return "The AI is busy right now. Please wait a moment and try again.";
   return `The AI request failed (HTTP ${status}).`;
 }

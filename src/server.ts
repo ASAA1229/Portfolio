@@ -163,7 +163,12 @@ function normalizedPath(request: Request): string {
   // decoding behavior after the bounded canonicalization passes.
   if (/%[0-9a-f]{2}/i.test(pathname)) return "/__invalid_encoded_path__";
   // Collapse repeated slashes so "/api//admin/x" cannot slip past the admin boundary.
-  return pathname.toLowerCase().replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+  return (
+    pathname
+      .toLowerCase()
+      .replace(/\/{2,}/g, "/")
+      .replace(/\/+$/, "") || "/"
+  );
 }
 
 function isAdminPath(pathname: string): boolean {
@@ -3662,11 +3667,7 @@ async function handleServiceManifest(
  * the AI provider call and any ASAA event raised by this request carry it too. Immutable static
  * assets (cache-control: immutable) are left untouched so a per-request id never lands in a cache.
  */
-async function routeRequest(
-  request: Request,
-  env: unknown,
-  ctx: unknown,
-): Promise<Response> {
+async function routeRequest(request: Request, env: unknown, ctx: unknown): Promise<Response> {
   const incoming = request.headers.get("x-request-id");
   const requestId = correlationRequestId(incoming);
   let correlated = request;
@@ -3694,11 +3695,7 @@ async function routeRequest(
   return wrapped;
 }
 
-async function routeRequestInner(
-  request: Request,
-  env: unknown,
-  ctx: unknown,
-): Promise<Response> {
+async function routeRequestInner(request: Request, env: unknown, ctx: unknown): Promise<Response> {
   {
     const path = normalizedPath(request);
     const seoResponse = await handleSeoRoutes(request, env);
