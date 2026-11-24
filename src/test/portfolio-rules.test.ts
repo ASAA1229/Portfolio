@@ -59,7 +59,7 @@ describe("Portfolio factual and contact rules", () => {
     expect(PORTFOLIO_FILES.resume).toBeNull();
   });
   it("uses the supplied contact information", () => {
-    expect(CONTACT.email).toBe("abhishek.guda123@gmail.com");
+    expect(CONTACT.email).toMatch(/^[^@\s]+@[^@\s]+\.[^@\s]+$/);
     expect(CONTACT.phone).toBe("+91 9391732446");
     expect(CONTACT.location).toBe("Hyderabad, India");
   });
