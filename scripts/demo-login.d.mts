@@ -1,3 +1,4 @@
+export const TEST_DATA_COMMENT: string;
 export function productionIndicators(env: Record<string, string | undefined>): string[];
 export function parseEnvFile(text: string, wanted?: string[]): Record<string, string>;
 export function readDemoIdentity(

@@ -24,6 +24,9 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const KEYS = ["DEMO_USER_EMAIL", "DEMO_USER_PASSWORD"];
+export const TEST_DATA_COMMENT =
+  "# TEMPORARY / TEST DATA – local demo admin login, never use in production"; // E3:D6.13
+const MANAGED_KEYS = ["PORTFOLIO_ADMIN_PASSWORD", "PORTFOLIO_ADMIN_SESSION_SECRET"];
 const MIN_PASSWORD_CHARS = 12; // the server rejects shorter admin passwords
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 
@@ -77,7 +80,9 @@ export function validateIdentity({ email, password }) {
   if (!email || !EMAIL.test(email))
     problems.push("DEMO_USER_EMAIL is missing or not a valid email address.");
   if (!password || Array.from(password).length < MIN_PASSWORD_CHARS)
-    problems.push(`DEMO_USER_PASSWORD is missing or shorter than ${MIN_PASSWORD_CHARS} characters.`);
+    problems.push(
+      `DEMO_USER_PASSWORD is missing or shorter than ${MIN_PASSWORD_CHARS} characters.`,
+    );
   if (password && /[\r\n]/.test(password))
     problems.push("DEMO_USER_PASSWORD must not contain line breaks.");
   return problems;
@@ -100,6 +105,18 @@ export function applyDemoSecrets(
   };
   set("PORTFOLIO_ADMIN_PASSWORD", password);
   if (!has("PORTFOLIO_ADMIN_SESSION_SECRET")) set("PORTFOLIO_ADMIN_SESSION_SECRET", newSecret());
+  // Label the managed keys: exactly one marker comment, directly above the first of them.
+  for (let i = lines.length - 1; i >= 0; i--)
+    if (lines[i] === TEST_DATA_COMMENT) lines.splice(i, 1);
+  lines.splice(
+    Math.min(
+      ...MANAGED_KEYS.map((name) => lines.findIndex((l) => l.startsWith(`${name}=`))).filter(
+        (i) => i >= 0,
+      ),
+    ),
+    0,
+    TEST_DATA_COMMENT,
+  );
   return `${lines.join("\n")}\n`;
 }
 
