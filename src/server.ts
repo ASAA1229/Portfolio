@@ -271,6 +271,40 @@ function jsonResponse(body: unknown, status: number, headers?: HeadersInit): Res
   });
 }
 
+function localAbortSignal(source: AbortSignal): AbortSignal {
+  // Recreate the signal in this runtime. Request objects can cross adapter/runtime
+  // boundaries (for example, the Node SSR adapter); passing a foreign AbortSignal
+  // directly to Node's Request constructor can fail its private-slot brand checks.
+  const controller = new AbortController();
+  if (source.aborted) controller.abort();
+  else source.addEventListener("abort", () => controller.abort(), { once: true });
+  return controller.signal;
+}
+
+/**
+ * Rebuild a request from standard fields rather than passing a possibly foreign
+ * Request object to another runtime's constructor. Preserve the body stream,
+ * cancellation and Cloudflare runtime bindings.
+ */
+export function requestWithHeaders(request: Request, headers: Headers): Request {
+  const init: RequestInit & { duplex?: "half" } = {
+    method: request.method,
+    headers,
+    redirect: request.redirect,
+    signal: localAbortSignal(request.signal),
+  };
+  if (request.body && request.method !== "GET" && request.method !== "HEAD") {
+    init.body = request.body;
+    init.duplex = "half";
+  }
+  const rebuilt = new Request(request.url, init);
+  const runtime = (request as unknown as { runtime?: unknown }).runtime;
+  if (runtime !== undefined) {
+    (rebuilt as unknown as { runtime?: unknown }).runtime = runtime;
+  }
+  return rebuilt;
+}
+
 export async function limitRequestBody(
   request: Request,
   maxBytes: number,
@@ -317,7 +351,7 @@ export async function limitRequestBody(
     offset += chunk.byteLength;
   }
   // Carry the abort signal over so a visitor disconnect still cancels upstream work.
-  return new Request(url, { method, headers, body, redirect, signal });
+  return new Request(url, { method, headers, body, redirect, signal: localAbortSignal(signal) });
 }
 
 function adminAuthBypassed(env: unknown): boolean {
@@ -3674,11 +3708,7 @@ async function routeRequest(request: Request, env: unknown, ctx: unknown): Promi
   if (incoming !== requestId) {
     const headers = new Headers(request.headers);
     headers.set("x-request-id", requestId);
-    correlated = new Request(request, { headers });
-    const runtime = (request as unknown as { runtime?: unknown }).runtime;
-    if (runtime !== undefined) {
-      (correlated as unknown as { runtime?: unknown }).runtime = runtime;
-    }
+    correlated = requestWithHeaders(request, headers);
   }
   const response = await routeRequestInner(correlated, env, ctx);
   if ((response.headers.get("cache-control") ?? "").toLowerCase().includes("immutable")) {
