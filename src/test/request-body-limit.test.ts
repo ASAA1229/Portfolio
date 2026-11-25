@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { limitRequestBody } from "@/server";
+import { limitRequestBody, requestWithHeaders } from "@/server";
 
 /**
  * Mimic srvx (the Node adapter behind `vite dev`/preview): it builds the real
@@ -37,6 +37,19 @@ describe("limitRequestBody", () => {
     const parsed = await (result as Request).formData();
     expect(parsed.get("profileId")).toBe("ammu");
     expect((parsed.get("file") as File).size).toBe(4);
+  });
+
+
+  it("rebuilds adapter requests without passing a foreign Request object to the constructor", async () => {
+    const source = lazyAdapterRequest("payload", { "content-type": "text/plain" });
+    const headers = new Headers(source.headers);
+    headers.set("x-request-id", "req_test_123");
+
+    const rebuilt = requestWithHeaders(source, headers);
+
+    expect(rebuilt.url).toBe("http://localhost/api/admin/images");
+    expect(rebuilt.headers.get("x-request-id")).toBe("req_test_123");
+    expect(await rebuilt.text()).toBe("payload");
   });
 
   it("rejects bodies that exceed the limit while streaming", async () => {
