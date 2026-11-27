@@ -39,7 +39,6 @@ describe("limitRequestBody", () => {
     expect((parsed.get("file") as File).size).toBe(4);
   });
 
-
   it("rebuilds adapter requests without passing a foreign Request object to the constructor", async () => {
     const source = lazyAdapterRequest("payload", { "content-type": "text/plain" });
     const headers = new Headers(source.headers);
