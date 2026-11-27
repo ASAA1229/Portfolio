@@ -37,3 +37,8 @@
 | Release acceptance | Not accepted; NO-GO | Close current CI, security, runtime and owner gates |
 
 A green `new` workflow must not be generalized to `dev`, `main`, physical devices or production acceptance. See [Project Status](docs/PROJECT_STATUS.md) and [Pending Work](PENDING_WORK_REGISTER.md).
+
+
+## Owner decision update — 2026-11-27
+
+Portfolio administrator-role decisions are owner-controlled and are considered complete. Remove them from any owner-blocker reporting; do not ask the owner to decide them again. Preserve existing profile access rules and privacy requirements. This decision update does not establish new implementation or test evidence and does not promote epic status.

@@ -156,3 +156,10 @@ Head at time of writing: `d36d9f6` ("make the suite resilient to load": concurre
 CI and artifact-integrity checks on `new` do not establish full profile-page and profile-switching acceptance, admin image/resume upload security, AI intro/chat runtime and API-key handling, responsive/accessibility acceptance, or hosting/deployment operations. These remain subject to exact-commit, runtime and owner validation.
 
 **Release status: NO-GO / NOT ACCEPTED** until current `dev` failures are resolved and all mandatory application, security, operational and owner-acceptance gates are evidenced.
+
+
+## Owner requirements reconciliation — 2026-11-27
+
+The owner has confirmed that Portfolio administrator-role decisions are settled and are not an open blocker. The existing personal portfolio scope, profile separation, restricted administrator access and per-profile-owner permissions remain in force. Preserve existing UI/features and private media/resume protections.
+
+This is a requirements clarification only; it does not assert new implementation, testing, CI or acceptance. Keep existing evidence and release status until verified against the current exact commit.

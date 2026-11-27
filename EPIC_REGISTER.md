@@ -42,3 +42,13 @@ Reconciliation rules:
 
 
 Project epic coverage: PORT-E01–E09. Apply the candidate domains as cross-cutting sub-epics/features where applicable; do not create duplicate epics or change existing development/testing/integration/acceptance values without new evidence.
+
+
+## Owner decision alignment — 2026-11-27
+
+- Administrator-role decisions are settled by the owner; they are not pending blockers.
+- Preserve the current profile model, profile isolation, restricted secondary-admin permissions and per-profile-owner content boundaries.
+- Preserve the existing personal portfolio scope and UI direction; do not expand into multi-tenant SaaS or paid services without approval.
+- Maintain privacy for uploaded images, resumes and profile data.
+
+No epic status is changed by this requirements note. Keep existing IDs and evidence; only update delivery states after current verification.

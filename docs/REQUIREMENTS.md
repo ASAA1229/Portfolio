@@ -2462,3 +2462,13 @@ The authoritative actionable backlog is now maintained in [USER_STORIES.md](USER
 ### Release decision
 
 The product is **not ready for production release** until every P0 gate is closed, P1 acceptance is complete, all four profiles are signed off, the exact candidate has green engineering/security/quality evidence, and the owner explicitly approves release. This backlog update is documentation-only and does not resume validation or authorize deployment.
+
+
+## Owner decision update — 2026-11-27
+
+- Preserve the existing personal portfolio product, profile structure, visual direction and completed work; do not restart or convert it into a multi-tenant SaaS.
+- Portfolio administrator-role decisions belong to the owner and are considered decided. Do not track them as an open owner blocker or reopen them without a new request.
+- Preserve profile separation and the existing permission boundary: the owner retains full administration; other administrators have restricted permissions; each profile owner manages only their own permitted profile/content.
+- Keep private media and resume handling protected. Do not expose private uploads or profile data through public routes.
+- Keep local/free operation where practical and do not add paid infrastructure or AI services without explicit owner approval.
+- Existing project features, profile content, design choices and integration history remain the baseline; any new scope must be recorded separately rather than replacing existing work.
