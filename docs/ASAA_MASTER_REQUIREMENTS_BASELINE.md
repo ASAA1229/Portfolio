@@ -64,3 +64,17 @@ Gates: G0 baseline, G1 design, G2 implementation, G3 verification, G4 operationa
 - Personal projects are unpaid close-friend/family work only when explicitly called personal; otherwise treat as professional/paid.
 - No paid service or ongoing cost without explicit approval. Templates remains zero-cost by default.
 - Baseline approval is not implementation authorization.
+
+
+## Cross-project owner decision reconciliation — 2026-11-27
+
+The current organization-wide decisions are governed by ASAA1229/organization: docs/OWNER_DECISIONS_AND_EXECUTION_BASELINE.md and docs/requirements/MASTER_REQUIREMENTS_BASELINE.md. This project must follow those current constraints where applicable:
+
+- Zero operating cost until investment; prefer free/local tooling and dummy data.
+- Systems remain locally deployed until the business is ready for production.
+- Centralized ASAA identity with local login and optional external SSO providers enabled individually when configured.
+- Hybrid centralized data architecture: central domain schemas by default; separate databases only when justified, connected through controlled APIs.
+- Local access by default, secure VPN for remote access, and selectively exposed public services.
+- No paid service activation without explicit owner approval. Jenkins is in use; Nexus is paid and intentionally paused.
+- Branch promotion timing belongs to the owner and is not a blocker.
+- Requirements approval does not prove implementation, testing, integration, acceptance or release. Preserve exact evidence and statuses.
